@@ -2236,11 +2236,32 @@ int CGraphics_Threaded::IssueInit()
 	return Result;
 }
 
+// TClient
+bool g_GraphicsForcedAspect = true;
+void CGraphics_Threaded::SetForcedAspect(bool Force)
+{
+	if(!IsBackendInitialized())
+		return;
+	if(g_GraphicsForcedAspect == Force)
+		return;
+	g_GraphicsForcedAspect = Force;
+	m_pBackend->GetViewportSize(m_ScreenWidth, m_ScreenHeight);
+	AdjustViewport(false);
+	UpdateViewport(0, 0, m_ScreenWidth, m_ScreenHeight, false);
+
+	// kick the command buffer and wait
+	KickCommandBuffer();
+	WaitForIdle();
+
+	for(auto &ResizeListener : m_vResizeListeners)
+		ResizeListener();
+}
+
 void CGraphics_Threaded::AdjustViewport(bool SendViewportChangeToBackend)
 {
 	// adjust the viewport to only allow certain aspect ratios
 	// keep this in sync with backend_vulkan GetSwapImageSize's check
-	if(m_ScreenHeight > 4 * m_ScreenWidth / 5)
+	if(m_ScreenHeight > 4 * m_ScreenWidth / 5 && g_GraphicsForcedAspect)
 	{
 		m_IsForcedViewport = true;
 		m_ScreenHeight = 4 * m_ScreenWidth / 5;

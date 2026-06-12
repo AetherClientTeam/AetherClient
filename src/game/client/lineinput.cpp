@@ -4,6 +4,11 @@
 
 #include "ui.h"
 
+#include <base/dbg.h>
+#include <base/mem.h>
+#include <base/str.h>
+
+#include <engine/external/tinyexpr.h>
 #include <engine/keys.h>
 #include <engine/shared/config.h>
 
@@ -692,6 +697,12 @@ void CLineInputNumber::SetInteger(int Number, int Base, int HexPrefix)
 
 int CLineInputNumber::GetInteger(int Base) const
 {
+	if(Base == 10)
+	{
+		double Result = te_interp(GetString(), nullptr);
+		if(std::isfinite(Result))
+			return (int)std::round(Result);
+	}
 	return str_toint_base(GetString(), Base);
 }
 
@@ -715,6 +726,12 @@ void CLineInputNumber::SetInteger64(int64_t Number, int Base, int HexPrefix)
 
 int64_t CLineInputNumber::GetInteger64(int Base) const
 {
+	if(Base == 10)
+	{
+		double Result = te_interp(GetString(), nullptr);
+		if(std::isfinite(Result))
+			return (int64_t)std::round(Result);
+	}
 	return str_toint64_base(GetString(), Base);
 }
 
@@ -728,5 +745,6 @@ void CLineInputNumber::SetFloat(float Number)
 
 float CLineInputNumber::GetFloat() const
 {
-	return str_tofloat(GetString());
+	// return str_tofloat(GetString());
+	return (float)te_interp(GetString(), nullptr);
 }

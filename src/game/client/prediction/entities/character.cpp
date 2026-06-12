@@ -489,10 +489,7 @@ void CCharacter::FireWeapon()
 
 	if(!m_ReloadTimer)
 	{
-		float FireDelay;
-		GetTuning(GetOverriddenTuneZone())->Get(offsetof(CTuningParams, m_HammerFireDelay) / sizeof(CTuneParam) + m_Core.m_ActiveWeapon, &FireDelay);
-
-		m_ReloadTimer = FireDelay * GameWorld()->GameTickSpeed() / 1000;
+		m_ReloadTimer = GetTuning(GetOverriddenTuneZone())->GetWeaponFireDelay(m_Core.m_ActiveWeapon) * GameWorld()->GameTickSpeed();
 	}
 }
 
@@ -1077,6 +1074,14 @@ void CCharacter::DDRaceTick()
 		}
 		if(m_FreezeTime == 1)
 			Unfreeze();
+
+		m_AliveAccumulation = std::min(m_AliveAccumulation - 1, 0);
+		m_AliveAccumulation = std::max(m_AliveAccumulation, -g_Config.m_TcUnfreezeLagDelayTicks);
+	}
+	else
+	{
+		m_AliveAccumulation = std::max(m_AliveAccumulation, 1);
+		m_AliveAccumulation = std::min(m_AliveAccumulation + 1, g_Config.m_TcUnfreezeLagDelayTicks);
 	}
 
 	HandleTuneLayer();
@@ -1095,6 +1100,14 @@ void CCharacter::DDRaceTick()
 			m_Core.m_IsInFreeze = true;
 			break;
 		}
+	}
+	if(m_Core.m_IsInFreeze && IsGrounded())
+	{
+		m_FreezeAccumulation = std::min(m_FreezeAccumulation + 1, g_Config.m_TcUnfreezeLagDelayTicks);
+	}
+	else
+	{
+		m_FreezeAccumulation = std::min(m_FreezeAccumulation, m_FreezeTime);
 	}
 	m_Core.m_IsInFreeze |= (Collision()->GetCollisionAt(m_Pos.x + GetProximityRadius() / 3.f, m_Pos.y - GetProximityRadius() / 3.f) == TILE_DEATH ||
 				Collision()->GetCollisionAt(m_Pos.x + GetProximityRadius() / 3.f, m_Pos.y + GetProximityRadius() / 3.f) == TILE_DEATH ||
@@ -1502,9 +1515,7 @@ void CCharacter::Read(CNetObj_Character *pChar, CNetObj_DDNetCharacter *pExtende
 	{
 		if(maximum(m_LastTuneZoneTick, m_LastWeaponSwitchTick) + GameWorld()->GameTickSpeed() < GameWorld()->GameTick())
 		{
-			float FireDelay;
-			GetTuning(GetOverriddenTuneZone())->Get(offsetof(CTuningParams, m_HammerFireDelay) / sizeof(CTuneParam) + m_Core.m_ActiveWeapon, &FireDelay);
-			const int FireDelayTicks = FireDelay * GameWorld()->GameTickSpeed() / 1000;
+			const int FireDelayTicks = GetTuning(GetOverriddenTuneZone())->GetWeaponFireDelay(m_Core.m_ActiveWeapon) * GameWorld()->GameTickSpeed();
 			m_ReloadTimer = maximum(0, m_AttackTick + FireDelayTicks - GameWorld()->GameTick());
 		}
 	}

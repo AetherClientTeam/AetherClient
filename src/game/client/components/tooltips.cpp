@@ -1,5 +1,7 @@
 #include "tooltips.h"
 
+#include <base/time.h>
+
 #include <game/client/ui.h>
 
 CTooltips::CTooltips()
@@ -23,6 +25,17 @@ inline void CTooltips::ClearActiveTooltip()
 {
 	m_ActiveTooltip.reset();
 	m_PreviousTooltip.reset();
+}
+
+// TClient
+void CTooltips::SetFadeTime(const void *pId, float Time)
+{
+	uintptr_t Id = reinterpret_cast<uintptr_t>(pId);
+	const auto It = m_Tooltips.find(Id);
+	if(It != m_Tooltips.end())
+	{
+		It->second.m_FadeTime = Time;
+	}
 }
 
 void CTooltips::DoToolTip(const void *pId, const CUIRect *pNearRect, const char *pText, float WidthHint)
@@ -73,7 +86,10 @@ void CTooltips::OnRender()
 		m_PreviousTooltip.emplace(Tooltip);
 
 		// Delay tooltip until 1 second passed. Start fade-in in the last 0.25 seconds.
-		constexpr float SecondsBeforeFadeIn = 0.75f;
+		float SecondsBeforeFadeIn = 0.75f;
+
+		SecondsBeforeFadeIn = Tooltip.m_FadeTime;
+
 		const float SecondsSinceActivation = (time_get() - m_HoverTime) / (float)time_freq();
 		if(SecondsSinceActivation < SecondsBeforeFadeIn)
 			return;

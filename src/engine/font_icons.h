@@ -90,6 +90,9 @@ namespace FontIcon
 	inline const char *const USER = "\uF007";
 	inline const char *const VIDEO = "\uF03D";
 	inline const char *const XMARK = "\uF00D";
+
+	// TClient
+	inline const char *const ICON_USERS = "\xEF\x83\x80";
 }
 
 #endif

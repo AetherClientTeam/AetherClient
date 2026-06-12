@@ -16,6 +16,7 @@ struct CTooltip
 	const char *m_pText;
 	float m_WidthHint;
 	bool m_OnScreen; // used to know if the tooltip should be rendered.
+	float m_FadeTime = 0.75f;
 };
 
 /**
@@ -56,6 +57,9 @@ public:
 
 	void OnReset() override;
 	void OnRender() override;
+
+	// TClient
+	void SetFadeTime(const void *pId, float Time);
 };
 
 #endif

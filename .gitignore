@@ -7,6 +7,13 @@ data/
 !/docs/
 /docs/*
 !/docs/BASELINE.md
+!/docs/CLEAN_ROOM_POLICY.md
+!/docs/TCLIENT_INTEGRATION.md
+!/docs/mockups/
+!/docs/mockups/**
+!/docs/features/
+!/docs/features/**
+!/docs/BASELINE.md
 
 bundle/
 !/other/bundle/

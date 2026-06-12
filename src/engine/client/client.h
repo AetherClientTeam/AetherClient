@@ -134,6 +134,9 @@ class CClient : public IClient, public CDemoPlayer::IListener
 	bool m_aDidPostConnect[NUM_DUMMIES] = {false, false};
 	bool m_GenerateTimeoutSeed = true;
 
+	// TClient
+	std::array<bool, NUM_DUMMIES> m_aExecuteOnJoinDone = {};
+
 	char m_aCmdConnect[256] = "";
 	char m_aCmdPlayDemo[IO_MAX_PATH_LENGTH] = "";
 	char m_aCmdEditMap[IO_MAX_PATH_LENGTH] = "";
@@ -296,6 +299,7 @@ public:
 	// Send via the currently active client (main/dummy)
 	int SendMsgActive(CMsgPacker *pMsg, int Flags) override;
 
+	void SendTClientInfo(int Conn);
 	void SendInfo(int Conn);
 	void SendEnterGame(int Conn);
 	void SendReady(int Conn);
@@ -345,6 +349,7 @@ public:
 
 	void GetServerInfo(CServerInfo *pServerInfo) const override;
 	void ServerInfoRequest();
+	void SetCurrentServerInfo(const CServerInfo &ServerInfo);
 
 	void LoadDebugFont();
 
@@ -521,6 +526,7 @@ public:
 
 	IFriends *Foes() override { return &m_Foes; }
 
+	void GetSmoothFreezeTick(int *pSmoothTick, float *pSmoothIntraTick, float MixAmount) override;
 	void GetSmoothTick(int *pSmoothTick, float *pSmoothIntraTick, float MixAmount) override;
 
 	void AddWarning(const SWarning &Warning) override;

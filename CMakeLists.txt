@@ -22,11 +22,35 @@ else()
   message(FATAL_ERROR "Couldn't parse version from src/game/version.h")
 endif()
 
+set(DATA_VERSION_FILE "${CMAKE_BINARY_DIR}/data/data_version.txt")
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/data")
+
+file(WRITE "${DATA_VERSION_FILE}" "DDNet ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}\n")
+
+file(STRINGS src/game/version.h TCLIENT_VERSION_LINE
+  LIMIT_COUNT 1
+  REGEX "^#define TCLIENT_VERSION "
+)
+
+if(TCLIENT_VERSION_LINE MATCHES "([0-9]+)\\.([0-9]+)\\.([0-9]+)")
+  set(TCLIENT_VERSION_MAJOR ${CMAKE_MATCH_1})
+  set(TCLIENT_VERSION_MINOR ${CMAKE_MATCH_2})
+  set(TCLIENT_VERSION_PATCH ${CMAKE_MATCH_3})
+elseif(TCLIENT_VERSION_LINE MATCHES "([0-9]+)\\.([0-9]+)")
+  set(TCLIENT_VERSION_MAJOR ${CMAKE_MATCH_1})
+  set(TCLIENT_VERSION_MINOR ${CMAKE_MATCH_2})
+  set(TCLIENT_VERSION_PATCH "0")
+else()
+  message(FATAL_ERROR "Couldn't parse TClient version from src/game/version.h")
+endif()
+
 if(VERSION_PATCH STREQUAL "0")
   project(DDNet VERSION ${VERSION_MAJOR}.${VERSION_MINOR})
 else()
   project(DDNet VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 endif()
+
+file(APPEND "${DATA_VERSION_FILE}" "TClient ${TCLIENT_VERSION_MAJOR}.${TCLIENT_VERSION_MINOR}.${TCLIENT_VERSION_PATCH}\n")
 
 set(ORIGINAL_CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH})
 set(ORIGINAL_CMAKE_REQUIRED_INCLUDES ${CMAKE_REQUIRED_INCLUDES})
@@ -125,6 +149,11 @@ if(TARGET_OS STREQUAL "mac" AND DEFINED ENV{MACOS_APP_IDENTITY})
   set(MACOS_APP_IDENTITY "$ENV{MACOS_APP_IDENTITY}")
 endif()
 
+if(TARGET_OS STREQUAL "android")
+  set(DISCORD OFF)
+  set(STEAM OFF)
+endif()
+
 if(TARGET_OS STREQUAL "emscripten")
   include(${PROJECT_SOURCE_DIR}/cmake/toolchains/Emscripten.toolchain)
 endif()
@@ -172,7 +201,7 @@ if(NOT "${CMAKE_CURRENT_BINARY_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
 endif()
 
 set(SERVER_EXECUTABLE DDNet-Server CACHE STRING "Name of the built server executable")
-set(CLIENT_EXECUTABLE DDNet CACHE STRING "Name of the build client executable")
+set(CLIENT_EXECUTABLE Aether CACHE STRING "Name of the build client executable")
 
 ########################################################################
 # Compiler flags
@@ -286,8 +315,7 @@ if(NOT MSVC AND NOT HAIKU)
     endif()
   endif()
 
-  # Disable exceptions as DDNet does not use them.
-  add_cxx_compiler_flag_if_supported(OUR_FLAGS -fno-exceptions)
+  # TClient's ChaiScript integration requires C++ exceptions.
 
   # Inaccurate floating point numbers cause problems on mingw-w64-gcc when
   # compiling for x86, might cause problems elsewhere. So don't store floats
@@ -1394,6 +1422,35 @@ set(EXPECTED_DATA
   countryflags/VU.png
   countryflags/WF.png
   countryflags/WS.png
+  countryflags/X-AROACE.png
+  countryflags/X-BI.png
+  countryflags/X-BLACK.png
+  countryflags/X-BLUEKITTY.png
+  countryflags/X-BLUESTRIPE.png
+  countryflags/X-BROWNBEAR.png
+  countryflags/X-CAMMO.png
+  countryflags/X-CAMMOSTRIPES.png
+  countryflags/X-COALA.png
+  countryflags/X-ENTITY.png
+  countryflags/X-FINISH.png
+  countryflags/X-GAY.png
+  countryflags/X-LESBIAN.png
+  countryflags/X-LIMEKITTY.png
+  countryflags/X-PINKY.png
+  countryflags/X-PIRATE.png
+  countryflags/X-PROGRESS.png
+  countryflags/X-RAINBOW.png
+  countryflags/X-REDBOPP.png
+  countryflags/X-REDSTRIPE.png
+  countryflags/X-SADDO.png
+  countryflags/X-TOPTRI.png
+  countryflags/X-TOTAR.png
+  countryflags/X-TRANS.png
+  countryflags/X-TROLL.png
+  countryflags/X-TWINBOP.png
+  countryflags/X-TWINTRI.png
+  countryflags/X-WARPAINT.png
+  countryflags/X-WHITE.png
   countryflags/YE.png
   countryflags/ZA.png
   countryflags/ZM.png
@@ -1448,6 +1505,7 @@ set(EXPECTED_DATA
   fonts/DejaVuSans.ttf
   fonts/Font_Awesome_6_Free-Solid-900.otf
   fonts/GlowSansJ-Compressed-Book.otf
+  fonts/NotoEmoji-Regular.ttf
   fonts/SourceHanSans.ttc
   fonts/index.json
   game.png
@@ -1651,6 +1709,7 @@ set(EXPECTED_DATA
   skins/ghost.png
   skins/ghostjtj.png
   skins/giraffe.png
+  skins/glow_mermyfox.png
   skins/greensward.png
   skins/greyfox.png
   skins/greyfox_2.png
@@ -1708,6 +1767,7 @@ set(EXPECTED_DATA
   skins/santa_warpaint.png
   skins/teerasta.png
   skins/toptri.png
+  skins/tuzi.png
   skins/twinbop.png
   skins/twintri.png
   skins/veteran.png
@@ -1842,6 +1902,57 @@ set(EXPECTED_DATA
   skins7/x_ninja.json
   skins7/xmas_hat.png
   strong_weak.png
+  tclient/builtinscripts/sayemoticon.chai
+  tclient/fonts/Cabin-Regular.ttf
+  tclient/fonts/FreeSansBold.ttf
+  tclient/fonts/GoogleSans-Regular.ttf
+  tclient/fonts/Inter_24pt-Regular.ttf
+  tclient/fonts/Inter_24pt-SemiBold.ttf
+  tclient/fonts/Montserrat-Regular.ttf
+  tclient/fonts/Nunito-Black.ttf
+  tclient/fonts/Rubik-Regular.ttf
+  tclient/fonts/minecraft_font.ttf
+  tclient/gui_logo.png
+  tclient/languages/arabic.txt
+  tclient/languages/azerbaijani.txt
+  tclient/languages/belarusian.txt
+  tclient/languages/bosnian.txt
+  tclient/languages/brazilian_portuguese.txt
+  tclient/languages/bulgarian.txt
+  tclient/languages/catalan.txt
+  tclient/languages/chuvash.txt
+  tclient/languages/czech.txt
+  tclient/languages/danish.txt
+  tclient/languages/dutch.txt
+  tclient/languages/esperanto.txt
+  tclient/languages/estonian.txt
+  tclient/languages/finnish.txt
+  tclient/languages/french.txt
+  tclient/languages/galician.txt
+  tclient/languages/german.txt
+  tclient/languages/greek.txt
+  tclient/languages/hungarian.txt
+  tclient/languages/index.txt
+  tclient/languages/italian.txt
+  tclient/languages/japanese.txt
+  tclient/languages/korean.txt
+  tclient/languages/kyrgyz.txt
+  tclient/languages/license.txt
+  tclient/languages/norwegian.txt
+  tclient/languages/persian.txt
+  tclient/languages/polish.txt
+  tclient/languages/portuguese.txt
+  tclient/languages/romanian.txt
+  tclient/languages/russian.txt
+  tclient/languages/serbian.txt
+  tclient/languages/serbian_cyrillic.txt
+  tclient/languages/simplified_chinese.txt
+  tclient/languages/slovak.txt
+  tclient/languages/spanish.txt
+  tclient/languages/swedish.txt
+  tclient/languages/traditional_chinese.txt
+  tclient/languages/turkish.txt
+  tclient/languages/ukrainian.txt
   themes/auto.png
   themes/autumn.png
   themes/autumn_day.map
@@ -1863,7 +1974,7 @@ set(EXPECTED_DATA
   wordlist.txt
 )
 
-set_glob(DATA GLOB_RECURSE "cfg;frag;json;map;otf;png;rules;ttc;ttf;txt;vert;wv" data ${EXPECTED_DATA})
+set_glob(DATA GLOB_RECURSE "cfg;chai;frag;json;map;otf;png;rules;ttc;ttf;txt;vert;wv" data ${EXPECTED_DATA})
 
 ########################################################################
 # COPY DATA AND SHARED LIBS
@@ -2106,7 +2217,10 @@ set_src(ENGINE_SHARED GLOB_RECURSE src/engine/shared
   compression.h
   config.cpp
   config.h
+  config_domains.h
+  config_includes.h
   config_variables.h
+  config_variables_tclient.h
   console.cpp
   console.h
   csv.cpp
@@ -2186,6 +2300,21 @@ set_src(ENGINE_SHARED GLOB_RECURSE src/engine/shared
   websockets.cpp
   websockets.h
 )
+set_src(ENGINE_EXTERNAL GLOB src/engine/external
+  regex.cpp
+  regex.h
+  spt.cpp
+  spt.h
+  tinyexpr.cpp
+  tinyexpr.h
+)
+
+# ChaiScript for tclient
+file(GLOB_RECURSE ENGINE_EXTERNAL_CHAISCRIPT
+  "${PROJECT_SOURCE_DIR}/src/engine/external/chaiscript/*.hpp"
+)
+list(APPEND ENGINE_EXTERNAL ${ENGINE_EXTERNAL_CHAISCRIPT})
+
 set_src(ENGINE_GFX GLOB src/engine/gfx
   image.cpp
   image_loader.cpp
@@ -2267,7 +2396,7 @@ set(LIBS
 # Targets
 add_library(engine-gfx EXCLUDE_FROM_ALL OBJECT ${ENGINE_GFX})
 target_include_directories(engine-gfx PRIVATE ${PNG_INCLUDE_DIRS})
-add_library(engine-shared EXCLUDE_FROM_ALL OBJECT ${ENGINE_INTERFACE} ${ENGINE_SHARED} ${ENGINE_UUID_SHARED} ${BASE})
+add_library(engine-shared EXCLUDE_FROM_ALL OBJECT ${ENGINE_EXTERNAL} ${ENGINE_INTERFACE} ${ENGINE_SHARED} ${ENGINE_UUID_SHARED} ${BASE})
 add_library(game-shared EXCLUDE_FROM_ALL OBJECT ${GAME_SHARED} ${GAME_GENERATED_SHARED})
 add_dependencies(engine-shared generate_protocol)
 add_dependencies(game-shared generate_protocol)
@@ -2469,6 +2598,47 @@ if(CLIENT)
     components/spectator.h
     components/statboard.cpp
     components/statboard.h
+    components/tclient/bg_draw.cpp
+    components/tclient/bg_draw.h
+    components/tclient/bg_draw_file.cpp
+    components/tclient/bg_draw_file.h
+    components/tclient/bindchat.cpp
+    components/tclient/bindchat.h
+    components/tclient/bindwheel.cpp
+    components/tclient/bindwheel.h
+    components/tclient/colored_parts.h
+    components/tclient/custom_communities.cpp
+    components/tclient/custom_communities.h
+    components/tclient/data_version.h
+    components/tclient/menus_tclient.cpp
+    components/tclient/mod.cpp
+    components/tclient/mod.h
+    components/tclient/moving_tiles.cpp
+    components/tclient/moving_tiles.h
+    components/tclient/outlines.cpp
+    components/tclient/outlines.h
+    components/tclient/pet.cpp
+    components/tclient/pet.h
+    components/tclient/player_indicator.cpp
+    components/tclient/player_indicator.h
+    components/tclient/rainbow.cpp
+    components/tclient/rainbow.h
+    components/tclient/scripting.cpp
+    components/tclient/scripting.h
+    components/tclient/scripting/impl.cpp
+    components/tclient/scripting/impl.h
+    components/tclient/skinprofiles.cpp
+    components/tclient/skinprofiles.h
+    components/tclient/statusbar.cpp
+    components/tclient/statusbar.h
+    components/tclient/tclient.cpp
+    components/tclient/tclient.h
+    components/tclient/trails.cpp
+    components/tclient/trails.h
+    components/tclient/translate.cpp
+    components/tclient/translate.h
+    components/tclient/warlist.cpp
+    components/tclient/warlist.h
     components/tooltips.cpp
     components/tooltips.h
     components/touch_controls.cpp
@@ -2712,8 +2882,17 @@ if(CLIENT)
   target_link_libraries(game-client ${LIBS_CLIENT})
 
   if(MSVC)
+    target_compile_options(game-client PRIVATE /bigobj) # TClient, required for ChaiScript
     target_link_options(game-client PRIVATE /ENTRY:mainCRTStartup)
   endif()
+
+  if(WIN32 AND NOT MSVC)
+    target_compile_options(game-client PRIVATE -Wa,-mbig-obj) # TClient, required for ChaiScript
+  endif()
+
+  # Silence warnings from ChaiScript
+  target_include_directories(game-client SYSTEM PRIVATE
+    ${PROJECT_SOURCE_DIR}/src/engine/external/chaiscript)
 
   target_include_directories(game-client SYSTEM PRIVATE
     ${FREETYPE_INCLUDE_DIRS}
@@ -3347,7 +3526,6 @@ foreach(str ${CPACK_SOURCE_FILES_INVERTED})
   escape_backslashes(STR_ESCAPED "${PROJECT_SOURCE_DIR_ESCAPED}/${str}")
   list(APPEND CPACK_SOURCE_IGNORE_FILES "${STR_ESCAPED}")
 endforeach()
-
 set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME ${PROJECT_NAME})
 
 if(TOOLS)
@@ -3384,6 +3562,7 @@ endif()
 list(APPEND CPACK_DIRS ${COPY_DIRS})
 set(CPACK_FILES
   license.txt
+  steam_appid.txt
   ${COPY_FILES}
 )
 if(NOT TARGET_OS STREQUAL "emscripten")
@@ -3778,24 +3957,24 @@ foreach(target ${TARGETS_OWN})
   if(TEST_MYSQL)
     target_compile_definitions(${target} PRIVATE CONF_TEST_MYSQL)
   endif()
-  if(AUTOUPDATE AND NOT STEAM)
+  if(AUTOUPDATE)
     target_compile_definitions(${target} PRIVATE CONF_AUTOUPDATE)
   endif()
-  if(INFORM_UPDATE AND NOT STEAM)
+  if(INFORM_UPDATE)
     target_compile_definitions(${target} PRIVATE CONF_INFORM_UPDATE)
   endif()
-  if(STEAM)
-    target_compile_definitions(${target} PRIVATE PLATFORM_SUFFIX=-steam)
-  endif()
+  # if(STEAM)
+  #   target_compile_definitions(${target} PRIVATE PLATFORM_SUFFIX=-steam)
+  # endif()
   if(DISCORD)
     target_compile_definitions(${target} PRIVATE CONF_DISCORD)
     if(DISCORD_DYNAMIC)
       target_compile_definitions(${target} PRIVATE CONF_DISCORD_DYNAMIC)
     endif()
   endif()
-  if(VERSION)
-    target_compile_definitions(${target} PRIVATE GAME_RELEASE_VERSION_INTERNAL=${VERSION})
-  endif()
+  # if(VERSION)
+  #   target_compile_definitions(${target} PRIVATE GAME_RELEASE_VERSION_INTERNAL=${VERSION})
+  # endif()
   if(TARGET_OS STREQUAL "android")
     if(ANDROID_PACKAGE_NAME)
       target_compile_definitions(${target} PRIVATE ANDROID_PACKAGE_NAME="${ANDROID_PACKAGE_NAME}")

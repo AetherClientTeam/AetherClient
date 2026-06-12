@@ -1511,6 +1511,19 @@ bool CUi::DoScrollbarOption(const void *pId, int *pOption, const CUIRect *pRect,
 			Value = Max;
 	}
 
+	// Allow adjustment of slider options when ctrl is pressed (to avoid scrolling, or accidentally adjusting the value)
+	int Increment = std::max(1, (Max - Min) / 35);
+	if(Input()->ModifierIsPressed() && Input()->KeyPress(KEY_MOUSE_WHEEL_UP) && MouseInside(pRect))
+	{
+		Value += Increment;
+		Value = std::clamp(Value, Min, Max);
+	}
+	if(Input()->ModifierIsPressed() && Input()->KeyPress(KEY_MOUSE_WHEEL_DOWN) && MouseInside(pRect))
+	{
+		Value -= Increment;
+		Value = std::clamp(Value, Min, Max);
+	}
+
 	char aBuf[256];
 	if(!Infinite || Value != Max)
 		str_format(aBuf, sizeof(aBuf), "%s: %i%s", pStr, Value, pSuffix);
@@ -1572,7 +1585,7 @@ void CUi::RenderTime(CUIRect TimeRect, float FontSize, int Seconds, bool NotFini
 
 	char aBuf[128];
 
-	str_time(((int64_t)absolute(Seconds)) * 100, TIME_HOURS, aBuf, sizeof(aBuf));
+	str_time(((int64_t)absolute(Seconds)) * 100, ETimeFormat::HOURS, aBuf, sizeof(aBuf));
 
 	// align in vertical middle
 	vec2 Cursor = TimeRect.TopLeft();
@@ -1615,7 +1628,7 @@ void CUi::RenderTime(CUIRect TimeRect, float FontSize, int Seconds, bool NotFini
 	}
 	else
 	{
-		str_time(((int64_t)absolute(Seconds)) * 100, TIME_HOURS, aBuf, sizeof(aBuf));
+		str_time(((int64_t)absolute(Seconds)) * 100, ETimeFormat::HOURS, aBuf, sizeof(aBuf));
 		TextRender()->Text(Cursor.x, Cursor.y, FontSize, aBuf);
 	}
 }
@@ -1921,6 +1934,10 @@ CUi::EPopupMenuFunctionResult CUi::PopupSelection(void *pContext, CUIRect View, 
 	size_t Index = 0;
 	for(const auto &Entry : pSelectionPopup->m_vEntries)
 	{
+		// TClient
+		if(pSelectionPopup->m_SpecialFontRenderMode)
+			pUI->TextRender()->SetCustomFace(Entry.c_str());
+
 		if(pSelectionPopup->m_aMessage[0] != '\0' || Index != 0)
 			View.HSplitTop(pSelectionPopup->m_EntrySpacing, nullptr, &View);
 		View.HSplitTop(pSelectionPopup->m_EntryHeight, &Slot, &View);
@@ -1934,6 +1951,9 @@ CUi::EPopupMenuFunctionResult CUi::PopupSelection(void *pContext, CUIRect View, 
 		}
 		++Index;
 	}
+	// TClient
+	if(pSelectionPopup->m_SpecialFontRenderMode)
+		pUI->TextRender()->SetCustomFace(g_Config.m_TcCustomFont);
 
 	pScrollRegion->End();
 

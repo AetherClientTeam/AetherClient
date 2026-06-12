@@ -3,7 +3,11 @@
 
 #include "chat.h"
 
+#include <base/io.h>
+#include <base/time.h>
+
 #include <engine/editor.h>
+#include <engine/external/regex.h>
 #include <engine/graphics.h>
 #include <engine/keys.h>
 #include <engine/shared/config.h>
@@ -18,6 +22,7 @@
 #include <game/client/components/scoreboard.h>
 #include <game/client/components/skins.h>
 #include <game/client/components/sounds.h>
+#include <game/client/components/tclient/colored_parts.h>
 #include <game/client/gameclient.h>
 #include <game/localization.h>
 
@@ -40,6 +45,7 @@ void CChat::CLine::Reset(CChat &This)
 	m_Friend = false;
 	m_TimesRepeated = 0;
 	m_pManagedTeeRenderInfo = nullptr;
+	m_pTranslateResponse = nullptr;
 }
 
 CChat::CChat()
@@ -266,7 +272,12 @@ bool CChat::OnInput(const IInput::CEvent &Event)
 			m_ServerCommandsNeedSorting = false;
 		}
 
-		SendChatQueued(m_Input.GetString());
+		if(GameClient()->m_BindChat.ChatDoBinds(m_Input.GetString()))
+			; // Do nothing as bindchat was executed
+		else if(GameClient()->m_TClient.ChatDoSpecId(m_Input.GetString()))
+			; // Do nothing as specid was executed
+		else
+			SendChatQueued(m_Input.GetString());
 		m_pHistoryEntry = nullptr;
 		DisableMode();
 		GameClient()->OnRelease();
@@ -316,7 +327,10 @@ bool CChat::OnInput(const IInput::CEvent &Event)
 				});
 		}
 
-		if(m_aCompletionBuffer[0] == '/' && !m_vServerCommands.empty())
+		if(GameClient()->m_BindChat.ChatDoAutocomplete(ShiftPressed))
+		{
+		}
+		else if(m_aCompletionBuffer[0] == '/' && !m_vServerCommands.empty())
 		{
 			CCommand *pCompletionCommand = nullptr;
 
@@ -425,7 +439,7 @@ bool CChat::OnInput(const IInput::CEvent &Event)
 
 				// quote the name
 				char aQuoted[128];
-				if(m_Input.GetString()[0] == '/' && (str_find(pCompletionString, " ") || str_find(pCompletionString, "\"")))
+				if((m_Input.GetString()[0] == '/' || GameClient()->m_BindChat.CheckBindChat(m_Input.GetString())) && (str_find(pCompletionString, " ") || str_find(pCompletionString, "\"")))
 				{
 					// escape the name
 					str_copy(aQuoted, "\"");
@@ -546,6 +560,10 @@ void CChat::OnMessage(int MsgType, void *pRawMsg)
 	{
 		CNetMsg_Sv_Chat *pMsg = (CNetMsg_Sv_Chat *)pRawMsg;
 
+		auto &Re = GameClient()->m_TClient.m_RegexChatIgnore;
+		if(Re.error().empty() && Re.test(pMsg->m_pMessage))
+			return;
+
 		/*
 		if(g_Config.m_ClCensorChat)
 		{
@@ -627,7 +645,7 @@ void CChat::StoreSave(const char *pText)
 	str_truncate(aSaveCode, sizeof(aSaveCode), pMid + 13, (pOn ? pOn : pEnd) - pMid - 13);
 
 	char aTimestamp[20];
-	str_timestamp_format(aTimestamp, sizeof(aTimestamp), FORMAT_SPACE);
+	str_timestamp_format(aTimestamp, sizeof(aTimestamp), TimestampFormat::SPACE);
 
 	const bool SavesFileExists = Storage()->FileExists(SAVES_FILE, IStorage::TYPE_SAVE);
 	IOHANDLE File = Storage()->OpenFile(SAVES_FILE, IOFLAG_APPEND, IStorage::TYPE_SAVE);
@@ -658,6 +676,10 @@ void CChat::AddLine(int ClientId, int Team, const char *pLine)
 					  (GameClient()->m_Snap.m_LocalClientId != ClientId && g_Config.m_ClShowChatFriends && !GameClient()->m_aClients[ClientId].m_Friend) ||
 					  (GameClient()->m_Snap.m_LocalClientId != ClientId && g_Config.m_ClShowChatTeamMembersOnly && GameClient()->IsOtherTeam(ClientId) && GameClient()->m_Teams.Team(GameClient()->m_Snap.m_LocalClientId) != TEAM_FLOCK) ||
 					  (GameClient()->m_Snap.m_LocalClientId != ClientId && GameClient()->m_aClients[ClientId].m_Foe))))
+		return;
+
+	// TClient
+	if(ClientId == CLIENT_MSG && !g_Config.m_TcShowChatClient)
 		return;
 
 	// trim right and set maximum length to 256 utf8-characters
@@ -911,6 +933,9 @@ void CChat::AddLine(int ClientId, int Team, const char *pLine)
 			}
 		}
 	}
+
+	// TClient
+	GameClient()->m_Translate.AutoTranslate(CurrentLine);
 }
 
 void CChat::OnPrepareLines(float y)
@@ -987,6 +1012,33 @@ void CChat::OnPrepareLines(float y)
 			}
 		}
 
+		const CColoredParts ColoredParts(pText, Line.m_ClientId == CLIENT_MSG);
+		if(!ColoredParts.Colors().empty() && ColoredParts.Colors()[0].m_Index == 0)
+			Line.m_CustomColor = ColoredParts.Colors()[0].m_Color;
+		pText = ColoredParts.Text();
+
+		const char *pTranslatedError = nullptr;
+		const char *pTranslatedText = nullptr;
+		const char *pTranslatedLanguage = nullptr;
+		if(Line.m_pTranslateResponse != nullptr && Line.m_pTranslateResponse->m_Text[0])
+		{
+			// If hidden and there is translated text
+			if(pText != Line.m_aText)
+			{
+				pTranslatedError = TCLocalize("Translated text hidden due to streamer mode");
+			}
+			else if(Line.m_pTranslateResponse->m_Error)
+			{
+				pTranslatedError = Line.m_pTranslateResponse->m_Text;
+			}
+			else
+			{
+				pTranslatedText = Line.m_pTranslateResponse->m_Text;
+				if(Line.m_pTranslateResponse->m_Language[0] != '\0')
+					pTranslatedLanguage = Line.m_pTranslateResponse->m_Language;
+			}
+		}
+
 		// get the y offset (calculate it if we haven't done that yet)
 		if(Line.m_aYOffset[OffsetType] < 0.0f)
 		{
@@ -1024,7 +1076,32 @@ void CChat::OnPrepareLines(float y)
 				AppendCursor.m_LineWidth -= MeasureCursor.m_LongestLineWidth;
 			}
 
-			TextRender()->TextEx(&AppendCursor, pText);
+			if(pTranslatedText)
+			{
+				TextRender()->TextEx(&AppendCursor, pTranslatedText);
+				if(pTranslatedLanguage)
+				{
+					TextRender()->TextEx(&AppendCursor, " [");
+					TextRender()->TextEx(&AppendCursor, pTranslatedLanguage);
+					TextRender()->TextEx(&AppendCursor, "]");
+				}
+				TextRender()->TextEx(&AppendCursor, "\n");
+				AppendCursor.m_FontSize *= 0.8f;
+				TextRender()->TextEx(&AppendCursor, pText);
+				AppendCursor.m_FontSize /= 0.8f;
+			}
+			else if(pTranslatedError)
+			{
+				TextRender()->TextEx(&AppendCursor, pText);
+				TextRender()->TextEx(&AppendCursor, "\n");
+				AppendCursor.m_FontSize *= 0.8f;
+				TextRender()->TextEx(&AppendCursor, pTranslatedError);
+				AppendCursor.m_FontSize /= 0.8f;
+			}
+			else
+			{
+				TextRender()->TextEx(&AppendCursor, pText);
+			}
 
 			Line.m_aYOffset[OffsetType] = AppendCursor.Height() + RealMsgPaddingY;
 		}
@@ -1067,6 +1144,8 @@ void CChat::OnPrepareLines(float y)
 			NameColor = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_ClMessageSystemColor));
 		else if(Line.m_ClientId == CLIENT_MSG)
 			NameColor = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_ClMessageClientColor));
+		else if(Line.m_ClientId >= 0 && g_Config.m_TcWarList && g_Config.m_TcWarListChat && GameClient()->m_WarList.GetAnyWar(Line.m_ClientId)) // TClient
+			NameColor = GameClient()->m_WarList.GetPriorityColor(Line.m_ClientId);
 		else if(Line.m_Team)
 			NameColor = CalculateNameColor(ColorHSLA(g_Config.m_ClMessageTeamColor));
 		else if(Line.m_NameColor == TEAM_RED)
@@ -1119,7 +1198,51 @@ void CChat::OnPrepareLines(float y)
 			AppendCursor.m_LineWidth -= LineCursor.m_LongestLineWidth;
 		}
 
-		TextRender()->CreateOrAppendTextContainer(Line.m_TextContainerIndex, &AppendCursor, pText);
+		if(pTranslatedText)
+		{
+			TextRender()->CreateOrAppendTextContainer(Line.m_TextContainerIndex, &AppendCursor, pTranslatedText);
+			if(pTranslatedLanguage)
+			{
+				ColorRGBA ColorLang = Color;
+				ColorLang.r *= 0.8f;
+				ColorLang.g *= 0.8f;
+				ColorLang.b *= 0.8f;
+				TextRender()->TextColor(ColorLang);
+				TextRender()->CreateOrAppendTextContainer(Line.m_TextContainerIndex, &AppendCursor, " [");
+				TextRender()->CreateOrAppendTextContainer(Line.m_TextContainerIndex, &AppendCursor, pTranslatedLanguage);
+				TextRender()->CreateOrAppendTextContainer(Line.m_TextContainerIndex, &AppendCursor, "]");
+			}
+			ColorRGBA ColorSub = Color;
+			ColorSub.r *= 0.7f;
+			ColorSub.g *= 0.7f;
+			ColorSub.b *= 0.7f;
+			TextRender()->TextColor(ColorSub);
+			TextRender()->CreateOrAppendTextContainer(Line.m_TextContainerIndex, &AppendCursor, "\n");
+			AppendCursor.m_FontSize *= 0.8f;
+			TextRender()->CreateOrAppendTextContainer(Line.m_TextContainerIndex, &AppendCursor, pText);
+			AppendCursor.m_FontSize /= 0.8f;
+			TextRender()->TextColor(Color);
+		}
+		else if(pTranslatedError)
+		{
+			TextRender()->CreateOrAppendTextContainer(Line.m_TextContainerIndex, &AppendCursor, pText);
+			ColorRGBA ColorSub = Color;
+			ColorSub.r = 0.7f;
+			ColorSub.g = 0.6f;
+			ColorSub.b = 0.6f;
+			TextRender()->TextColor(ColorSub);
+			TextRender()->CreateOrAppendTextContainer(Line.m_TextContainerIndex, &AppendCursor, "\n");
+			AppendCursor.m_FontSize *= 0.8f;
+			TextRender()->CreateOrAppendTextContainer(Line.m_TextContainerIndex, &AppendCursor, pTranslatedError);
+			AppendCursor.m_FontSize /= 0.8f;
+			TextRender()->TextColor(Color);
+		}
+		else
+		{
+			ColoredParts.AddSplitsToCursor(AppendCursor);
+			TextRender()->CreateOrAppendTextContainer(Line.m_TextContainerIndex, &AppendCursor, pText);
+			AppendCursor.m_vColorSplits.clear();
+		}
 
 		if(!g_Config.m_ClChatOld && (Line.m_aText[0] != '\0' || Line.m_aName[0] != '\0'))
 		{
@@ -1169,7 +1292,11 @@ void CChat::OnRender()
 	Graphics()->MapScreen(0.0f, 0.0f, Width, Height);
 
 	float x = 5.0f;
-	float y = 300.0f - 20.0f * FontSize() / 6.0f;
+
+	// TClient
+	float y = 300.0f - (20.0f * FontSize() / 6.0f + (g_Config.m_TcStatusBar ? g_Config.m_TcStatusBarHeight : 0.0f));
+	// float y = 300.0f - 20.0f * FontSize() / 6.0f;
+
 	float ScaledFontSize = FontSize() * (8.0f / 6.0f);
 	if(m_Mode != MODE_NONE)
 	{
@@ -1178,6 +1305,9 @@ void CChat::OnRender()
 		InputCursor.SetPosition(vec2(x, y));
 		InputCursor.m_FontSize = ScaledFontSize;
 		InputCursor.m_LineWidth = Width - 190.0f;
+
+		// TClient
+		InputCursor.m_LineWidth = std::max(Width - 190.0f, 190.0f);
 
 		if(m_Mode == MODE_ALL)
 			TextRender()->TextEx(&InputCursor, Localize("All"));

@@ -39,6 +39,8 @@ class CVoting : public CComponent
 	void RenderBars(CUIRect Bars) const;
 
 public:
+	friend class CTClient; // TClient
+
 	CVoting();
 	int Sizeof() const override { return sizeof(*this); }
 	void OnReset() override;

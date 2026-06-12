@@ -2,6 +2,9 @@
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #ifndef GAME_CLIENT_COMPONENTS_CHAT_H
 #define GAME_CLIENT_COMPONENTS_CHAT_H
+
+#include <base/str.h>
+
 #include <engine/console.h>
 #include <engine/shared/config.h>
 #include <engine/shared/protocol.h>
@@ -14,6 +17,14 @@
 #include <game/client/render.h>
 
 #include <vector>
+
+class CTranslateResponse
+{
+public:
+	bool m_Error = false;
+	char m_Text[1024] = "";
+	char m_Language[16] = "";
+};
 
 constexpr auto SAVES_FILE = "ddnet-saves.txt";
 
@@ -58,6 +69,8 @@ class CChat : public CComponent
 		float m_TextYOffset;
 
 		int m_TimesRepeated;
+
+		std::shared_ptr<CTranslateResponse> m_pTranslateResponse;
 	};
 
 	bool m_PrevScoreBoardShowed;
@@ -156,6 +169,10 @@ class CChat : public CComponent
 
 	bool LineShouldHighlight(const char *pLine, const char *pName);
 	void StoreSave(const char *pText);
+
+	friend class CBindChat;
+	friend class CTranslate;
+	friend class CTClient;
 
 public:
 	CChat();

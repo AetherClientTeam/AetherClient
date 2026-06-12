@@ -330,6 +330,8 @@ public:
 	virtual IFriends *Foes() = 0;
 
 	virtual void GetSmoothTick(int *pSmoothTick, float *pSmoothIntraTick, float MixAmount) = 0;
+	// TClient
+	virtual void GetSmoothFreezeTick(int *pSmoothTick, float *pSmoothIntraTick, float MixAmount) = 0;
 
 	virtual void AddWarning(const SWarning &Warning) = 0;
 	virtual std::optional<SWarning> CurrentWarning() = 0;
@@ -365,6 +367,9 @@ public:
 
 	virtual std::optional<int> ShowMessageBox(const IGraphics::CMessageBox &MessageBox) = 0;
 	virtual void GetGpuInfoString(char (&aGpuInfo)[512]) = 0;
+
+	// TClient
+	bool m_IsLocalFrozen = false;
 };
 
 class IGameClient : public IInterface
@@ -372,6 +377,10 @@ class IGameClient : public IInterface
 	MACRO_INTERFACE("gameclient")
 protected:
 public:
+	// TClient
+	virtual bool CheckNewInput() = 0;
+	virtual void SetConnectInfo(const NETADDR *pAddress) = 0;
+
 	virtual void OnConsoleInit() = 0;
 
 	virtual void OnRconType(bool UsernameReq) = 0;

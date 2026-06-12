@@ -9,14 +9,18 @@
 
 #include <base/bytes.h>
 #include <base/crashdump.h>
+#include <base/fs.h>
 #include <base/hash.h>
 #include <base/hash_ctxt.h>
+#include <base/io.h>
 #include <base/log.h>
 #include <base/logger.h>
 #include <base/math.h>
 #include <base/os.h>
 #include <base/process.h>
+#include <base/secure.h>
 #include <base/str.h>
+#include <base/time.h>
 #include <base/windows.h>
 
 #include <engine/config.h>
@@ -207,8 +211,17 @@ int CClient::SendMsgActive(CMsgPacker *pMsg, int Flags)
 	return SendMsg(g_Config.m_ClDummy, pMsg, Flags);
 }
 
+void CClient::SendTClientInfo(int Conn)
+{
+	CMsgPacker Msg(NETMSG_IAMTATER, true);
+	Msg.AddString(TCLIENT_VERSION " built on " __DATE__ ", " __TIME__);
+	SendMsg(Conn, &Msg, MSGFLAG_VITAL);
+}
+
 void CClient::SendInfo(int Conn)
 {
+	SendTClientInfo(Conn);
+
 	CMsgPacker MsgVer(NETMSG_CLIENTVER, true);
 	MsgVer.AddRaw(&m_ConnectionId, sizeof(m_ConnectionId));
 	MsgVer.AddInt(GameClient()->DDNetVersion());
@@ -287,6 +300,12 @@ void CClient::RconAuth(const char *pName, const char *pPassword, bool Dummy)
 
 void CClient::Rcon(const char *pCmd)
 {
+	// TClient
+	if(str_comp_nocase(pCmd, "clear") == 0)
+	{
+		m_pConsole->ExecuteLine("clear_remote_console", IConsole::CLIENT_ID_UNSPECIFIED);
+		return;
+	}
 	CMsgPacker Msg(NETMSG_RCON_CMD, true);
 	Msg.AddString(pCmd);
 	SendMsgActive(&Msg, MSGFLAG_VITAL);
@@ -346,6 +365,8 @@ void CClient::SendInput()
 			m_aInputs[i][m_aCurrentInput[i]].m_Tick = m_aPredTick[g_Config.m_ClDummy];
 			m_aInputs[i][m_aCurrentInput[i]].m_PredictedTime = m_PredictedTime.Get(Now);
 			m_aInputs[i][m_aCurrentInput[i]].m_PredictionMargin = PredictionMargin() * time_freq() / 1000;
+			if(g_Config.m_TcSmoothPredictionMargin)
+				m_aInputs[i][m_aCurrentInput[i]].m_PredictionMargin = m_PredictedTime.GetMargin(Now);
 			m_aInputs[i][m_aCurrentInput[i]].m_Time = Now;
 
 			// pack it
@@ -429,10 +450,7 @@ void CClient::SetState(EClientState State)
 	if(State == IClient::STATE_ONLINE)
 	{
 		const bool Registered = m_ServerBrowser.IsRegistered(ServerAddress());
-		CServerInfo CurrentServerInfo;
-		GetServerInfo(&CurrentServerInfo);
-
-		Discord()->SetGameInfo(CurrentServerInfo, GameClient()->Map()->BaseName(), Registered);
+		Discord()->SetGameInfo(m_CurrentServerInfo, Registered);
 		Steam()->SetGameInfo(ServerAddress(), GameClient()->Map()->BaseName(), Registered);
 	}
 	else if(OldState == IClient::STATE_ONLINE)
@@ -490,6 +508,9 @@ void CClient::EnterGame(int Conn)
 		return;
 
 	m_aDidPostConnect[Conn] = false;
+
+	// TClient
+	m_aExecuteOnJoinDone[Conn] = false;
 
 	// now we will wait for two snapshots
 	// to finish the connection
@@ -677,6 +698,15 @@ void CClient::Connect(const char *pAddress, const char *pPassword)
 	m_ConnectionId = RandomUuid();
 	ServerInfoRequest();
 
+	// TClient
+	// If user has manually specified password don't run autoexec
+	if(!m_SendPassword)
+	{
+		m_pGameClient->SetConnectInfo(&aConnectAddrs[0]);
+		m_pConsole->ExecuteLine(g_Config.m_TcExecuteOnConnect, IConsole::CLIENT_ID_UNSPECIFIED);
+	}
+	m_pGameClient->SetConnectInfo(nullptr);
+
 	if(m_SendPassword)
 	{
 		str_copy(m_aPassword, g_Config.m_Password);
@@ -858,13 +888,22 @@ bool CClient::DummyAllowed() const
 
 void CClient::GetServerInfo(CServerInfo *pServerInfo) const
 {
-	mem_copy(pServerInfo, &m_CurrentServerInfo, sizeof(m_CurrentServerInfo));
+	*pServerInfo = m_CurrentServerInfo;
 }
 
 void CClient::ServerInfoRequest()
 {
 	mem_zero(&m_CurrentServerInfo, sizeof(m_CurrentServerInfo));
 	m_CurrentServerInfoRequestTime = 0;
+}
+
+void CClient::SetCurrentServerInfo(const CServerInfo &ServerInfo)
+{
+	m_CurrentServerInfo = ServerInfo;
+	m_CurrentServerInfoRequestTime = -1;
+	str_copy(m_CurrentServerInfo.m_aMap, GameClient()->Map()->BaseName());
+	m_CurrentServerInfo.m_MapCrc = GameClient()->Map()->Crc();
+	m_CurrentServerInfo.m_MapSize = GameClient()->Map()->Size();
 }
 
 void CClient::LoadDebugFont()
@@ -1468,9 +1507,8 @@ void CClient::ProcessServerInfo(int RawType, NETADDR *pFrom, const void *pData, 
 			// us.
 			if(SavedType >= m_CurrentServerInfo.m_Type)
 			{
-				m_CurrentServerInfo = Info;
-				m_CurrentServerInfoRequestTime = -1;
-				Discord()->UpdateServerInfo(Info, GameClient()->Map()->BaseName());
+				SetCurrentServerInfo(Info);
+				Discord()->UpdateServerInfo(m_CurrentServerInfo);
 			}
 
 			bool ValidPong = false;
@@ -1859,6 +1897,35 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket, int Conn, bool Dummy)
 				SendMsg(Conn, &MsgP, MSGFLAG_VITAL);
 			}
 		}
+		else if(Msg == NETMSG_TATER_CHECKSUM_REQUEST)
+		{
+#ifndef TCLIENT_CHECKSUM_SALT
+// salt@sjrc6.github.io: 26e65800-d8d9-3e8f-8d53-acdd1461f0a9
+#define TCLIENT_CHECKSUM_SALT \
+	{ \
+		{ \
+			0x26, 0xe6, 0x58, 0x00, 0xd8, 0xd9, 0x3e, 0x8f, \
+				0x8d, 0x53, 0xac, 0xdd, 0x14, 0x61, 0xf0, 0xa9, \
+		} \
+	}
+#endif
+			CUuid *pUuid = (CUuid *)Unpacker.GetRaw(sizeof(*pUuid));
+			if(Unpacker.Error())
+			{
+				return;
+			}
+			SHA256_CTX Sha256Ctxt;
+			sha256_init(&Sha256Ctxt);
+			CUuid Salt = TCLIENT_CHECKSUM_SALT;
+			sha256_update(&Sha256Ctxt, &Salt, sizeof(Salt));
+			sha256_update(&Sha256Ctxt, pUuid, sizeof(*pUuid));
+			SHA256_DIGEST Sha256 = sha256_finish(&Sha256Ctxt);
+
+			CMsgPacker CSMsg(NETMSG_TATER_CHECKSUM_RESPONSE, true);
+			CSMsg.AddRaw(pUuid, sizeof(*pUuid));
+			CSMsg.AddRaw(&Sha256, sizeof(Sha256));
+			SendMsg(Conn, &CSMsg, MSGFLAG_VITAL);
+		}
 		else if(Msg == NETMSG_RECONNECT)
 		{
 			if(Conn == CONN_MAIN)
@@ -1984,7 +2051,10 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket, int Conn, bool Dummy)
 				if(m_aInputs[Conn][k].m_Tick == InputPredTick)
 				{
 					Target = m_aInputs[Conn][k].m_PredictedTime + (Now - m_aInputs[Conn][k].m_Time);
-					Target = Target - (int64_t)((TimeLeft / 1000.0f) * time_freq());
+					if(g_Config.m_TcSmoothPredictionMargin)
+						Target = Target - (int64_t)((TimeLeft / 1000.0f) * time_freq()) + m_aInputs[Conn][k].m_PredictionMargin;
+					else
+						Target = Target - (int64_t)((TimeLeft / 1000.0f) * time_freq());
 					break;
 				}
 			}
@@ -2190,6 +2260,14 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket, int Conn, bool Dummy)
 
 					// apply snapshot, cycle pointers
 					m_aReceivedSnapshots[Conn]++;
+
+					// TClient
+					if(!m_aExecuteOnJoinDone[Conn] && m_aReceivedSnapshots[Conn] > g_Config.m_TcExecuteOnJoinDelay)
+					{
+						m_aExecuteOnJoinDone[Conn] = true;
+						if(g_Config.m_TcExecuteOnJoin[0] != '\0')
+							m_pConsole->ExecuteLine(g_Config.m_TcExecuteOnJoin, IConsole::CLIENT_ID_UNSPECIFIED);
+					}
 
 					// we got two snapshots until we see us self as connected
 					if(m_aReceivedSnapshots[Conn] == 2)
@@ -2828,6 +2906,11 @@ void CClient::Update()
 					// send input
 					SendInput();
 				}
+
+				if(g_Config.m_TcFastInput && GameClient()->CheckNewInput())
+				{
+					Repredict = true;
+				}
 			}
 
 			// only do sane predictions
@@ -2982,7 +3065,7 @@ void CClient::Update()
 	else
 		GameClient()->OnUpdate();
 
-	Discord()->Update();
+	Discord()->Update(g_Config.m_TcDiscordRPC);
 	Steam()->Update();
 	if(Steam()->GetConnectAddress())
 	{
@@ -3401,9 +3484,19 @@ void CClient::Run()
 
 	if(!m_pConfigManager->Save())
 	{
-		char aError[128];
-		str_format(aError, sizeof(aError), Localize("Saving settings to '%s' failed"), CONFIG_FILE);
-		m_vQuittingWarnings.emplace_back(Localize("Error saving settings"), aError);
+		/*
+		char aError[128] = "";
+		for(ConfigDomain ConfigDomain = ConfigDomain::START; ConfigDomain < ConfigDomain::NUM; ++ConfigDomain)
+		{
+			if(DIDNTFAIL)
+				continue
+			if(aError[0] != '\0')
+				str_append(aError, ", ");
+			str_append(s_aConfigDomains[ConfigDomain].m_aConfigPath);
+		}
+		*/
+		// TODO
+		m_vQuittingWarnings.emplace_back(Localize("Error saving settings"));
 	}
 
 	m_Fifo.Shutdown();
@@ -4194,7 +4287,7 @@ void CClient::InitChecksum()
 {
 	CChecksumData *pData = &m_Checksum.m_Data;
 	pData->m_SizeofData = sizeof(*pData);
-	str_copy(pData->m_aVersionStr, GAME_NAME " " GAME_RELEASE_VERSION " (" CONF_PLATFORM_STRING "; " CONF_ARCH_STRING ")");
+	str_copy(pData->m_aVersionStr, CLIENT_NAME " " GAME_RELEASE_VERSION " (" CONF_PLATFORM_STRING "; " CONF_ARCH_STRING ")");
 	pData->m_Start = time_get();
 	os_version_str(pData->m_aOsVersion, sizeof(pData->m_aOsVersion));
 	secure_random_fill(&pData->m_Random, sizeof(pData->m_Random));
@@ -4890,21 +4983,23 @@ int main(int argc, const char **argv)
 	pClient->InitInterfaces();
 
 	// execute config file
-	if(pStorage->FileExists(CONFIG_FILE, IStorage::TYPE_ALL))
+	pConsole->SetUnknownCommandCallback(SaveUnknownCommandCallback, pClient);
+	for(ConfigDomain ConfigDomain = ConfigDomain::START; ConfigDomain < ConfigDomain::NUM; ++ConfigDomain)
 	{
-		pConsole->SetUnknownCommandCallback(SaveUnknownCommandCallback, pClient);
-		if(!pConsole->ExecuteFile(CONFIG_FILE, IConsole::CLIENT_ID_UNSPECIFIED))
+		if(!pStorage->FileExists(s_aConfigDomains[ConfigDomain].m_aConfigPath, IStorage::TYPE_ALL))
+			continue;
+		if(!pConsole->ExecuteFile(s_aConfigDomains[ConfigDomain].m_aConfigPath, IConsole::CLIENT_ID_UNSPECIFIED))
 		{
-			const char *pError = "Failed to load config from '" CONFIG_FILE "'.";
-			log_error("client", "%s", pError);
-			pClient->ShowMessageBox({.m_pTitle = "Config File Error", .m_pMessage = pError});
+			char aError[2048];
+			str_format(aError, sizeof(aError), "Failed to load config from '%s'.", s_aConfigDomains[ConfigDomain].m_aConfigPath);
+			log_error("client", "%s", aError);
+			pClient->ShowMessageBox({.m_pTitle = "Config File Error", .m_pMessage = aError});
 			PerformAllCleanup();
 			return -1;
 		}
-		pConsole->SetUnknownCommandCallback(IConsole::EmptyUnknownCommandCallback, nullptr);
 	}
+	pConsole->SetUnknownCommandCallback(IConsole::EmptyUnknownCommandCallback, nullptr);
 
-	// execute autoexec file
 	if(pStorage->FileExists(AUTOEXEC_CLIENT_FILE, IStorage::TYPE_ALL))
 	{
 		pConsole->ExecuteFile(AUTOEXEC_CLIENT_FILE, IConsole::CLIENT_ID_UNSPECIFIED);
@@ -5139,6 +5234,20 @@ void CClient::GetSmoothTick(int *pSmoothTick, float *pSmoothIntraTick, float Mix
 
 	*pSmoothTick = (int)(SmoothTime * GameTickSpeed() / time_freq()) + 1;
 	*pSmoothIntraTick = (SmoothTime - (*pSmoothTick - 1) * time_freq() / GameTickSpeed()) / (float)(time_freq() / GameTickSpeed());
+}
+
+void CClient::GetSmoothFreezeTick(int *pSmoothTick, float *pSmoothIntraTick, float MixAmount)
+{
+	int64_t GameTime = m_aGameTime[g_Config.m_ClDummy].Get(time_get());
+	int64_t PredTime = m_PredictedTime.Get(time_get());
+	GameTime = std::min(GameTime, PredTime);
+
+	int64_t UpperPredTime = std::clamp(PredTime - (time_freq() / 50) * g_Config.m_TcUnfreezeLagTicks, GameTime, PredTime);
+	int64_t LowestPredTime = std::clamp(PredTime, GameTime, UpperPredTime);
+	int64_t SmoothTime = std::clamp(LowestPredTime + (int64_t)(MixAmount * (PredTime - LowestPredTime)), LowestPredTime, PredTime);
+
+	*pSmoothTick = (int)(SmoothTime * 50 / time_freq()) + 1;
+	*pSmoothIntraTick = (SmoothTime - (*pSmoothTick - 1) * time_freq() / 50) / (float)(time_freq() / 50);
 }
 
 void CClient::AddWarning(const SWarning &Warning)

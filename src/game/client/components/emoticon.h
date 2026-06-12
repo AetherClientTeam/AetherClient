@@ -7,10 +7,15 @@
 #include <engine/console.h>
 
 #include <game/client/component.h>
+#include <game/client/components/tclient/bindwheel.h>
 #include <game/client/ui.h>
 
 class CEmoticon : public CComponent
 {
+	float m_AnimationTime = 0.0f;
+	float m_aAnimationTimeEmotes[NUM_EMOTICONS] = {0};
+	float m_aAnimationTimeEyeEmotes[NUM_EMOTES] = {0};
+
 	bool m_WasActive;
 	bool m_Active;
 
@@ -39,6 +44,8 @@ public:
 	void EyeEmote(int EyeEmote);
 
 	bool IsActive() const { return m_Active; }
+
+	friend class CBindWheel;
 };
 
 #endif

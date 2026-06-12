@@ -20,6 +20,7 @@
 
 #include <generated/client_data.h>
 
+#include <game/client/components/tclient/colored_parts.h>
 #include <game/client/gameclient.h>
 #include <game/client/ui.h>
 #include <game/localization.h>
@@ -1496,6 +1497,8 @@ void CGameConsole::OnRender()
 			EntryCursor.m_PressMouse = pConsole->m_MousePress;
 			EntryCursor.m_ReleaseMouse = pConsole->m_MouseRelease;
 
+			bool ParseColors = false; // TClient
+
 			if(pConsole->m_Searching && pConsole->m_CurrentMatchIndex != -1)
 			{
 				std::vector<CInstance::SSearchMatch> vMatches;
@@ -1513,8 +1516,23 @@ void CGameConsole::OnRender()
 						IsSelected ? ms_SearchSelectedColor : ms_SearchHighlightColor);
 				}
 			}
+			else if(pEntry->m_Length > (size_t)str_length("xxxx-xx-xx xx:xx:xx x ") && str_startswith(pEntry->m_aText + str_length("xxxx-xx-xx xx:xx:xx x "), "chat/client"))
+			{
+				ParseColors = true;
+			}
 
-			TextRender()->TextEx(&EntryCursor, pEntry->m_aText, -1);
+			// TODO don't recalculate every frame
+			// TODO less jank way of detecting echo
+			CColoredParts ColoredParts(pEntry->m_aText, ParseColors);
+			ColoredParts.AddSplitsToCursor(EntryCursor);
+			if(!ColoredParts.Colors().empty() && ColoredParts.Colors()[0].m_Index == str_length("xxxx-xx-xx xx:xx:xx x chat/client: — "))
+			{
+				EntryCursor.m_vColorSplits[0].m_CharIndex -= str_length("— ");
+				EntryCursor.m_vColorSplits[0].m_Length += str_length("— ");
+			}
+			const char *pText = ColoredParts.Text();
+
+			TextRender()->TextEx(&EntryCursor, pText, -1); // TClient
 			EntryCursor.m_vColorSplits = {};
 
 			if(EntryCursor.m_CalculateSelectionMode == TEXT_CURSOR_SELECTION_MODE_CALCULATE)
@@ -1598,6 +1616,10 @@ void CGameConsole::OnRender()
 		// render version
 		str_copy(aBuf, "v" GAME_VERSION " on " CONF_PLATFORM_STRING " " CONF_ARCH_STRING);
 		TextRender()->Text(Screen.w - TextRender()->TextWidth(FONT_SIZE, aBuf) - 10.0f, FONT_SIZE / 2.f, FONT_SIZE, aBuf);
+
+		// TClient: render client version
+		const char *pClientVersion = CLIENT_NAME " " CLIENT_RELEASE_VERSION;
+		TextRender()->Text(Screen.w - TextRender()->TextWidth(FONT_SIZE, pClientVersion) - 10.0f, FONT_SIZE / 2.0f + FONT_SIZE * 1.5f, FONT_SIZE, pClientVersion);
 	}
 }
 
@@ -1755,6 +1777,9 @@ void CGameConsole::OnConsoleInit()
 	m_RemoteConsole.Init(this);
 
 	m_pConsole = Kernel()->RequestInterface<IConsole>();
+
+	// TClient
+	Console()->Register("clear", "", CFGFLAG_CLIENT, ConClearLocalConsole, this, "Clear local console");
 
 	Console()->Register("toggle_local_console", "", CFGFLAG_CLIENT, ConToggleLocalConsole, this, "Toggle local console");
 	Console()->Register("toggle_remote_console", "", CFGFLAG_CLIENT, ConToggleRemoteConsole, this, "Toggle remote console");

@@ -156,6 +156,25 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 	ConsoleButton.VSplitRight(40.0f, nullptr, &ConsoleButton);
 	Ui()->DoLabel(&CurVersion, GAME_RELEASE_VERSION, 14.0f, TEXTALIGN_MR);
 
+	CUIRect TClientVersion;
+	MainView.HSplitTop(15.0f, &TClientVersion, &MainView);
+	TClientVersion.VSplitRight(40.0f, &TClientVersion, nullptr);
+	char aTBuf[64];
+	str_format(aTBuf, sizeof(aTBuf), CLIENT_NAME " %s", CLIENT_RELEASE_VERSION);
+	Ui()->DoLabel(&TClientVersion, aTBuf, 14.0f, TEXTALIGN_MR);
+#if defined(CONF_AUTOUPDATE)
+	CUIRect UpdateToDateText;
+	MainView.HSplitTop(15.0f, &UpdateToDateText, nullptr);
+	UpdateToDateText.VSplitRight(40.0f, &UpdateToDateText, nullptr);
+	if(!GameClient()->m_TClient.NeedUpdate() && GameClient()->m_TClient.m_FetchedTClientInfo)
+	{
+		Ui()->DoLabel(&UpdateToDateText, TCLocalize("(On Latest)"), 14.0f, TEXTALIGN_MR);
+	}
+	else
+	{
+		Ui()->DoLabel(&UpdateToDateText, TCLocalize("(Fetching Update Info)"), 14.0f, TEXTALIGN_MR);
+	}
+#endif
 	static CButtonContainer s_ConsoleButton;
 	TextRender()->SetFontPreset(EFontPreset::ICON_FONT);
 	TextRender()->SetRenderFlags(ETextRenderFlags::TEXT_RENDER_FLAG_ONLY_ADVANCE_WIDTH | ETextRenderFlags::TEXT_RENDER_FLAG_NO_X_BEARING | ETextRenderFlags::TEXT_RENDER_FLAG_NO_Y_BEARING | ETextRenderFlags::TEXT_RENDER_FLAG_NO_PIXEL_ALIGNMENT | ETextRenderFlags::TEXT_RENDER_FLAG_NO_OVERSIZE);
@@ -176,7 +195,7 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 
 	char aBuf[128];
 	const IUpdater::EUpdaterState State = Updater()->GetCurrentState();
-	const bool NeedUpdate = str_comp(Client()->LatestVersion(), "0");
+	const bool NeedUpdate = GameClient()->m_TClient.NeedUpdate();
 
 	if(State == IUpdater::CLEAN && NeedUpdate)
 	{
@@ -201,7 +220,7 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 
 	if(State == IUpdater::CLEAN && NeedUpdate)
 	{
-		str_format(aBuf, sizeof(aBuf), Localize("DDNet %s is out!"), Client()->LatestVersion());
+		str_format(aBuf, sizeof(aBuf), Localize("TClient %s is out!"), GameClient()->m_TClient.m_aVersionStr);
 		TextRender()->TextColor(1.0f, 0.4f, 0.4f, 1.0f);
 	}
 	else if(State == IUpdater::CLEAN)
@@ -227,7 +246,7 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 	Ui()->DoLabel(&VersionUpdate, aBuf, 14.0f, TEXTALIGN_ML);
 	TextRender()->TextColor(TextRender()->DefaultTextColor());
 #elif defined(CONF_INFORM_UPDATE)
-	if(str_comp(Client()->LatestVersion(), "0") != 0)
+	if(str_comp(Client()->LatestVersion(), "0") != 0 && false)
 	{
 		CUIRect DownloadButton;
 		VersionUpdate.VSplitRight(100.0f, &VersionUpdate, &DownloadButton);

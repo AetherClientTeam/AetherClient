@@ -8,7 +8,6 @@
 #include "warning.h"
 
 #include <base/color.h>
-#include <base/system.h>
 #include <base/vmath.h>
 
 #include <cstddef>
@@ -611,6 +610,10 @@ protected:
 		Tex.m_Id = Index;
 		return Tex;
 	}
+
+public:
+	// TClient
+	virtual void SetForcedAspect(bool Force) = 0;
 };
 
 class IEngineGraphics : public IGraphics

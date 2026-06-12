@@ -70,7 +70,7 @@ static const char *GetUpdaterUrl(char *pBuf, int BufSize, const char *pFile)
 {
 	char aBuf[1024];
 	UrlEncodePath(pFile, aBuf, sizeof(aBuf));
-	str_format(pBuf, BufSize, "https://update.ddnet.org/%s", aBuf);
+	str_format(pBuf, BufSize, "https://update.tclient.app/%s", aBuf);
 	return pBuf;
 }
 
@@ -235,6 +235,7 @@ bool CUpdater::ReplaceClient()
 	Success &= m_pStorage->RenameBinaryFile(PLAT_CLIENT_EXEC, CLIENT_EXEC ".old");
 	str_format(aPath, sizeof(aPath), "update/%s", m_aClientExecTmp);
 	Success &= m_pStorage->RenameBinaryFile(aPath, PLAT_CLIENT_EXEC);
+	m_pStorage->RemoveBinaryFile(CLIENT_EXEC ".old");
 #if !defined(CONF_FAMILY_WINDOWS)
 	m_pStorage->GetBinaryPath(PLAT_CLIENT_EXEC, aPath, sizeof(aPath));
 	char aBuf[512];
@@ -259,6 +260,7 @@ bool CUpdater::ReplaceServer()
 	Success &= m_pStorage->RenameBinaryFile(PLAT_SERVER_EXEC, SERVER_EXEC ".old");
 	str_format(aPath, sizeof(aPath), "update/%s", m_aServerExecTmp);
 	Success &= m_pStorage->RenameBinaryFile(aPath, PLAT_SERVER_EXEC);
+	m_pStorage->RemoveBinaryFile(SERVER_EXEC ".old");
 #if !defined(CONF_FAMILY_WINDOWS)
 	m_pStorage->GetBinaryPath(PLAT_SERVER_EXEC, aPath, sizeof(aPath));
 	char aBuf[512];
@@ -303,7 +305,7 @@ void CUpdater::ParseUpdate()
 		if(!pVersion)
 			continue;
 
-		if(str_comp(pVersion, GAME_RELEASE_VERSION) == 0)
+		if(str_comp(pVersion, TCLIENT_VERSION) == 0)
 			break;
 
 		if(json_boolean_get(json_object_get(pCurrent, "client")))

@@ -10,6 +10,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <string> // TClient
 
 enum
 {
@@ -194,6 +195,9 @@ class ITextRender : public IInterface
 {
 	MACRO_INTERFACE("textrender")
 public:
+	virtual std::vector<std::string> *GetCustomFaces() = 0; // TClient
+	virtual void SetCustomFace(const char *pFace) = 0; // TClient
+
 	virtual bool LoadFonts() = 0;
 	virtual void SetFontPreset(EFontPreset FontPreset) = 0;
 	virtual void SetFontLanguageVariant(const char *pLanguageFile) = 0;

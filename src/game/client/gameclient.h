@@ -65,6 +65,23 @@
 #include "components/sounds.h"
 #include "components/spectator.h"
 #include "components/statboard.h"
+#include "components/tclient/bg_draw.h"
+#include "components/tclient/bindchat.h"
+#include "components/tclient/bindwheel.h"
+#include "components/tclient/custom_communities.h"
+#include "components/tclient/mod.h"
+#include "components/tclient/moving_tiles.h"
+#include "components/tclient/outlines.h"
+#include "components/tclient/pet.h"
+#include "components/tclient/player_indicator.h"
+#include "components/tclient/rainbow.h"
+#include "components/tclient/scripting.h"
+#include "components/tclient/skinprofiles.h"
+#include "components/tclient/statusbar.h"
+#include "components/tclient/tclient.h"
+#include "components/tclient/trails.h"
+#include "components/tclient/translate.h"
+#include "components/tclient/warlist.h"
 #include "components/tooltips.h"
 #include "components/touch_controls.h"
 #include "components/voting.h"
@@ -77,6 +94,8 @@ class IMap;
 class CGameInfo
 {
 public:
+	char m_aGameType[16]; // TClient
+
 	bool m_FlagStartsRace;
 	bool m_TimeScore;
 	bool m_UnlimitedAmmo;
@@ -141,6 +160,8 @@ enum class EClientIdFormat
 class CGameClient : public IGameClient
 {
 public:
+	friend class CTClient;
+
 	// all components
 	CInfoMessages m_InfoMessages;
 	CCamera m_Camera;
@@ -166,6 +187,7 @@ public:
 	CStatboard m_Statboard;
 	CSounds m_Sounds;
 	CEmoticon m_Emoticon;
+
 	CDamageInd m_DamageInd;
 	CTouchControls m_TouchControls;
 	CVoting m_Voting;
@@ -190,6 +212,26 @@ public:
 	CTooltips m_Tooltips;
 
 	CLocalServer m_LocalServer;
+
+	// TClient Components
+	CSkinProfiles m_SkinProfiles;
+	CStatusBar m_StatusBar;
+	CBindChat m_BindChat;
+	CBindWheel m_BindWheel;
+	CBgDraw m_BgDraw;
+	CTClient m_TClient;
+	CTrails m_Trails;
+	CTranslate m_Translate;
+	CPet m_Pet;
+	CPlayerIndicator m_PlayerIndicator;
+	COutlines m_Outlines;
+	CRainbow m_Rainbow;
+	CWarList m_WarList;
+	CScripting m_Scripting;
+	CMod m_Mod;
+	CCustomCommunities m_CustomCommunities;
+	CMovingTiles m_MovingTilesBackground = CMovingTiles{ false };
+	CMovingTiles m_MovingTilesForeground = CMovingTiles{ true };
 
 private:
 	std::vector<class CComponent *> m_vpAll;
@@ -242,7 +284,6 @@ private:
 	int m_aCheckInfo[NUM_DUMMIES];
 
 	char m_aDDNetVersionStr[64];
-
 	static void ConTeam(IConsole::IResult *pResult, void *pUserData);
 	static void ConKill(IConsole::IResult *pResult, void *pUserData);
 	static void ConReadyChange7(IConsole::IResult *pResult, void *pUserData);
@@ -478,6 +519,20 @@ public:
 		CCharacterCore m_Predicted;
 		CCharacterCore m_PrevPredicted;
 
+		// TClient
+		CCharacterCore m_RegularPredicted;
+
+		// TClient
+		vec2 m_ImprovedPredPos = vec2(0, 0);
+		vec2 m_PrevImprovedPredPos = vec2(0, 0);
+		bool m_ValidAntipingSmooth = false;
+		//vec2 m_DebugVector = vec2(0, 0);
+		//vec2 m_DebugVector2 = vec2(0, 0);
+		//vec2 m_DebugVector3 = vec2(0, 0);
+		float m_Uncertainty = 0.0f;
+		float m_VolleyBallAngle = 0.0f;
+		bool m_IsVolleyBall = false;
+
 		std::shared_ptr<CManagedTeeRenderInfo> m_pSkinInfo = nullptr; // this is what the server reports
 		CTeeRenderInfo m_RenderInfo; // this is what we use
 
@@ -660,6 +715,7 @@ public:
 	void SendReadyChange7();
 
 	void ApplyPreInputs(int Tick, bool Direct, CGameWorld &GameWorld);
+	bool GetDummyFastInput(CNetObj_PlayerInput &DummyFastInput, const CNetObj_PlayerInput *pDummyInputData, const class CCharacter *pDummyChar, int LocalTee, int DummyTee) const;
 
 	int m_aNextChangeInfo[NUM_DUMMIES];
 
@@ -695,6 +751,13 @@ public:
 	CGameWorld m_GameWorld;
 	CGameWorld m_PredictedWorld;
 	CGameWorld m_PrevPredictedWorld;
+
+	// TClient
+	CGameWorld m_RegularPredictedWorld;
+	CGameWorld m_PrevRegularPredictedWorld;
+	// TClient
+	CGameWorld m_ExtraPredictedWorld;
+	CGameWorld m_PredSmoothingWorld;
 
 	std::vector<SSwitchers> &Switchers() { return m_GameWorld.m_Core.m_vSwitchers; }
 	std::vector<SSwitchers> &PredSwitchers() { return m_PredictedWorld.m_Core.m_vSwitchers; }
@@ -882,6 +945,10 @@ public:
 
 	const std::vector<CSnapEntities> &SnapEntities() { return m_vSnapEntities; }
 
+	vec2 GetSmoothPos(int ClientId);
+	vec2 GetFreezePos(int ClientId);
+	vec2 GetFastInputPos(int ClientId);
+
 	int m_MultiViewTeam;
 	float m_MultiViewPersonalZoom;
 	bool m_MultiViewShowHud;
@@ -916,8 +983,6 @@ private:
 
 	int m_aLastUpdateTick[MAX_CLIENTS] = {0};
 	void DetectStrongHook();
-
-	vec2 GetSmoothPos(int ClientId);
 
 	int m_IsDummySwapping;
 	CCharOrder m_CharOrder;
@@ -962,6 +1027,14 @@ private:
 
 	void OnSaveCodeNetMessage(const CNetMsg_Sv_SaveCode *pMsg);
 	void StoreSave(const char *pTeamMembers, const char *pGeneratedCode) const;
+
+public:
+	// TClient
+	int m_SmoothTick = 0;
+	float m_SmoothIntraTick = 0;
+	bool CheckNewInput() override;
+	std::optional<CServerInfo> m_ConnectServerInfo = std::nullopt;
+	void SetConnectInfo(const NETADDR *pAddress) override;
 };
 
 ColorRGBA CalculateNameColor(ColorHSLA TextColorHSL);

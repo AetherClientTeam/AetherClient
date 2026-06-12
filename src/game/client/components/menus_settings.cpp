@@ -131,7 +131,7 @@ void CMenus::RenderSettingsGeneral(CUIRect MainView)
 		static CButtonContainer s_SettingsButtonId;
 		if(DoButton_Menu(&s_SettingsButtonId, Localize("Settings file"), 0, &SettingsButton))
 		{
-			Storage()->GetCompletePath(IStorage::TYPE_SAVE, CONFIG_FILE, aBuf, sizeof(aBuf));
+			Storage()->GetCompletePath(IStorage::TYPE_SAVE, s_aConfigDomains[ConfigDomain::DDNET].m_aConfigPath, aBuf, sizeof(aBuf));
 			Client()->ViewFile(aBuf);
 		}
 		GameClient()->m_Tooltips.DoToolTip(&s_SettingsButtonId, &SettingsButton, Localize("Open the settings file"));
@@ -322,18 +322,18 @@ void CMenus::RenderSettingsPlayer(CUIRect MainView)
 	MainView.HSplitBottom(5.0f, &MainView, nullptr);
 	QuickSearch.VSplitLeft(220.0f, &QuickSearch, nullptr);
 
-	int OldSelected = -1;
+	int SelectedOld = -1;
 	static CListBox s_ListBox;
-	s_ListBox.DoStart(48.0f, vpFilteredFlags.size(), 10, 3, OldSelected, &MainView);
+	s_ListBox.DoStart(48.0f, vpFilteredFlags.size(), 10, 3, SelectedOld, &MainView);
 
 	for(size_t i = 0; i < vpFilteredFlags.size(); i++)
 	{
 		const CCountryFlags::CCountryFlag *pEntry = vpFilteredFlags[i];
 
 		if(pEntry->m_CountryCode == *pCountry)
-			OldSelected = i;
+			SelectedOld = i;
 
-		const CListboxItem Item = s_ListBox.DoNextItem(&pEntry->m_CountryCode, OldSelected >= 0 && (size_t)OldSelected == i);
+		const CListboxItem Item = s_ListBox.DoNextItem(&pEntry->m_CountryCode, SelectedOld >= 0 && (size_t)SelectedOld == i);
 		if(!Item.m_Visible)
 			continue;
 
@@ -353,7 +353,7 @@ void CMenus::RenderSettingsPlayer(CUIRect MainView)
 	}
 
 	const int NewSelected = s_ListBox.DoEnd();
-	if(OldSelected != NewSelected)
+	if(SelectedOld != NewSelected)
 	{
 		*pCountry = vpFilteredFlags[NewSelected]->m_CountryCode;
 		SetNeedSendInfo();
@@ -506,13 +506,19 @@ void CMenus::RenderSettingsTee(CUIRect MainView)
 			}
 		}
 	}
+	CUIRect RandomColorsButton;
 
 	// Player skin area
 	CUIRect CustomColorsButton, RandomSkinButton;
 	YourSkin.HSplitTop(20.0f, &Label, &YourSkin);
 	YourSkin.HSplitBottom(20.0f, &YourSkin, &CustomColorsButton);
+
 	CustomColorsButton.VSplitRight(30.0f, &CustomColorsButton, &RandomSkinButton);
-	CustomColorsButton.VSplitRight(20.0f, &CustomColorsButton, nullptr);
+	CustomColorsButton.VSplitRight(3.0f, &CustomColorsButton, 0);
+
+	CustomColorsButton.VSplitRight(110.0f, &CustomColorsButton, &RandomColorsButton);
+
+	CustomColorsButton.VSplitRight(5.0f, &CustomColorsButton, nullptr);
 	YourSkin.VSplitLeft(65.0f, &YourSkin, &Button);
 	Button.VSplitLeft(5.0f, nullptr, &Button);
 	Button.HMargin((Button.h - 20.0f) / 2.0f, &Button);
@@ -622,6 +628,27 @@ void CMenus::RenderSettingsTee(CUIRect MainView)
 	TextRender()->SetRenderFlags(0);
 	TextRender()->SetFontPreset(EFontPreset::DEFAULT_FONT);
 	GameClient()->m_Tooltips.DoToolTip(&s_RandomSkinButton, &RandomSkinButton, Localize("Create a random skin"));
+
+	static CButtonContainer s_RandomizeColors;
+	if(*pUseCustomColor)
+	{
+		// RandomColorsButton.VSplitLeft(120.0f, &RandomColorsButton, 0);
+		if(DoButton_Menu(&s_RandomizeColors, "Random Colors", 0, &RandomColorsButton, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 5.0f, 0.0f, ColorRGBA(0.0f, 0.0f, 0.0f, 0.5f)))
+		{
+			if(m_Dummy)
+			{
+				g_Config.m_ClDummyColorBody = ColorHSLA((std::rand() % 100) / 100.0f, (std::rand() % 100) / 100.0f, (std::rand() % 100) / 100.0f, 1).Pack(false);
+				g_Config.m_ClDummyColorFeet = ColorHSLA((std::rand() % 100) / 100.0f, (std::rand() % 100) / 100.0f, (std::rand() % 100) / 100.0f, 1).Pack(false);
+			}
+			else
+			{
+				g_Config.m_ClPlayerColorBody = ColorHSLA((std::rand() % 100) / 100.0f, (std::rand() % 100) / 100.0f, (std::rand() % 100) / 100.0f, 1).Pack(false);
+				g_Config.m_ClPlayerColorFeet = ColorHSLA((std::rand() % 100) / 100.0f, (std::rand() % 100) / 100.0f, (std::rand() % 100) / 100.0f, 1).Pack(false);
+			}
+			SetNeedSendInfo();
+		}
+	}
+	MainView.HSplitTop(5.0f, 0, &MainView);
 
 	// Custom colors button
 	if(DoButton_CheckBox(pUseCustomColor, Localize("Custom colors"), *pUseCustomColor, &CustomColorsButton))
@@ -891,9 +918,9 @@ void CMenus::RenderSettingsGraphics(CUIRect MainView)
 		Ui()->DoLabel(&ModeLabel, aBuf, sc_FontSizeResListHeader, TEXTALIGN_MC);
 	}
 
-	int OldSelected = -1;
+	int SelectedOld = -1;
 	s_ListBox.SetActive(!Ui()->IsPopupOpen());
-	s_ListBox.DoStart(sc_RowHeightResList, s_NumNodes, 1, 3, OldSelected, &ModeList);
+	s_ListBox.DoStart(sc_RowHeightResList, s_NumNodes, 1, 3, SelectedOld, &ModeList);
 
 	for(int i = 0; i < s_NumNodes; ++i)
 	{
@@ -903,10 +930,10 @@ void CMenus::RenderSettingsGraphics(CUIRect MainView)
 			g_Config.m_GfxScreenHeight == s_aModes[i].m_WindowHeight &&
 			g_Config.m_GfxScreenRefreshRate == s_aModes[i].m_RefreshRate)
 		{
-			OldSelected = i;
+			SelectedOld = i;
 		}
 
-		const CListboxItem Item = s_ListBox.DoNextItem(&s_aModes[i], OldSelected == i);
+		const CListboxItem Item = s_ListBox.DoNextItem(&s_aModes[i], SelectedOld == i);
 		if(!Item.m_Visible)
 			continue;
 
@@ -916,7 +943,7 @@ void CMenus::RenderSettingsGraphics(CUIRect MainView)
 	}
 
 	const int NewSelected = s_ListBox.DoEnd();
-	if(OldSelected != NewSelected)
+	if(SelectedOld != NewSelected)
 	{
 		const int Depth = s_aModes[NewSelected].m_Red + s_aModes[NewSelected].m_Green + s_aModes[NewSelected].m_Blue > 16 ? 24 : 16;
 		g_Config.m_GfxColorDepth = Depth;
@@ -1101,7 +1128,7 @@ void CMenus::RenderSettingsGraphics(CUIRect MainView)
 			return str_comp_nocase(CheckInfo.m_pBackendName, DefaultConfig::GfxBackend) == 0 && CheckInfo.m_Major == DefaultConfig::GfxGLMajor && CheckInfo.m_Minor == DefaultConfig::GfxGLMinor && CheckInfo.m_Patch == DefaultConfig::GfxGLPatch;
 		};
 
-		int OldSelectedBackend = -1;
+		int SelectedOldBackend = -1;
 		uint32_t CurCounter = 0;
 		for(uint32_t i = 0; i < BACKEND_TYPE_COUNT; ++i)
 		{
@@ -1116,7 +1143,7 @@ void CMenus::RenderSettingsGraphics(CUIRect MainView)
 					s_vpBackendIdNamesCStr[CurCounter] = s_vBackendIdNames[CurCounter].c_str();
 					if(str_comp_nocase(Info.m_pBackendName, g_Config.m_GfxBackend) == 0 && g_Config.m_GfxGLMajor == Info.m_Major && g_Config.m_GfxGLMinor == Info.m_Minor && g_Config.m_GfxGLPatch == Info.m_Patch)
 					{
-						OldSelectedBackend = CurCounter;
+						SelectedOldBackend = CurCounter;
 					}
 
 					s_vBackendInfos[CurCounter] = Info;
@@ -1125,7 +1152,7 @@ void CMenus::RenderSettingsGraphics(CUIRect MainView)
 			}
 		}
 
-		if(OldSelectedBackend != -1)
+		if(SelectedOldBackend != -1)
 		{
 			// no custom selected
 			BackendCount -= 1;
@@ -1136,7 +1163,7 @@ void CMenus::RenderSettingsGraphics(CUIRect MainView)
 			str_format(aTmpBackendName, sizeof(aTmpBackendName), "%s (%s %d.%d.%d)", Localize("custom"), g_Config.m_GfxBackend, g_Config.m_GfxGLMajor, g_Config.m_GfxGLMinor, g_Config.m_GfxGLPatch);
 			s_vBackendIdNames[CurCounter] = aTmpBackendName;
 			s_vpBackendIdNamesCStr[CurCounter] = s_vBackendIdNames[CurCounter].c_str();
-			OldSelectedBackend = CurCounter;
+			SelectedOldBackend = CurCounter;
 
 			s_vBackendInfos[CurCounter].m_pBackendName = "custom";
 			s_vBackendInfos[CurCounter].m_Major = g_Config.m_GfxGLMajor;
@@ -1144,15 +1171,15 @@ void CMenus::RenderSettingsGraphics(CUIRect MainView)
 			s_vBackendInfos[CurCounter].m_Patch = g_Config.m_GfxGLPatch;
 		}
 
-		static int s_OldSelectedBackend = -1;
-		if(s_OldSelectedBackend == -1)
-			s_OldSelectedBackend = OldSelectedBackend;
+		static int s_SelectedOldBackend = -1;
+		if(s_SelectedOldBackend == -1)
+			s_SelectedOldBackend = SelectedOldBackend;
 
 		static CUi::SDropDownState s_BackendDropDownState;
 		static CScrollRegion s_BackendDropDownScrollRegion;
 		s_BackendDropDownState.m_SelectionPopupContext.m_pScrollRegion = &s_BackendDropDownScrollRegion;
-		const int NewBackend = Ui()->DoDropDown(&BackendDropDown, OldSelectedBackend, s_vpBackendIdNamesCStr.data(), BackendCount, s_BackendDropDownState);
-		if(OldSelectedBackend != NewBackend)
+		const int NewBackend = Ui()->DoDropDown(&BackendDropDown, SelectedOldBackend, s_vpBackendIdNamesCStr.data(), BackendCount, s_BackendDropDownState);
+		if(SelectedOldBackend != NewBackend)
 		{
 			str_copy(g_Config.m_GfxBackend, s_vBackendInfos[NewBackend].m_pBackendName);
 			g_Config.m_GfxGLMajor = s_vBackendInfos[NewBackend].m_Major;
@@ -1160,7 +1187,7 @@ void CMenus::RenderSettingsGraphics(CUIRect MainView)
 			g_Config.m_GfxGLPatch = s_vBackendInfos[NewBackend].m_Patch;
 
 			CheckSettings = true;
-			s_GfxBackendChanged = s_OldSelectedBackend != NewBackend;
+			s_GfxBackendChanged = s_SelectedOldBackend != NewBackend;
 		}
 	}
 
@@ -1384,7 +1411,7 @@ bool CMenus::RenderLanguageSelection(CUIRect MainView)
 		}
 	}
 
-	const int OldSelected = s_SelectedLanguage;
+	const int SelectedOld = s_SelectedLanguage;
 
 	s_ListBox.DoStart(24.0f, g_Localization.Languages().size(), 1, 3, s_SelectedLanguage, &MainView);
 
@@ -1405,7 +1432,7 @@ bool CMenus::RenderLanguageSelection(CUIRect MainView)
 
 	s_SelectedLanguage = s_ListBox.DoEnd();
 
-	if(OldSelected != s_SelectedLanguage)
+	if(SelectedOld != s_SelectedLanguage)
 	{
 		str_copy(g_Config.m_ClLanguagefile, g_Localization.Languages()[s_SelectedLanguage].m_Filename.c_str());
 		GameClient()->OnLanguageChange();
@@ -1442,7 +1469,11 @@ void CMenus::RenderSettings(CUIRect MainView)
 		Localize("Graphics"),
 		Localize("Sound"),
 		Localize("DDNet"),
-		Localize("Assets")};
+		Localize("Assets"),
+		TCLocalize("TClient"),
+		Localize("Profiles"),
+		Localize("Configs")};
+
 	static CButtonContainer s_aTabButtons[SETTINGS_LENGTH];
 
 	for(int i = 0; i < SETTINGS_LENGTH; i++)
@@ -1505,6 +1536,21 @@ void CMenus::RenderSettings(CUIRect MainView)
 	{
 		GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_SETTINGS_ASSETS);
 		RenderSettingsCustom(MainView);
+	}
+	else if(g_Config.m_UiSettingsPage == SETTINGS_TCLIENT)
+	{
+		GameClient()->m_MenuBackground.ChangePosition(13);
+		RenderSettingsTClient(MainView);
+	}
+	else if(g_Config.m_UiSettingsPage == SETTINGS_PROFILES)
+	{
+		GameClient()->m_MenuBackground.ChangePosition(14);
+		RenderSettingsTClientProfiles(MainView);
+	}
+	else if(g_Config.m_UiSettingsPage == SETTINGS_CONFIGS)
+	{
+		GameClient()->m_MenuBackground.ChangePosition(15);
+		RenderSettingsTClientConfigs(MainView);
 	}
 	else
 	{
@@ -1901,11 +1947,19 @@ void CMenus::RenderSettingsAppearance(CUIRect MainView)
 		DoButton_CheckBoxAutoVMarginAndSet(&g_Config.m_ClShowhudDummyActions, Localize("Show dummy actions"), &g_Config.m_ClShowhudDummyActions, &RightView, LineSize);
 
 		// Player movement information display settings
+		RightView.HSplitTop(MarginSmall, nullptr, &RightView); // TClient
 		DoButton_CheckBoxAutoVMarginAndSet(&g_Config.m_ClShowhudPlayerPosition, Localize("Show player position"), &g_Config.m_ClShowhudPlayerPosition, &RightView, LineSize);
 		DoButton_CheckBoxAutoVMarginAndSet(&g_Config.m_ClShowhudPlayerSpeed, Localize("Show player speed"), &g_Config.m_ClShowhudPlayerSpeed, &RightView, LineSize);
 		DoButton_CheckBoxAutoVMarginAndSet(&g_Config.m_ClShowhudPlayerAngle, Localize("Show player target angle"), &g_Config.m_ClShowhudPlayerAngle, &RightView, LineSize);
 
+		// Dummy movement information display settings
+		RightView.HSplitTop(MarginSmall, nullptr, &RightView); // TClient
+		DoButton_CheckBoxAutoVMarginAndSet(&g_Config.m_TcShowhudDummyPosition, TCLocalize("Show dummy position"), &g_Config.m_TcShowhudDummyPosition, &RightView, LineSize);
+		DoButton_CheckBoxAutoVMarginAndSet(&g_Config.m_TcShowhudDummySpeed, TCLocalize("Show dummy speed"), &g_Config.m_TcShowhudDummySpeed, &RightView, LineSize);
+		DoButton_CheckBoxAutoVMarginAndSet(&g_Config.m_TcShowhudDummyAngle, TCLocalize("Show dummy target angle"), &g_Config.m_TcShowhudDummyAngle, &RightView, LineSize);
+
 		// Freeze bar settings
+		RightView.HSplitTop(MarginSmall, nullptr, &RightView); // TClient
 		DoButton_CheckBoxAutoVMarginAndSet(&g_Config.m_ClShowFreezeBars, Localize("Show freeze bars"), &g_Config.m_ClShowFreezeBars, &RightView, LineSize);
 		RightView.HSplitTop(LineSize * 2.0f, &Button, &RightView);
 		if(g_Config.m_ClShowFreezeBars)
@@ -1985,7 +2039,8 @@ void CMenus::RenderSettingsAppearance(CUIRect MainView)
 
 		str_format(aBuf, sizeof(aBuf), "%s (echo)", Localize("Client message"));
 		static CButtonContainer s_ClientMessageColor;
-		DoLine_ColorPicker(&s_ClientMessageColor, ColorPickerLineSize, ColorPickerLabelSize, ColorPickerLineSpacing, &RightView, aBuf, &g_Config.m_ClMessageClientColor, ColorRGBA(0.5f, 0.78f, 1.0f));
+		// TClient
+		DoLine_ColorPicker(&s_ClientMessageColor, ColorPickerLineSize, ColorPickerLabelSize, ColorPickerLineSpacing, &RightView, aBuf, &g_Config.m_ClMessageClientColor, ColorRGBA(0.5f, 0.78f, 1.0f), true, &g_Config.m_TcShowChatClient);
 
 		// ***** Chat Preview ***** //
 		Ui()->DoLabel_AutoLineSize(Localize("Preview"), HeadlineFontSize,
@@ -2230,7 +2285,10 @@ void CMenus::RenderSettingsAppearance(CUIRect MainView)
 				TempY += RenderMessageBackground(PREVIEW_SPAMMER);
 			}
 
-			TempY += RenderMessageBackground(PREVIEW_CLIENT);
+			if(g_Config.m_TcShowChatClient)
+			{
+				TempY += RenderMessageBackground(PREVIEW_CLIENT);
+			}
 
 			Graphics()->QuadsEnd();
 		}
@@ -2269,7 +2327,10 @@ void CMenus::RenderSettingsAppearance(CUIRect MainView)
 			Y += RenderPreview(PREVIEW_SPAMMER, X, Y).y;
 		}
 		// Client
-		RenderPreview(PREVIEW_CLIENT, X, Y);
+		if(g_Config.m_TcShowChatClient)
+		{
+			RenderPreview(PREVIEW_CLIENT, X, Y);
+		}
 
 		TextRender()->TextColor(TextRender()->DefaultTextColor());
 	}
@@ -2946,14 +3007,14 @@ void CMenus::RenderSettingsDDNet(CUIRect MainView)
 	// Updater
 #if defined(CONF_AUTOUPDATE)
 	{
-		bool NeedUpdate = str_comp(Client()->LatestVersion(), "0");
+		const bool NeedUpdate = GameClient()->m_TClient.NeedUpdate();
 		IUpdater::EUpdaterState State = Updater()->GetCurrentState();
 
 		// Update Button
 		char aBuf[256];
 		if(NeedUpdate && State <= IUpdater::CLEAN)
 		{
-			str_format(aBuf, sizeof(aBuf), Localize("DDNet %s is available:"), Client()->LatestVersion());
+			str_format(aBuf, sizeof(aBuf), Localize("TClient %s is available:"), GameClient()->m_TClient.m_aVersionStr);
 			UpdaterRect.VSplitLeft(TextRender()->TextWidth(14.0f, aBuf, -1, -1.0f) + 10.0f, &UpdaterRect, &Button);
 			Button.VSplitLeft(100.0f, &Button, nullptr);
 			static CButtonContainer s_ButtonUpdate;
@@ -2966,7 +3027,7 @@ void CMenus::RenderSettingsDDNet(CUIRect MainView)
 			str_copy(aBuf, Localize("Updating…"));
 		else if(State == IUpdater::NEED_RESTART)
 		{
-			str_copy(aBuf, Localize("DDNet Client updated!"));
+			str_copy(aBuf, Localize("TClient Client updated!"));
 			m_NeedRestartUpdate = true;
 		}
 		else
@@ -2977,7 +3038,7 @@ void CMenus::RenderSettingsDDNet(CUIRect MainView)
 			static CButtonContainer s_ButtonUpdate;
 			if(DoButton_Menu(&s_ButtonUpdate, Localize("Check now"), 0, &Button))
 			{
-				Client()->RequestDDNetInfo();
+				GameClient()->m_TClient.FetchTClientInfo();
 			}
 		}
 		Ui()->DoLabel(&UpdaterRect, aBuf, 14.0f, TEXTALIGN_ML);

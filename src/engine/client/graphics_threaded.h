@@ -1271,7 +1271,12 @@ public:
 	const char *GetRendererString() override;
 
 	TGLBackendReadPresentedImageData &GetReadPresentedImageDataFuncUnsafe() override;
+
+	// TClient
+	void SetForcedAspect(bool Force) override;
 };
+
+extern bool g_GraphicsForcedAspect;
 
 typedef std::function<const char *(const char *, const char *)> TTranslateFunc;
 extern IGraphicsBackend *CreateGraphicsBackend(TTranslateFunc &&TranslateFunc);

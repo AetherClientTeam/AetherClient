@@ -1,5 +1,7 @@
 #include "nameplates.h"
 
+#include <base/str.h>
+
 #include <engine/font_icons.h>
 #include <engine/graphics.h>
 #include <engine/shared/config.h>
@@ -25,6 +27,7 @@ enum class EHookStrongWeakState
 class CNamePlateData
 {
 public:
+	bool m_Local; // TClient
 	bool m_InGame;
 	ColorRGBA m_Color;
 	bool m_ShowName;
@@ -350,6 +353,14 @@ protected:
 		if(!m_Visible)
 			return false;
 		m_Color = Data.m_Color;
+		// TClient
+		if(g_Config.m_TcWarList)
+		{
+			if(This.m_WarList.GetWarData(Data.m_ClientId).m_WarName)
+				m_Color = This.m_WarList.GetNameplateColor(Data.m_ClientId).WithAlpha(Data.m_Color.a);
+			else if(This.m_WarList.GetWarData(Data.m_ClientId).m_WarClan)
+				m_Color = This.m_WarList.GetClanColor(Data.m_ClientId).WithAlpha(Data.m_Color.a);
+		}
 		return m_FontSize != Data.m_FontSize || str_comp(m_aText, Data.m_aName) != 0;
 	}
 	void UpdateText(CGameClient &This, const CNamePlateData &Data) override
@@ -379,6 +390,9 @@ protected:
 		if(!m_Visible && Data.m_aClan[0] != '\0')
 			return false;
 		m_Color = Data.m_Color;
+		// TClient
+		if(This.m_WarList.GetWarData(Data.m_ClientId).m_WarClan)
+			m_Color = This.m_WarList.GetClanColor(Data.m_ClientId).WithAlpha(Data.m_Color.a);
 		return m_FontSize != Data.m_FontSizeClan || str_comp(m_aText, Data.m_aClan) != 0;
 	}
 	void UpdateText(CGameClient &This, const CNamePlateData &Data) override
@@ -475,7 +489,204 @@ public:
 		CNamePlatePartText(This) {}
 };
 
-// Name Plates
+// ***** TClient Parts *****
+
+class CNamePlatePartCountry : public CNamePlatePart
+{
+protected:
+	static constexpr float FLAG_WIDTH = 128.0f;
+	static constexpr float FLAG_HEIGHT = 64.0f;
+	static constexpr float FLAG_RATIO = FLAG_HEIGHT / FLAG_WIDTH;
+	const CCountryFlags::CCountryFlag *m_pCountryFlag = nullptr;
+	float m_Alpha = 1.0f;
+
+public:
+	friend class CGameClient;
+	void Update(CGameClient &This, const CNamePlateData &Data) override
+	{
+		m_Visible = true;
+		if(g_Config.m_TcNameplateCountry == 0)
+		{
+			m_Visible = false;
+			return;
+		}
+		if(Data.m_InGame)
+		{
+			// Check for us and dummy, Data.m_Local only does current char
+			for(const auto Id : This.m_aLocalIds)
+			{
+				if(Id == Data.m_ClientId)
+				{
+					m_Visible = false;
+					return;
+				}
+			}
+			m_pCountryFlag = &This.m_CountryFlags.GetByCountryCode(This.m_aClients[Data.m_ClientId].m_Country);
+		}
+		else
+		{
+			if(Data.m_ClientId == 0)
+				m_pCountryFlag = &This.m_CountryFlags.GetByCountryCode(g_Config.m_PlayerCountry);
+			else
+				m_pCountryFlag = &This.m_CountryFlags.GetByCountryCode(g_Config.m_ClDummyCountry);
+		}
+		// Do not show default flags
+		if(m_pCountryFlag == &This.m_CountryFlags.GetByCountryCode(0))
+		{
+			m_Visible = false;
+			return;
+		}
+		m_Alpha = Data.m_Color.a;
+		m_Size = vec2(Data.m_FontSize / FLAG_RATIO, Data.m_FontSize);
+	}
+	void Render(CGameClient &This, vec2 Pos) const override
+	{
+		if(!m_pCountryFlag)
+			return;
+		This.m_CountryFlags.Render(*m_pCountryFlag, ColorRGBA(1.0f, 1.0f, 1.0f, m_Alpha),
+			Pos.x - m_Size.x / 2.0f, Pos.y - m_Size.y / 2.0f,
+			m_Size.x, m_Size.y);
+	}
+	CNamePlatePartCountry(CGameClient &This) :
+		CNamePlatePart(This) {}
+};
+
+class CNamePlatePartPing : public CNamePlatePart
+{
+protected:
+	float m_Radius = 7.0f;
+	ColorRGBA m_Color;
+
+public:
+	friend class CGameClient;
+	void Update(CGameClient &This, const CNamePlateData &Data) override
+	{
+		/*
+			If in a real game,
+				Show other people's pings if in scoreboard
+				Or if ping circle and name enabled
+			If in preview
+				Show ping if ping circle and name enabled
+		*/
+		m_Radius = Data.m_FontSize / 3.0f;
+		m_Size = vec2(m_Radius, m_Radius) * 1.5f;
+		m_Visible = Data.m_InGame ? (
+						    ((Data.m_ShowName && g_Config.m_TcNameplatePingCircle > 0) ||
+							    (This.m_Scoreboard.IsActive() && !This.m_Snap.m_apPlayerInfos[Data.m_ClientId]->m_Local))) :
+					    (
+						    (Data.m_ShowName && g_Config.m_TcNameplatePingCircle > 0));
+		if(!m_Visible)
+			return;
+		int Ping = Data.m_InGame ? This.m_Snap.m_apPlayerInfos[Data.m_ClientId]->m_Latency : (1 + Data.m_ClientId) * 25;
+		m_Color = color_cast<ColorRGBA>(ColorHSLA((float)(300 - std::clamp(Ping, 0, 300)) / 1000.0f, 1.0f, 0.5f, Data.m_Color.a));
+	}
+	void Render(CGameClient &This, vec2 Pos) const override
+	{
+		This.Graphics()->TextureClear();
+		This.Graphics()->QuadsBegin();
+		This.Graphics()->SetColor(m_Color);
+		This.Graphics()->DrawCircle(Pos.x, Pos.y, m_Radius, 24);
+		This.Graphics()->QuadsEnd();
+	}
+	CNamePlatePartPing(CGameClient &This) :
+		CNamePlatePart(This) {}
+};
+
+class CNamePlatePartSkin : public CNamePlatePartText
+{
+private:
+	char m_aText[MAX_SKIN_LENGTH] = "";
+	float m_FontSize = -INFINITY;
+
+protected:
+	bool UpdateNeeded(CGameClient &This, const CNamePlateData &Data) override
+	{
+		m_Visible = Data.m_InGame ? g_Config.m_TcNameplateSkins > (This.m_Snap.m_apPlayerInfos[Data.m_ClientId]->m_Local ? 1 : 0) : g_Config.m_TcNameplateSkins > 0;
+		if(!m_Visible)
+			return false;
+		m_Color = Data.m_Color;
+		const char *pSkin = Data.m_InGame ? This.m_aClients[Data.m_ClientId].m_aSkinName : (Data.m_ClientId == 0 ? g_Config.m_ClPlayerSkin : g_Config.m_ClDummySkin);
+		return m_FontSize != Data.m_FontSizeClan || str_comp(m_aText, pSkin) != 0;
+	}
+	void UpdateText(CGameClient &This, const CNamePlateData &Data) override
+	{
+		m_FontSize = Data.m_FontSizeClan;
+		const char *pSkin = Data.m_InGame ? This.m_aClients[Data.m_ClientId].m_aSkinName : (Data.m_ClientId == 0 ? g_Config.m_ClPlayerSkin : g_Config.m_ClDummySkin);
+		str_copy(m_aText, pSkin, sizeof(m_aText));
+		CTextCursor Cursor;
+		Cursor.m_FontSize = m_FontSize;
+		This.TextRender()->CreateOrAppendTextContainer(m_TextContainerIndex, &Cursor, m_aText);
+	}
+
+public:
+	CNamePlatePartSkin(CGameClient &This) :
+		CNamePlatePartText(This) {}
+};
+
+class CNamePlatePartReason : public CNamePlatePartText
+{
+private:
+	char m_aText[MAX_WARLIST_REASON_LENGTH] = "";
+	float m_FontSize = -INFINITY;
+
+protected:
+	bool UpdateNeeded(CGameClient &This, const CNamePlateData &Data) override
+	{
+		m_Visible = Data.m_InGame;
+		if(!m_Visible)
+			return false;
+		const char *pReason = This.m_WarList.GetWarData(Data.m_ClientId).m_aReason;
+		m_Visible = pReason[0] != '\0' && !This.m_Snap.m_apPlayerInfos[Data.m_ClientId]->m_Local;
+		if(!m_Visible)
+			return false;
+		m_Color = ColorRGBA(0.7f, 0.7f, 0.7f, Data.m_Color.a);
+		return m_FontSize != Data.m_FontSizeClan || str_comp(m_aText, pReason) != 0;
+	}
+	void UpdateText(CGameClient &This, const CNamePlateData &Data) override
+	{
+		m_FontSize = Data.m_FontSizeClan;
+		const char *pReason = This.m_WarList.GetWarData(Data.m_ClientId).m_aReason;
+		str_copy(m_aText, pReason, sizeof(m_aText));
+		CTextCursor Cursor;
+		Cursor.m_FontSize = m_FontSize;
+		This.TextRender()->CreateOrAppendTextContainer(m_TextContainerIndex, &Cursor, m_aText);
+	}
+
+public:
+	CNamePlatePartReason(CGameClient &This) :
+		CNamePlatePartText(This) {}
+};
+
+class CNamePlatePartIgnoreMark : public CNamePlatePartText
+{
+private:
+	float m_FontSize = -INFINITY;
+
+protected:
+	bool UpdateNeeded(CGameClient &This, const CNamePlateData &Data) override
+	{
+		m_Visible = (Data.m_InGame && Data.m_ShowName && This.Client()->State() != IClient::STATE_DEMOPLAYBACK && (This.m_aClients[Data.m_ClientId].m_Foe || This.m_aClients[Data.m_ClientId].m_ChatIgnore));
+		if(!m_Visible)
+			return false;
+		m_Color = ColorRGBA(1.0f, 1.0f, 1.0f, Data.m_Color.a);
+		return m_FontSize != Data.m_FontSize;
+	}
+	void UpdateText(CGameClient &This, const CNamePlateData &Data) override
+	{
+		m_FontSize = Data.m_FontSize;
+		CTextCursor Cursor;
+		This.TextRender()->SetFontPreset(EFontPreset::ICON_FONT);
+		Cursor.m_FontSize = m_FontSize;
+		This.TextRender()->CreateOrAppendTextContainer(m_TextContainerIndex, &Cursor, FontIcon::COMMENT_SLASH);
+		This.TextRender()->SetFontPreset(EFontPreset::DEFAULT_FONT);
+	}
+
+public:
+	CNamePlatePartIgnoreMark(CGameClient &This) :
+		CNamePlatePartText(This) {}
+};
+
+// ***** Name Plates *****
 
 class CNamePlate
 {
@@ -512,11 +723,9 @@ private:
 			return;
 		m_Inited = true;
 
-		AddPart<CNamePlatePartDirection>(This, DIRECTION_LEFT);
-		AddPart<CNamePlatePartDirection>(This, DIRECTION_UP);
-		AddPart<CNamePlatePartDirection>(This, DIRECTION_RIGHT);
-		AddPart<CNamePlatePartNewLine>(This);
-
+		AddPart<CNamePlatePartCountry>(This); // TClient
+		AddPart<CNamePlatePartPing>(This); // TClient
+		AddPart<CNamePlatePartIgnoreMark>(This); // TClient
 		AddPart<CNamePlatePartFriendMark>(This);
 		AddPart<CNamePlatePartClientId>(This, false);
 		AddPart<CNamePlatePartName>(This);
@@ -525,11 +734,21 @@ private:
 		AddPart<CNamePlatePartClan>(This);
 		AddPart<CNamePlatePartNewLine>(This);
 
+		AddPart<CNamePlatePartReason>(This); // TClient
+		AddPart<CNamePlatePartNewLine>(This); // TClient
+		AddPart<CNamePlatePartSkin>(This); // TClient
+		AddPart<CNamePlatePartNewLine>(This); // TClient
+
 		AddPart<CNamePlatePartClientId>(This, true);
 		AddPart<CNamePlatePartNewLine>(This);
 
 		AddPart<CNamePlatePartHookStrongWeak>(This);
 		AddPart<CNamePlatePartHookStrongWeakId>(This);
+		AddPart<CNamePlatePartNewLine>(This);
+
+		AddPart<CNamePlatePartDirection>(This, DIRECTION_LEFT);
+		AddPart<CNamePlatePartDirection>(This, DIRECTION_UP);
+		AddPart<CNamePlatePartDirection>(This, DIRECTION_RIGHT);
 	}
 
 public:
@@ -760,6 +979,11 @@ void CNamePlates::RenderNamePlateGame(vec2 Position, const CNetObj_PlayerInfo *p
 		}
 	}
 
+	// TClient
+	if(g_Config.m_TcWarList && g_Config.m_TcWarListShowClan && GameClient()->m_WarList.GetWarData(pPlayerInfo->m_ClientId).m_WarClan)
+		Data.m_ShowClan = true;
+	Data.m_Local = pPlayerInfo->m_Local;
+
 	// Check if the nameplate is actually on screen
 	CNamePlate &NamePlate = m_pData->m_aNamePlates[pPlayerInfo->m_ClientId];
 	NamePlate.Update(*GameClient(), Data);
@@ -818,6 +1042,9 @@ void CNamePlates::RenderNamePlatePreview(vec2 Position, int Dummy)
 		Data.m_HookStrongWeakState = Data.m_HookStrongWeakId == 2 ? EHookStrongWeakState::STRONG : EHookStrongWeakState::WEAK;
 		Data.m_ShowHookStrongWeak = g_Config.m_ClNamePlatesStrong > 0;
 	}
+
+	// TClient
+	Data.m_Local = false;
 
 	CTeeRenderInfo TeeRenderInfo;
 	if(Dummy == 0)
@@ -881,6 +1108,11 @@ void CNamePlates::OnRender()
 		// Only render name plates for active characters
 		if(GameClient()->m_Snap.m_aCharacters[i].m_Active)
 		{
+			// TClient
+			if(GameClient()->m_aClients[i].m_IsVolleyBall)
+				continue;
+			// if(g_Config.m_TcRenderNameplateSpec > 0)
+			//	continue;
 			const vec2 RenderPos = GameClient()->m_aClients[i].m_RenderPos;
 			RenderNamePlateGame(RenderPos, pInfo, 1.0f);
 		}

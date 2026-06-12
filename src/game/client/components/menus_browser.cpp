@@ -3,6 +3,7 @@
 #include "menus.h"
 
 #include <base/log.h>
+#include <base/time.h>
 
 #include <engine/engine.h>
 #include <engine/favorites.h>
@@ -621,6 +622,29 @@ void CMenus::RenderServerbrowserStatusBox(CUIRect StatusBox, bool WasListboxItem
 		Ui()->DoLabel(&PlayersOnline, aBuf, 12.0f, TEXTALIGN_MR);
 	}
 
+	// status box
+	{
+		CUIRect ServersOnline, PlayersOnline;
+		ServersPlayersOnline.HSplitMid(&PlayersOnline, &ServersOnline);
+
+		char aBuf[128];
+		if(ServerBrowser()->NumServers() != 1)
+			str_format(aBuf, sizeof(aBuf), Localize("%d of %d servers"), ServerBrowser()->NumSortedServers(), ServerBrowser()->NumServers());
+		else
+			str_format(aBuf, sizeof(aBuf), Localize("%d of %d server"), ServerBrowser()->NumSortedServers(), ServerBrowser()->NumServers());
+		Ui()->DoLabel(&ServersOnline, aBuf, 12.0f, TEXTALIGN_MR);
+
+		int NumPlayers = 0;
+		for(int i = 0; i < ServerBrowser()->NumSortedServers(); i++)
+			NumPlayers += ServerBrowser()->SortedGet(i)->m_NumFilteredPlayers;
+
+		if(NumPlayers != 1)
+			str_format(aBuf, sizeof(aBuf), Localize("%d players"), NumPlayers);
+		else
+			str_format(aBuf, sizeof(aBuf), Localize("%d player"), NumPlayers);
+		Ui()->DoLabel(&PlayersOnline, aBuf, 12.0f, TEXTALIGN_MR);
+	}
+
 	// address info
 	{
 		CUIRect ServerAddrLabel, ServerAddrEditBox;
@@ -865,7 +889,7 @@ void CMenus::ResetServerbrowserFilters()
 	g_Config.m_BrFilterGametypeStrict = 0;
 	g_Config.m_BrFilterConnectingPlayers = 1;
 	g_Config.m_BrFilterServerAddress[0] = '\0';
-	g_Config.m_BrFilterLogin = true;
+	g_Config.m_BrFilterLogin = false; // TClient
 
 	if(g_Config.m_UiPage != PAGE_LAN)
 	{
@@ -1345,7 +1369,7 @@ void CMenus::RenderServerbrowserInfoScoreboard(CUIRect View, const CServerInfo *
 
 			if(Time.has_value())
 			{
-				str_time((int64_t)Time.value() * 100, TIME_HOURS, aTemp, sizeof(aTemp));
+				str_time((int64_t)Time.value() * 100, ETimeFormat::HOURS, aTemp, sizeof(aTemp));
 			}
 			else
 			{

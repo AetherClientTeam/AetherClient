@@ -98,6 +98,10 @@ void CScrollRegion::End()
 		if(!ProgrammaticScroll)
 			m_ScrollSpeedMultiplier = 1.0f;
 
+		// TClient: Hack to allow slider scroll adjustment
+		if(Input()->ModifierIsPressed())
+			m_ScrollDirection = SCROLLRELATIVE_NONE;
+
 		if(m_ScrollDirection != SCROLLRELATIVE_NONE)
 		{
 			const bool IsPageScroll = Input()->AltIsPressed();
@@ -137,7 +141,7 @@ void CScrollRegion::End()
 	if(absolute(m_AnimInitScrollY - m_AnimTargetScrollY) < 0.5f)
 		m_AnimTime = 0.0f;
 
-	if(m_AnimTime > 0.0f)
+	if(m_AnimTime > 0.0f && !Input()->ModifierIsPressed()) // TClient: Hack to allow slider scroll adjustment
 	{
 		m_AnimTime -= Client()->RenderFrameTime();
 		if(m_AnimTime < 0.0f)

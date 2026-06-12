@@ -211,6 +211,7 @@ class CRenderTools
 {
 	class IGraphics *m_pGraphics;
 	class ITextRender *m_pTextRender;
+	class CGameClient *m_pGameClient;
 
 	int m_TeeQuadContainerIndex;
 
@@ -223,10 +224,13 @@ class CRenderTools
 public:
 	class IGraphics *Graphics() const { return m_pGraphics; }
 	class ITextRender *TextRender() const { return m_pTextRender; }
+	class CGameClient *GameClient() const { return m_pGameClient; }
 
-	void Init(class IGraphics *pGraphics, class ITextRender *pTextRender);
+	bool m_LocalTeeRender = false; // TClient
 
-	void RenderCursor(vec2 Center, float Size) const;
+	void Init(class IGraphics *pGraphics, class ITextRender *pTextRender, class CGameClient *pGameClient);
+
+	void RenderCursor(vec2 Center, float Size, float Alpha = 1.0f) const;
 	void RenderIcon(int ImageId, int SpriteId, const CUIRect *pRect, const ColorRGBA *pColor = nullptr) const;
 
 	// larger rendering methods
