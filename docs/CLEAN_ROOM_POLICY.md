@@ -59,7 +59,7 @@ Every new Aether feature must add a row before implementation starts.
 
 | Feature | Requirement source | Implementation references | Status |
 |---|---|---|---|
-| Aether settings catalog | User-authored menu behavior in the clean-room plan | DDNet UI APIs | Mockup ready for approval |
+| Aether settings catalog | User-authored menu behavior in the clean-room plan | DDNet UI APIs | Mockups approved on 2026-06-13 |
 | Silent typing | Pending written behavior contract | DDNet chat/input APIs | Not started |
 | Draft preservation | Pending written behavior contract | DDNet chat/input APIs | Not started |
 | Snap tap | Pending written behavior contract | DDNet controls APIs | Not started |

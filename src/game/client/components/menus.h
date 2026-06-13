@@ -249,6 +249,7 @@ protected:
 	bool m_NeedSendinfo;
 	bool m_NeedSendDummyinfo;
 	int m_SettingPlayerPage;
+	int m_TeeSettingsPage;
 
 	// 0.7 skins
 	bool m_CustomSkinMenu = false;
@@ -577,6 +578,7 @@ protected:
 	void RenderThemeSelection(CUIRect MainView);
 	void RenderSettingsGeneral(CUIRect MainView);
 	void RenderSettingsPlayer(CUIRect MainView);
+	void RenderSettingsTeePage(CUIRect MainView);
 	void RenderSettingsTee(CUIRect MainView);
 	void RenderSettingsTee7(CUIRect MainView);
 	void RenderSettingsTeeCustom7(CUIRect MainView);
@@ -691,7 +693,6 @@ public:
 		SETTINGS_DDNET,
 		SETTINGS_ASSETS,
 		SETTINGS_TCLIENT,
-		SETTINGS_PROFILES,
 		SETTINGS_CONFIGS,
 
 		SETTINGS_LENGTH,

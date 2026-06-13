@@ -10,7 +10,6 @@
 #include <engine/external/tinyexpr.h>
 #include <engine/graphics.h>
 #include <engine/shared/config.h>
-#include <engine/shared/json.h>
 
 #include <generated/client_data.h>
 
@@ -21,8 +20,6 @@
 #include <game/client/ui.h>
 #include <game/localization.h>
 #include <game/version.h>
-
-static constexpr const char *TCLIENT_INFO_URL = "https://update.tclient.app/info.json";
 
 CTClient::CTClient()
 {
@@ -102,7 +99,6 @@ void CTClient::OnInit()
 {
 	TextRender()->SetCustomFace(g_Config.m_TcCustomFont);
 	m_pGraphics = Kernel()->RequestInterface<IEngineGraphics>();
-	FetchTClientInfo();
 
 	char aError[512] = "";
 	if(!Storage()->FileExists("tclient/gui_logo.png", IStorage::TYPE_ALL))
@@ -111,7 +107,7 @@ void CTClient::OnInit()
 		CheckDataVersion(aError, sizeof(aError), Storage()->OpenFile(DATA_VERSION_PATH, IOFLAG_READ, IStorage::TYPE_ALL));
 	if(aError[0] != '\0')
 	{
-		SWarning Warning(aError, TCLocalize("You have probably only installed the TClient DDNet.exe which is not supported, please use the entire TClient folder", "data_version.h"));
+		SWarning Warning(aError, "Aether data files are incomplete. Reinstall the complete Aether package.");
 		Client()->AddWarning(Warning);
 	}
 }
@@ -548,94 +544,7 @@ bool CTClient::ServerCommandExists(const char *pCommand)
 
 void CTClient::OnRender()
 {
-	if(m_pTClientInfoTask)
-	{
-		if(m_pTClientInfoTask->State() == EHttpState::DONE)
-		{
-			FinishTClientInfo();
-			ResetTClientInfoTask();
-		}
-	}
-
 	DoFinishCheck();
-}
-
-bool CTClient::NeedUpdate()
-{
-	return str_comp(m_aVersionStr, "0") != 0;
-}
-
-void CTClient::ResetTClientInfoTask()
-{
-	if(m_pTClientInfoTask)
-	{
-		m_pTClientInfoTask->Abort();
-		m_pTClientInfoTask = NULL;
-	}
-}
-
-void CTClient::FetchTClientInfo()
-{
-	if(m_pTClientInfoTask && !m_pTClientInfoTask->Done())
-		return;
-	char aUrl[256];
-	str_copy(aUrl, TCLIENT_INFO_URL);
-	m_pTClientInfoTask = HttpGet(aUrl);
-	m_pTClientInfoTask->Timeout(CTimeout{10000, 0, 500, 10});
-	m_pTClientInfoTask->IpResolve(IPRESOLVE::V4);
-	Http()->Run(m_pTClientInfoTask);
-}
-
-typedef std::tuple<int, int, int> TVersion;
-static const TVersion gs_InvalidTCVersion = std::make_tuple(-1, -1, -1);
-
-static TVersion ToTCVersion(char *pStr)
-{
-	int aVersion[3] = {0, 0, 0};
-	const char *p = strtok(pStr, ".");
-
-	for(int i = 0; i < 3 && p; ++i)
-	{
-		if(!str_isallnum(p))
-			return gs_InvalidTCVersion;
-
-		aVersion[i] = str_toint(p);
-		p = strtok(NULL, ".");
-	}
-
-	if(p)
-		return gs_InvalidTCVersion;
-
-	return std::make_tuple(aVersion[0], aVersion[1], aVersion[2]);
-}
-
-void CTClient::FinishTClientInfo()
-{
-	json_value *pJson = m_pTClientInfoTask->ResultJson();
-	if(!pJson)
-		return;
-	const json_value &Json = *pJson;
-	const json_value &CurrentVersion = Json["version"];
-
-	if(CurrentVersion.type == json_string)
-	{
-		char aNewVersionStr[64];
-		str_copy(aNewVersionStr, CurrentVersion);
-		char aCurVersionStr[64];
-		str_copy(aCurVersionStr, TCLIENT_VERSION);
-		if(ToTCVersion(aNewVersionStr) > ToTCVersion(aCurVersionStr))
-		{
-			str_copy(m_aVersionStr, CurrentVersion);
-		}
-		else
-		{
-			m_aVersionStr[0] = '0';
-			m_aVersionStr[1] = '\0';
-		}
-		m_FetchedTClientInfo = true;
-	}
-
-	json_value_free(pJson);
 }
 
 void CTClient::SetForcedAspect()

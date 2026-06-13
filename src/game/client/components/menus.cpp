@@ -75,6 +75,7 @@ CMenus::CMenus()
 
 	m_DemoPlayerState = DEMOPLAYER_NONE;
 	m_Dummy = false;
+	m_TeeSettingsPage = 0;
 
 	for(SUIAnimator &Animator : m_aAnimatorsSettingsTab)
 	{

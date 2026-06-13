@@ -86,7 +86,7 @@ using namespace std::chrono_literals;
 const char *CGameClient::Version() const { return GAME_VERSION; }
 const char *CGameClient::NetVersion() const { return GAME_NETVERSION; }
 const char *CGameClient::NetVersion7() const { return GAME_NETVERSION7; }
-int CGameClient::DDNetVersion() const { return DDNET_VERSION_NUMBER; }
+int CGameClient::DDNetVersion() const { return DDNET_NETWORK_VERSION_NUMBER; }
 const char *CGameClient::DDNetVersionStr() const { return m_aDDNetVersionStr; }
 int CGameClient::ClientVersion7() const { return CLIENT_VERSION7; }
 const char *CGameClient::GetItemName(int Type) const { return m_NetObjHandler.GetObjName(Type); }
@@ -365,14 +365,7 @@ void CGameClient::OnInit()
 	m_RenderTools.Init(Graphics(), TextRender(), this); // TClient
 	m_RenderMap.Init(Graphics(), TextRender());
 
-	if(GIT_SHORTREV_HASH)
-	{
-		str_format(m_aDDNetVersionStr, sizeof(m_aDDNetVersionStr), "%s %s (%s)", CLIENT_NAME, CLIENT_RELEASE_VERSION, GIT_SHORTREV_HASH);
-	}
-	else
-	{
-		str_format(m_aDDNetVersionStr, sizeof(m_aDDNetVersionStr), "%s %s", CLIENT_NAME, CLIENT_RELEASE_VERSION);
-	}
+	str_format(m_aDDNetVersionStr, sizeof(m_aDDNetVersionStr), "TClient %s (%s)", TCLIENT_VERSION, TCLIENT_SOURCE_REVISION);
 
 	// TODO: this should be different
 	// setup item sizes

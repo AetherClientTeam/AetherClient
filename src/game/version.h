@@ -12,6 +12,12 @@ extern const char *GIT_SHORTREV_HASH;
 #endif
 #define GAME_RELEASE_VERSION STRINGIFY(GAME_RELEASE_VERSION_INTERNAL)
 
+// Some legacy community servers reject patch-level DDNet revisions even though
+// the protocol is compatible. Keep the source baseline at 19.8.2 while using
+// the last accepted 19.8 handshake identity.
+#define DDNET_NETWORK_VERSION_NUMBER 19080
+#define DDNET_NETWORK_VERSION "19.8"
+
 // teeworlds
 #define CLIENT_VERSION7 0x0705
 #define GAME_VERSION "0.6.4, " GAME_RELEASE_VERSION
@@ -22,9 +28,13 @@ extern const char *GIT_SHORTREV_HASH;
 #ifndef TCLIENT_VERSION
 #define TCLIENT_VERSION "10.8.7"
 #endif
+#define TCLIENT_SOURCE_REVISION "4e4269396b97d06879c11ae3b9696c3d"
 
 // client branding
+#ifndef AETHER_VERSION
+#define AETHER_VERSION "0.1.0"
+#endif
 #define CLIENT_NAME "Aether"
-#define CLIENT_RELEASE_VERSION TCLIENT_VERSION
+#define CLIENT_RELEASE_VERSION AETHER_VERSION
 
 #endif

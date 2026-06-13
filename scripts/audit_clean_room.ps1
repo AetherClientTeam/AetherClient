@@ -19,7 +19,11 @@ $TextPatterns = @(
 	"components/bestclient",
 	"components/aetherclient",
 	"\bbc_[A-Za-z0-9_]*",
-	"\bac_[A-Za-z0-9_]*"
+	"\bac_[A-Za-z0-9_]*",
+	"update\.tclient\.app",
+	"sjrc6\.github\.io",
+	"\bNETMSG_IAMTATER\b",
+	"\bTATER_CHECKSUM_(REQUEST|RESPONSE)\b"
 )
 
 $SourceFiles = Get-ChildItem -LiteralPath $RepositoryRoot -Recurse -File |

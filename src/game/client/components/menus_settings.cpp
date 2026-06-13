@@ -362,27 +362,53 @@ void CMenus::RenderSettingsPlayer(CUIRect MainView)
 	Ui()->DoEditBox_Search(&s_FlagFilterInput, &QuickSearch, 14.0f, !Ui()->IsPopupOpen() && !GameClient()->m_GameConsole.IsActive());
 }
 
-void CMenus::RenderSettingsTee(CUIRect MainView)
+void CMenus::RenderSettingsTeePage(CUIRect MainView)
 {
-	CUIRect TabBar, PlayerTab, DummyTab, ChangeInfo;
+	CUIRect TabBar, TeeTab, DummyTab, ProfilesTab;
 	MainView.HSplitTop(20.0f, &TabBar, &MainView);
-	TabBar.VSplitMid(&TabBar, &ChangeInfo, 20.f);
-	TabBar.VSplitMid(&PlayerTab, &DummyTab);
 	MainView.HSplitTop(10.0f, nullptr, &MainView);
 
-	static CButtonContainer s_PlayerTabButton;
-	if(DoButton_MenuTab(&s_PlayerTabButton, Localize("Player"), !m_Dummy, &PlayerTab, IGraphics::CORNER_L, nullptr, nullptr, nullptr, nullptr, 4.0f))
+	const float TabWidth = TabBar.w / 3.0f;
+	TabBar.VSplitLeft(TabWidth, &TeeTab, &TabBar);
+	TabBar.VSplitLeft(TabWidth, &DummyTab, &ProfilesTab);
+
+	static CButtonContainer s_TeeTabButton;
+	if(DoButton_MenuTab(&s_TeeTabButton, Localize("Tee"), m_TeeSettingsPage == 0, &TeeTab, IGraphics::CORNER_L, nullptr, nullptr, nullptr, nullptr, 4.0f))
 	{
+		m_TeeSettingsPage = 0;
 		m_Dummy = false;
 		m_SkinListScrollToSelected = true;
 	}
 
 	static CButtonContainer s_DummyTabButton;
-	if(DoButton_MenuTab(&s_DummyTabButton, Localize("Dummy"), m_Dummy, &DummyTab, IGraphics::CORNER_R, nullptr, nullptr, nullptr, nullptr, 4.0f))
+	if(DoButton_MenuTab(&s_DummyTabButton, Localize("Dummy"), m_TeeSettingsPage == 1, &DummyTab, 0, nullptr, nullptr, nullptr, nullptr, 4.0f))
 	{
+		m_TeeSettingsPage = 1;
 		m_Dummy = true;
 		m_SkinListScrollToSelected = true;
 	}
+
+	static CButtonContainer s_ProfilesTabButton;
+	if(DoButton_MenuTab(&s_ProfilesTabButton, Localize("Profiles"), m_TeeSettingsPage == 2, &ProfilesTab, IGraphics::CORNER_R, nullptr, nullptr, nullptr, nullptr, 4.0f))
+		m_TeeSettingsPage = 2;
+
+	if(m_TeeSettingsPage == 2)
+	{
+		RenderSettingsTClientProfiles(MainView);
+		return;
+	}
+
+	if(Client()->IsSixup())
+		RenderSettingsTee7(MainView);
+	else
+		RenderSettingsTee(MainView);
+}
+
+void CMenus::RenderSettingsTee(CUIRect MainView)
+{
+	CUIRect ChangeInfo;
+	MainView.HSplitTop(20.0f, &ChangeInfo, &MainView);
+	MainView.HSplitTop(10.0f, nullptr, &MainView);
 
 	if(Client()->State() == IClient::STATE_ONLINE &&
 		GameClient()->m_aNextChangeInfo[m_Dummy] > Client()->GameTick(m_Dummy))
@@ -1471,7 +1497,6 @@ void CMenus::RenderSettings(CUIRect MainView)
 		Localize("DDNet"),
 		Localize("Assets"),
 		TCLocalize("TClient"),
-		Localize("Profiles"),
 		Localize("Configs")};
 
 	static CButtonContainer s_aTabButtons[SETTINGS_LENGTH];
@@ -1502,10 +1527,7 @@ void CMenus::RenderSettings(CUIRect MainView)
 	else if(g_Config.m_UiSettingsPage == SETTINGS_TEE)
 	{
 		GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_SETTINGS_TEE);
-		if(Client()->IsSixup())
-			RenderSettingsTee7(MainView);
-		else
-			RenderSettingsTee(MainView);
+		RenderSettingsTeePage(MainView);
 	}
 	else if(g_Config.m_UiSettingsPage == SETTINGS_APPEARANCE)
 	{
@@ -1542,14 +1564,9 @@ void CMenus::RenderSettings(CUIRect MainView)
 		GameClient()->m_MenuBackground.ChangePosition(13);
 		RenderSettingsTClient(MainView);
 	}
-	else if(g_Config.m_UiSettingsPage == SETTINGS_PROFILES)
-	{
-		GameClient()->m_MenuBackground.ChangePosition(14);
-		RenderSettingsTClientProfiles(MainView);
-	}
 	else if(g_Config.m_UiSettingsPage == SETTINGS_CONFIGS)
 	{
-		GameClient()->m_MenuBackground.ChangePosition(15);
+		GameClient()->m_MenuBackground.ChangePosition(14);
 		RenderSettingsTClientConfigs(MainView);
 	}
 	else
@@ -2753,12 +2770,6 @@ void CMenus::RenderSettingsDDNet(CUIRect MainView)
 {
 	CUIRect Button, Left, Right, LeftLeft, Label;
 
-#if defined(CONF_AUTOUPDATE)
-	CUIRect UpdaterRect;
-	MainView.HSplitBottom(20.0f, &MainView, &UpdaterRect);
-	MainView.HSplitBottom(5.0f, &MainView, nullptr);
-#endif
-
 	// demo
 	CUIRect Demo;
 	MainView.HSplitTop(110.0f, &Demo, &MainView);
@@ -3004,47 +3015,6 @@ void CMenus::RenderSettingsDDNet(CUIRect MainView)
 	}
 #endif
 
-	// Updater
-#if defined(CONF_AUTOUPDATE)
-	{
-		const bool NeedUpdate = GameClient()->m_TClient.NeedUpdate();
-		IUpdater::EUpdaterState State = Updater()->GetCurrentState();
-
-		// Update Button
-		char aBuf[256];
-		if(NeedUpdate && State <= IUpdater::CLEAN)
-		{
-			str_format(aBuf, sizeof(aBuf), Localize("TClient %s is available:"), GameClient()->m_TClient.m_aVersionStr);
-			UpdaterRect.VSplitLeft(TextRender()->TextWidth(14.0f, aBuf, -1, -1.0f) + 10.0f, &UpdaterRect, &Button);
-			Button.VSplitLeft(100.0f, &Button, nullptr);
-			static CButtonContainer s_ButtonUpdate;
-			if(DoButton_Menu(&s_ButtonUpdate, Localize("Update now"), 0, &Button))
-			{
-				Updater()->InitiateUpdate();
-			}
-		}
-		else if(State >= IUpdater::GETTING_MANIFEST && State < IUpdater::NEED_RESTART)
-			str_copy(aBuf, Localize("Updating…"));
-		else if(State == IUpdater::NEED_RESTART)
-		{
-			str_copy(aBuf, Localize("TClient Client updated!"));
-			m_NeedRestartUpdate = true;
-		}
-		else
-		{
-			str_copy(aBuf, Localize("No updates available"));
-			UpdaterRect.VSplitLeft(TextRender()->TextWidth(14.0f, aBuf, -1, -1.0f) + 10.0f, &UpdaterRect, &Button);
-			Button.VSplitLeft(100.0f, &Button, nullptr);
-			static CButtonContainer s_ButtonUpdate;
-			if(DoButton_Menu(&s_ButtonUpdate, Localize("Check now"), 0, &Button))
-			{
-				GameClient()->m_TClient.FetchTClientInfo();
-			}
-		}
-		Ui()->DoLabel(&UpdaterRect, aBuf, 14.0f, TEXTALIGN_ML);
-		TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
-	}
-#endif
 }
 
 CUi::EPopupMenuFunctionResult CMenus::PopupMapPicker(void *pContext, CUIRect View, bool Active)

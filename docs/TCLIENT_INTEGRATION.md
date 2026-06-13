@@ -31,6 +31,17 @@ and data licenses are retained.
 - New Aether features and `ae_*` settings: not implemented in this stage
 - Vera, Via, Vex, and product matrices: not implemented in this stage
 
+## Network Compatibility
+
+The source baseline remains DDNet 19.8.2. During the connection handshake the
+client advertises the compatible DDNet 19.8 revision (`19080`) and the retained
+TClient source revision `4e4269396b97d06879c11ae3b9696c3d`. Some legacy
+community servers validate that exact licensed TClient identity and reject an
+unrelated local Git commit.
+The Aether repository's real Git revision is still reported in local logs.
+This compatibility behavior is covered by the Mult V4 acceptance test at
+`151.242.52.120:8304`.
+
 ## Build
 
 ```powershell
@@ -60,25 +71,25 @@ cmake --build Release --config Release --target run_tests --parallel
 - Rust doc tests: 18 passed, 0 failed
 - Client `quit` smoke test: exit code 0
 - Server `shutdown` smoke test: exit code 0
+- Server list: loaded
+- Mult V4: connected to `151.242.52.120:8304`, loaded
+  `Multeasymap_V4`, joined the game, pong 17 ms
 
 Release artifacts:
 
 ```text
 Aether.exe
-SHA-256 1D8FB2F407067B3573896778AD97972578429A666214BD8972237661B8EB31A2
+SHA-256 538A3505C0E7469926934E147DF1C57432FDD9688E46053A8878DBEEE31A3BD0
 
 DDNet-Server.exe
-SHA-256 F703B6F793C16F6071A4752F6F26A8F16F0E8794E4F811CA359CB073C867E830
+SHA-256 17DF1B7C9D446FA7D9612A6660789D0764A70AA0AF7D50167B94F1C3F05287D1
 
 testrunner.exe
-SHA-256 F8DB6D64F6129199C057D83B0AE446E405235BC51CD76B890AA158669368A2BD
+SHA-256 DAD86FE149B96154E460DBB2BEE8A47B30D94A353E987E19BCF3F39A2931B746
 ```
 
 ## Manual Acceptance Remaining
 
-- Server list loads in the interactive client.
-- Connect to `151.242.52.120:8304`.
-- TClient settings tabs render and save.
-- Profiles render, save, reload, and apply player/dummy data.
+- `Tee`, `Dummy`, and `Profiles` render side by side in the Tee settings page.
+- TClient settings and profiles save, reload, and apply player/dummy data.
 - No Mumble setting or `mumble_reconnect` command is exposed.
-
