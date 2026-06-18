@@ -7,6 +7,7 @@
 #include <atomic>
 #include <cstdio>
 #include <memory>
+#include <string>
 
 #if defined(CONF_FAMILY_WINDOWS)
 #include <fcntl.h>
@@ -23,6 +24,78 @@
 std::atomic<ILogger *> global_logger = nullptr;
 thread_local ILogger *scope_logger = nullptr;
 thread_local bool in_logger = false;
+
+static void log_aether_replace_all(std::string &Line, const char *pNeedle, const char *pReplacement)
+{
+	size_t Pos = 0;
+	const size_t NeedleLength = str_length(pNeedle);
+	const size_t ReplacementLength = str_length(pReplacement);
+	while((Pos = Line.find(pNeedle, Pos)) != std::string::npos)
+	{
+		Line.replace(Pos, NeedleLength, pReplacement);
+		Pos += ReplacementLength;
+	}
+}
+
+static void log_aether_mask_project_root(std::string &Line, const char *pSeparator)
+{
+	const std::string Marker = std::string("Aether-Ecosystem-Clean");
+	const std::string UserPrefix = std::string("C:") + pSeparator + "Users" + pSeparator;
+	size_t MarkerPos = 0;
+	while((MarkerPos = Line.find(Marker, MarkerPos)) != std::string::npos)
+	{
+		const size_t PrefixPos = Line.rfind(UserPrefix, MarkerPos);
+		if(PrefixPos == std::string::npos)
+		{
+			MarkerPos += Marker.size();
+			continue;
+		}
+		const size_t ReplaceEnd = MarkerPos + Marker.size();
+		Line.replace(PrefixPos, ReplaceEnd - PrefixPos, "[AETHER_ROOT]");
+		MarkerPos = PrefixPos + str_length("[AETHER_ROOT]");
+	}
+}
+
+static void log_aether_mask_user_path(std::string &Line, const char *pSeparator, const char *pMarker, const char *pReplacement)
+{
+	const std::string UserPrefix = std::string("C:") + pSeparator + "Users" + pSeparator;
+	size_t Pos = 0;
+	while((Pos = Line.find(UserPrefix, Pos)) != std::string::npos)
+	{
+		const size_t UserNameStart = Pos + UserPrefix.size();
+		const size_t UserNameEnd = Line.find(pSeparator, UserNameStart);
+		if(UserNameEnd == std::string::npos)
+		{
+			Line.replace(Pos, Line.size() - Pos, "[USER_DIR]");
+			return;
+		}
+
+		size_t ReplaceEnd = UserNameEnd;
+		if(pMarker && pMarker[0] != '\0')
+		{
+			const std::string Marker = std::string(pSeparator) + pMarker;
+			if(Line.compare(UserNameEnd, Marker.size(), Marker) == 0)
+				ReplaceEnd = UserNameEnd + Marker.size();
+		}
+
+		Line.replace(Pos, ReplaceEnd - Pos, pReplacement);
+		Pos += str_length(pReplacement);
+	}
+}
+
+void log_aether_mask_paths(char *pLine, int LineSize)
+{
+	std::string Line(pLine);
+	log_aether_mask_project_root(Line, "\\");
+	log_aether_mask_project_root(Line, "/");
+	log_aether_mask_user_path(Line, "\\", "AppData\\Roaming\\DDNet", "[DDNET_CONFIG]");
+	log_aether_mask_user_path(Line, "/", "AppData/Roaming/DDNet", "[DDNET_CONFIG]");
+	log_aether_mask_user_path(Line, "\\", "", "[USER_DIR]");
+	log_aether_mask_user_path(Line, "/", "", "[USER_DIR]");
+	log_aether_replace_all(Line, "C:\\Users\\", "[USER_DIR]\\");
+	log_aether_replace_all(Line, "C:/Users/", "[USER_DIR]/");
+	str_copy(pLine, Line.c_str(), LineSize);
+}
 
 void log_set_global_logger(ILogger *logger)
 {
@@ -106,6 +179,7 @@ void log_set_scope_logger(ILogger *logger)
 	char *pMessage = Msg.m_aLine + Msg.m_LineMessageOffset;
 	int MessageSize = sizeof(Msg.m_aLine) - Msg.m_LineMessageOffset;
 	str_format_v(pMessage, MessageSize, fmt, args);
+	log_aether_mask_paths(Msg.m_aLine, sizeof(Msg.m_aLine));
 	Msg.m_LineLength = str_length(Msg.m_aLine);
 	scope_logger->Log(&Msg);
 	in_logger = false;

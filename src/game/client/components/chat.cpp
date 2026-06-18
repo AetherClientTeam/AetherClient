@@ -4,14 +4,18 @@
 #include "chat.h"
 
 #include <base/io.h>
+#include <base/math.h>
+#include <base/system.h>
 #include <base/time.h>
 
 #include <engine/editor.h>
 #include <engine/external/regex.h>
 #include <engine/graphics.h>
 #include <engine/keys.h>
+#include <engine/sound.h>
 #include <engine/shared/config.h>
 #include <engine/shared/csv.h>
+#include <engine/storage.h>
 #include <engine/textrender.h>
 
 #include <generated/protocol.h>
@@ -19,6 +23,8 @@
 
 #include <game/client/animstate.h>
 #include <game/client/components/censor.h>
+#include <game/client/components/aether/audio_decoder.h>
+#include <game/client/components/aether/client_variant.h>
 #include <game/client/components/scoreboard.h>
 #include <game/client/components/skins.h>
 #include <game/client/components/sounds.h>
@@ -26,12 +32,78 @@
 #include <game/client/gameclient.h>
 #include <game/localization.h>
 
+#include <algorithm>
+#include <vector>
+
+namespace
+{
+bool AetherSoundFileHasExtension(const char *pName, const char *pExt)
+{
+	const int NameLen = str_length(pName);
+	const int ExtLen = str_length(pExt);
+	return NameLen >= ExtLen && str_comp_nocase(pName + NameLen - ExtLen, pExt) == 0;
+}
+
+void AetherSanitizeAssetFileName(const char *pInput, char *pOut, int OutSize)
+{
+	if(OutSize <= 0)
+		return;
+	pOut[0] = '\0';
+	if(!pInput)
+		return;
+
+	const char *pBase = pInput;
+	for(const char *p = pInput; *p; ++p)
+		if(*p == '/' || *p == '\\')
+			pBase = p + 1;
+
+	str_copy(pOut, pBase, OutSize);
+	for(char *p = pOut; *p; ++p)
+	{
+		if(*p == '/' || *p == '\\' || *p == ':' || *p == '<' || *p == '>' || *p == '|' || *p == '*' || *p == '?')
+			*p = '_';
+	}
+}
+
+int AetherTryLoadKeyboardSample(IStorage *pStorage, ISound *pSound, const char *pFileName)
+{
+	if(!pStorage || !pSound || !pFileName || pFileName[0] == '\0')
+		return -1;
+
+	char aSanitized[128];
+	AetherSanitizeAssetFileName(pFileName, aSanitized, sizeof(aSanitized));
+	if(aSanitized[0] == '\0')
+		return -1;
+
+	char aRel[IO_MAX_PATH_LENGTH];
+	str_format(aRel, sizeof(aRel), "assets/keyboard/%s", aSanitized);
+	if(!pStorage->FileExists(aRel, IStorage::TYPE_SAVE))
+		return -1;
+
+	if(AetherSoundFileHasExtension(aSanitized, ".wv"))
+		return pSound->LoadWV(aRel, IStorage::TYPE_SAVE);
+	if(AetherSoundFileHasExtension(aSanitized, ".mp3"))
+	{
+		char aAbsolute[IO_MAX_PATH_LENGTH];
+		pStorage->GetCompletePath(IStorage::TYPE_SAVE, aRel, aAbsolute, sizeof(aAbsolute));
+		std::vector<short> vPcm;
+		int Channels = 0;
+		int SampleRate = 0;
+		if(!AetherAudio::DecodeAudioFileToS16Pcm(aAbsolute, vPcm, Channels, SampleRate, aSanitized))
+			return -1;
+		return pSound->LoadS16PcmInterleavedFromMem(vPcm.data(), (int)vPcm.size() / maximum(1, Channels), Channels, SampleRate, false, aSanitized);
+	}
+	return pSound->LoadOpus(aRel, IStorage::TYPE_SAVE);
+}
+}
+
 char CChat::ms_aDisplayText[MAX_LINE_LENGTH] = "";
 
 CChat::CLine::CLine()
 {
 	m_TextContainerIndex.Reset();
 	m_QuadContainerIndex = -1;
+	m_LastRenderRectValid = false;
 }
 
 void CChat::CLine::Reset(CChat &This)
@@ -46,11 +118,143 @@ void CChat::CLine::Reset(CChat &This)
 	m_TimesRepeated = 0;
 	m_pManagedTeeRenderInfo = nullptr;
 	m_pTranslateResponse = nullptr;
+	m_LastRenderRectValid = false;
+}
+
+static bool AetherExtractFirstLink(const char *pText, char *pOut, int OutSize)
+{
+	if(!pText || OutSize <= 0)
+		return false;
+	const char *pStart = str_find_nocase(pText, "https://");
+	if(!pStart)
+		pStart = str_find_nocase(pText, "http://");
+	if(!pStart)
+		return false;
+	const char *pEnd = pStart;
+	while(*pEnd && *pEnd > ' ' && *pEnd != '"' && *pEnd != '<' && *pEnd != '>')
+		++pEnd;
+	while(pEnd > pStart && (pEnd[-1] == '.' || pEnd[-1] == ',' || pEnd[-1] == ')' || pEnd[-1] == ']'))
+		--pEnd;
+	const int Length = std::min((int)(pEnd - pStart), OutSize - 1);
+	if(Length <= 0)
+		return false;
+	str_truncate(pOut, OutSize, pStart, Length);
+	return true;
+}
+
+void CChat::BuildLineContextText(const CLine &Line, char *pOut, int OutSize) const
+{
+	if(Line.m_aName[0] != '\0')
+		str_format(pOut, OutSize, "%s: %s", Line.m_aName, Line.m_aText);
+	else
+		str_copy(pOut, Line.m_aText, OutSize);
+}
+
+void CChat::OpenLineContext(const CLine &Line, float X, float Y)
+{
+	m_ChatContextPopup.m_pChat = this;
+	BuildLineContextText(Line, m_ChatContextPopup.m_aText, sizeof(m_ChatContextPopup.m_aText));
+	m_ChatContextPopup.m_aLink[0] = '\0';
+	AetherExtractFirstLink(m_ChatContextPopup.m_aText, m_ChatContextPopup.m_aLink, sizeof(m_ChatContextPopup.m_aLink));
+	const float PopupW = 112.0f;
+	const float PopupH = m_ChatContextPopup.m_aLink[0] ? 68.0f : 23.0f;
+	const float ScreenW = 300.0f * Graphics()->ScreenAspect();
+	const float ScreenH = 300.0f;
+	Ui()->DoPopupMenu(&m_ChatContextPopup, std::clamp(X, 0.0f, maximum(0.0f, ScreenW - PopupW)), std::clamp(Y, 0.0f, maximum(0.0f, ScreenH - PopupH)), PopupW, PopupH, &m_ChatContextPopup, CChatContextPopup::Render);
+}
+
+void CChat::OpenLinkWarning(const char *pLink)
+{
+	m_OpenLinkPopup.m_pChat = this;
+	str_copy(m_OpenLinkPopup.m_aLink, pLink, sizeof(m_OpenLinkPopup.m_aLink));
+	const float PopupW = 178.0f;
+	const float PopupH = 82.0f;
+	const float ScreenW = 300.0f * Graphics()->ScreenAspect();
+	const float ScreenH = 300.0f;
+	Ui()->DoPopupMenu(&m_OpenLinkPopup, std::clamp(Ui()->MouseX(), 0.0f, maximum(0.0f, ScreenW - PopupW)), std::clamp(Ui()->MouseY(), 0.0f, maximum(0.0f, ScreenH - PopupH)), PopupW, PopupH, &m_OpenLinkPopup, COpenLinkPopup::Render);
+}
+
+void CChat::SetChatUiMousePos(vec2 Pos)
+{
+	const vec2 WindowSize = vec2(Graphics()->WindowWidth(), Graphics()->WindowHeight());
+	const vec2 ChatScreen = vec2(300.0f * Graphics()->ScreenAspect(), 300.0f);
+	const CUIRect *pUiScreen = Ui()->Screen();
+	const vec2 UiScreen = vec2(pUiScreen->w, pUiScreen->h);
+	const vec2 UpdatedMousePos = Ui()->UpdatedMousePos();
+	Pos.x = std::clamp(Pos.x, 0.0f, ChatScreen.x);
+	Pos.y = std::clamp(Pos.y, 0.0f, ChatScreen.y);
+	Pos = Pos / UiScreen * WindowSize;
+	Ui()->OnCursorMove(Pos.x - UpdatedMousePos.x, Pos.y - UpdatedMousePos.y);
+}
+
+CUi::EPopupMenuFunctionResult CChat::CChatContextPopup::Render(void *pContext, CUIRect View, bool Active)
+{
+	(void)Active;
+	CChatContextPopup *pPopup = static_cast<CChatContextPopup *>(pContext);
+	CChat *pChat = pPopup->m_pChat;
+	CUIRect Row;
+	View.HSplitTop(19.0f, &Row, &View);
+	if(pChat->Ui()->DoButton_PopupMenu(&pPopup->m_CopyTextButton, "Copy text", &Row, 10.0f, TEXTALIGN_MC))
+	{
+		pChat->Input()->SetClipboardText(pPopup->m_aText);
+		return CUi::POPUP_CLOSE_CURRENT;
+	}
+	if(pPopup->m_aLink[0] == '\0')
+		return CUi::POPUP_KEEP_OPEN;
+	View.HSplitTop(4.0f, nullptr, &View);
+	View.HSplitTop(19.0f, &Row, &View);
+	if(pChat->Ui()->DoButton_PopupMenu(&pPopup->m_CopyLinkButton, "Copy link", &Row, 10.0f, TEXTALIGN_MC))
+	{
+		pChat->Input()->SetClipboardText(pPopup->m_aLink);
+		return CUi::POPUP_CLOSE_CURRENT;
+	}
+	View.HSplitTop(4.0f, nullptr, &View);
+	View.HSplitTop(19.0f, &Row, &View);
+	if(pChat->Ui()->DoButton_PopupMenu(&pPopup->m_OpenLinkButton, "Open link", &Row, 10.0f, TEXTALIGN_MC))
+	{
+		pChat->OpenLinkWarning(pPopup->m_aLink);
+		return CUi::POPUP_CLOSE_CURRENT;
+	}
+	return CUi::POPUP_KEEP_OPEN;
+}
+
+CUi::EPopupMenuFunctionResult CChat::COpenLinkPopup::Render(void *pContext, CUIRect View, bool Active)
+{
+	(void)Active;
+	COpenLinkPopup *pPopup = static_cast<COpenLinkPopup *>(pContext);
+	CChat *pChat = pPopup->m_pChat;
+	CUIRect Label, Row;
+	View.HSplitTop(32.0f, &Label, &View);
+	pChat->TextRender()->Text(Label.x, Label.y, 9.0f, pPopup->m_aLink, Label.w);
+	View.HSplitTop(4.0f, nullptr, &View);
+	View.HSplitTop(18.0f, &Row, &View);
+	if(pChat->Ui()->DoButton_PopupMenu(&pPopup->m_OpenButton, "Open", &Row, 10.0f, TEXTALIGN_MC))
+	{
+		pChat->Client()->ViewLink(pPopup->m_aLink);
+		return CUi::POPUP_CLOSE_CURRENT;
+	}
+	View.HSplitTop(4.0f, nullptr, &View);
+	CUIRect Copy, Cancel;
+	View.HSplitTop(18.0f, &Row, &View);
+	Row.VSplitMid(&Copy, &Cancel, 4.0f);
+	if(pChat->Ui()->DoButton_PopupMenu(&pPopup->m_CopyButton, "Copy instead", &Copy, 10.0f, TEXTALIGN_MC))
+	{
+		pChat->Input()->SetClipboardText(pPopup->m_aLink);
+		return CUi::POPUP_CLOSE_CURRENT;
+	}
+	if(pChat->Ui()->DoButton_PopupMenu(&pPopup->m_CancelButton, "Cancel", &Cancel, 10.0f, TEXTALIGN_MC))
+		return CUi::POPUP_CLOSE_CURRENT;
+	return CUi::POPUP_KEEP_OPEN;
 }
 
 CChat::CChat()
 {
 	m_Mode = MODE_NONE;
+	m_aDraftAll[0] = '\0';
+	m_aDraftTeam[0] = '\0';
+	m_aKeyboardSoundPrevDisplay[0] = '\0';
+	m_aKeyboardSoundLoadedFile[0] = '\0';
+	m_ChatCursorInitialized = false;
 
 	m_Input.SetCalculateOffsetCallback([this]() { return m_IsInputCensored; });
 	m_Input.SetDisplayTextCallback([this](char *pStr, size_t NumChars) {
@@ -130,6 +334,7 @@ void CChat::OnWindowResize()
 
 void CChat::Reset()
 {
+	SaveDraftForCurrentMode();
 	ClearLines();
 
 	m_Show = false;
@@ -147,6 +352,7 @@ void CChat::Reset()
 	m_ServerSupportsCommandInfo = false;
 	m_ServerCommandsNeedSorting = false;
 	m_aCurrentInputText[0] = '\0';
+	m_aKeyboardSoundPrevDisplay[0] = '\0';
 	DisableMode();
 	m_vServerCommands.clear();
 
@@ -162,7 +368,10 @@ void CChat::OnRelease()
 void CChat::OnStateChange(int NewState, int OldState)
 {
 	if(OldState <= IClient::STATE_CONNECTING)
+	{
+		SaveDraftForCurrentMode();
 		Reset();
+	}
 }
 
 void CChat::ConSay(IConsole::IResult *pResult, void *pUserData)
@@ -185,8 +394,9 @@ void CChat::ConChat(IConsole::IResult *pResult, void *pUserData)
 	else
 		((CChat *)pUserData)->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "console", "expected all or team as mode");
 
-	if(pResult->GetString(1)[0] || g_Config.m_ClChatReset)
-		((CChat *)pUserData)->m_Input.Set(pResult->GetString(1));
+	const char *pInitialText = pResult->GetString(1);
+	if(pInitialText[0] || (g_Config.m_ClChatReset && !g_Config.m_AeSaveUnsentMessages))
+		((CChat *)pUserData)->m_Input.Set(pInitialText);
 }
 
 void CChat::ConShowChat(IConsole::IResult *pResult, void *pUserData)
@@ -249,20 +459,52 @@ void CChat::OnInit()
 	Console()->Chain("cl_chat_width", ConchainChatWidth, this);
 }
 
+bool CChat::OnCursorMove(float x, float y, IInput::ECursorType CursorType)
+{
+	if(m_Mode == MODE_NONE || GameClient()->m_Menus.IsActive() || Client()->State() == IClient::STATE_DEMOPLAYBACK)
+		return false;
+
+	Ui()->ConvertMouseMove(&x, &y, CursorType);
+	const vec2 ChatScreen = vec2(300.0f * Graphics()->ScreenAspect(), 300.0f);
+	const CUIRect *pUiScreen = Ui()->Screen();
+	Ui()->OnCursorMove(x * ChatScreen.x / pUiScreen->w, y * ChatScreen.y / pUiScreen->h);
+	return true;
+}
+
 bool CChat::OnInput(const IInput::CEvent &Event)
 {
+	if(m_Mode != MODE_NONE && (Event.m_Flags & IInput::FLAG_PRESS) && Event.m_Key == KEY_MOUSE_2)
+	{
+		const vec2 Mouse = Ui()->MousePos();
+		for(CLine &Line : m_aLines)
+		{
+			if(Line.m_Initialized && Line.m_LastRenderRectValid && Line.m_LastRenderRect.Inside(Mouse))
+			{
+				OpenLineContext(Line, Mouse.x, Mouse.y);
+				return true;
+			}
+		}
+	}
+
 	if(m_Mode == MODE_NONE)
 		return false;
 
 	if(Event.m_Flags & IInput::FLAG_PRESS && Event.m_Key == KEY_ESCAPE)
 	{
+		SaveDraftForCurrentMode();
 		DisableMode();
 		GameClient()->OnRelease();
-		if(g_Config.m_ClChatReset)
+		if(g_Config.m_AeSaveUnsentMessages)
 		{
 			m_Input.Clear();
 			m_pHistoryEntry = nullptr;
 		}
+		else if(g_Config.m_ClChatReset)
+		{
+			m_Input.Clear();
+			m_pHistoryEntry = nullptr;
+		}
+		return true;
 	}
 	else if(Event.m_Flags & IInput::FLAG_PRESS && (Event.m_Key == KEY_RETURN || Event.m_Key == KEY_KP_ENTER))
 	{
@@ -279,9 +521,11 @@ bool CChat::OnInput(const IInput::CEvent &Event)
 		else
 			SendChatQueued(m_Input.GetString());
 		m_pHistoryEntry = nullptr;
+		ClearDraftForCurrentMode();
+		m_Input.Clear();
 		DisableMode();
 		GameClient()->OnRelease();
-		m_Input.Clear();
+		return true;
 	}
 	if(Event.m_Flags & IInput::FLAG_PRESS && Event.m_Key == KEY_TAB)
 	{
@@ -481,6 +725,8 @@ bool CChat::OnInput(const IInput::CEvent &Event)
 		}
 
 		m_Input.ProcessInput(Event);
+		if(Event.m_Key != KEY_UP && Event.m_Key != KEY_DOWN)
+			SaveDraftForCurrentMode();
 	}
 
 	if(Event.m_Flags & IInput::FLAG_PRESS && Event.m_Key == KEY_UP)
@@ -488,6 +734,7 @@ bool CChat::OnInput(const IInput::CEvent &Event)
 		if(m_EditingNewLine)
 		{
 			str_copy(m_aCurrentInputText, m_Input.GetString());
+			SaveDraftForCurrentMode();
 			m_EditingNewLine = false;
 		}
 
@@ -517,6 +764,7 @@ bool CChat::OnInput(const IInput::CEvent &Event)
 		{
 			m_Input.Set(m_aCurrentInputText);
 			m_EditingNewLine = true;
+			SaveDraftForCurrentMode();
 		}
 	}
 
@@ -539,6 +787,10 @@ void CChat::EnableMode(int Team)
 		m_CompletionChosen = -1;
 		m_CompletionUsed = false;
 		m_Input.Activate(EInputPriority::CHAT);
+		m_ChatCursorInitialized = false;
+		if(g_Config.m_AeSaveUnsentMessages)
+			m_Input.Clear();
+		RestoreDraftForCurrentMode();
 	}
 }
 
@@ -546,9 +798,66 @@ void CChat::DisableMode()
 {
 	if(m_Mode != MODE_NONE)
 	{
+		SaveDraftForCurrentMode();
 		m_Mode = MODE_NONE;
 		m_Input.Deactivate();
+		Ui()->ClosePopupMenus();
+		m_ChatCursorInitialized = false;
 	}
+}
+
+char *CChat::DraftForMode(int Mode)
+{
+	if(Mode == MODE_ALL)
+		return m_aDraftAll;
+	if(Mode == MODE_TEAM)
+		return m_aDraftTeam;
+	return nullptr;
+}
+
+const char *CChat::DraftForMode(int Mode) const
+{
+	if(Mode == MODE_ALL)
+		return m_aDraftAll;
+	if(Mode == MODE_TEAM)
+		return m_aDraftTeam;
+	return nullptr;
+}
+
+void CChat::SaveDraftForCurrentMode()
+{
+	if(!g_Config.m_AeSaveUnsentMessages)
+		return;
+	char *pDraft = DraftForMode(m_Mode);
+	if(!pDraft)
+		return;
+	const char *pText = m_EditingNewLine ? m_Input.GetString() : m_aCurrentInputText;
+	if(pText[0] == '\0')
+	{
+		pDraft[0] = '\0';
+		return;
+	}
+	str_copy(pDraft, pText, MAX_LINE_LENGTH);
+}
+
+void CChat::ClearDraftForCurrentMode()
+{
+	char *pDraft = DraftForMode(m_Mode);
+	if(pDraft)
+		pDraft[0] = '\0';
+}
+
+void CChat::RestoreDraftForCurrentMode()
+{
+	if(!g_Config.m_AeSaveUnsentMessages)
+		return;
+	const char *pDraft = DraftForMode(m_Mode);
+	if(!pDraft || pDraft[0] == '\0')
+		return;
+	m_Input.Set(pDraft);
+	m_Input.SetCursorOffset(str_length(pDraft));
+	str_copy(m_aCurrentInputText, pDraft);
+	m_EditingNewLine = true;
 }
 
 void CChat::OnMessage(int MsgType, void *pRawMsg)
@@ -636,6 +945,8 @@ void CChat::StoreSave(const char *pText)
 
 	if(!pStart || !pMid || !pEnd || pMid < pStart || pEnd < pMid || (pOn && (pOn < pMid || pEnd < pOn)))
 		return;
+	if(!GameClient()->Map()->IsLoaded())
+		return;
 
 	char aName[16];
 	str_truncate(aName, sizeof(aName), pStart + 27, pMid - pStart - 27);
@@ -665,6 +976,45 @@ void CChat::StoreSave(const char *pText)
 	}
 	CsvWrite(File, 4, apColumns);
 	io_close(File);
+}
+
+void CChat::UpdateKeyboardSoundSample()
+{
+	if(!g_Config.m_AeKeyboardSound || !g_Config.m_AeKeyboardSoundFile[0])
+	{
+		if(m_KeyboardSoundSample >= 0)
+		{
+			Sound()->UnloadSample(m_KeyboardSoundSample);
+			m_KeyboardSoundSample = -1;
+		}
+		m_aKeyboardSoundLoadedFile[0] = '\0';
+		return;
+	}
+
+	if(str_comp(m_aKeyboardSoundLoadedFile, g_Config.m_AeKeyboardSoundFile) == 0 && m_KeyboardSoundSample >= 0)
+		return;
+
+	if(m_KeyboardSoundSample >= 0)
+	{
+		Sound()->UnloadSample(m_KeyboardSoundSample);
+		m_KeyboardSoundSample = -1;
+	}
+	m_KeyboardSoundSample = AetherTryLoadKeyboardSample(Storage(), Sound(), g_Config.m_AeKeyboardSoundFile);
+	str_copy(m_aKeyboardSoundLoadedFile, g_Config.m_AeKeyboardSoundFile, sizeof(m_aKeyboardSoundLoadedFile));
+}
+
+void CChat::MaybePlayKeyboardSound(const char *pNewDisplayed, const char *pOldDisplayed)
+{
+	if(!g_Config.m_AeKeyboardSound || m_KeyboardSoundSample < 0 || !pNewDisplayed || !pOldDisplayed)
+		return;
+	if(str_length(pNewDisplayed) <= str_length(pOldDisplayed))
+		return;
+	if(time_get() - m_LastKeyboardSoundTime < time_freq() / 35)
+		return;
+
+	m_LastKeyboardSoundTime = time_get();
+	const float Volume = std::clamp(g_Config.m_AeKeyboardSoundVol / 100.0f, 0.0f, 1.0f);
+	Sound()->Play(CSounds::CHN_GUI, m_KeyboardSoundSample, ISound::FLAG_NO_PANNING, Volume);
 }
 
 void CChat::AddLine(int ClientId, int Team, const char *pLine)
@@ -775,6 +1125,8 @@ void CChat::AddLine(int ClientId, int Team, const char *pLine)
 		PreviousLine.m_aYOffset[0] = -1.0f;
 		PreviousLine.m_aYOffset[1] = -1.0f;
 
+		if(g_Config.m_AeChatBubbles && ClientId >= 0 && (Team <= 1 || (Team >= 2 && g_Config.m_AeChatBubblesWhispers)))
+			GameClient()->m_AetherChatBubbles.AddMessage(ClientId, Team, pLine);
 		FChatMsgCheckAndPrint(PreviousLine);
 		return;
 	}
@@ -814,6 +1166,8 @@ void CChat::AddLine(int ClientId, int Team, const char *pLine)
 	CurrentLine.m_Highlighted = Highlighted;
 
 	str_copy(CurrentLine.m_aText, pLine);
+	if(g_Config.m_AeChatBubbles && ClientId >= 0 && (Team <= 1 || (Team >= 2 && g_Config.m_AeChatBubblesWhispers)))
+		GameClient()->m_AetherChatBubbles.AddMessage(ClientId, Team, pLine);
 
 	if(CurrentLine.m_ClientId == SERVER_MSG)
 	{
@@ -1052,6 +1406,11 @@ void CChat::OnPrepareLines(float y)
 			{
 				MeasureCursor.m_X += RealMsgPaddingTee;
 
+				const float BadgeIconSize = FontSize * 1.15f;
+				const float BadgeIconWidth = g_Config.m_AeBadges ? GameClient()->m_AetherBadges.BadgeIconsWidth(Line.m_ClientId, BadgeIconSize, 3) : 0.0f;
+				if(BadgeIconWidth > 0.0f)
+					MeasureCursor.m_X += BadgeIconWidth + BadgeIconSize * 0.08f;
+
 				if(Line.m_Friend && g_Config.m_ClMessageFriend)
 				{
 					TextRender()->TextEx(&MeasureCursor, "♥ ");
@@ -1129,6 +1488,11 @@ void CChat::OnPrepareLines(float y)
 		{
 			LineCursor.m_X += RealMsgPaddingTee;
 
+			const float BadgeIconSize = FontSize * 1.15f;
+			const float BadgeIconWidth = g_Config.m_AeBadges ? GameClient()->m_AetherBadges.BadgeIconsWidth(Line.m_ClientId, BadgeIconSize, 3) : 0.0f;
+			if(BadgeIconWidth > 0.0f)
+				LineCursor.m_X += BadgeIconWidth + BadgeIconSize * 0.08f;
+
 			if(Line.m_Friend && g_Config.m_ClMessageFriend)
 			{
 				TextRender()->TextColor(color_cast<ColorRGBA>(ColorHSLA(g_Config.m_ClMessageFriendColor)).WithAlpha(1.0f));
@@ -1144,7 +1508,7 @@ void CChat::OnPrepareLines(float y)
 			NameColor = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_ClMessageSystemColor));
 		else if(Line.m_ClientId == CLIENT_MSG)
 			NameColor = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_ClMessageClientColor));
-		else if(Line.m_ClientId >= 0 && g_Config.m_TcWarList && g_Config.m_TcWarListChat && GameClient()->m_WarList.GetAnyWar(Line.m_ClientId)) // TClient
+		else if(AetherVariant::WarlistEnabled() && Line.m_ClientId >= 0 && g_Config.m_TcWarList && g_Config.m_TcWarListChat && GameClient()->m_WarList.GetAnyWar(Line.m_ClientId)) // TClient
 			NameColor = GameClient()->m_WarList.GetPriorityColor(Line.m_ClientId);
 		else if(Line.m_Team)
 			NameColor = CalculateNameColor(ColorHSLA(g_Config.m_ClMessageTeamColor));
@@ -1287,9 +1651,22 @@ void CChat::OnRender()
 		--m_PendingChatCounter;
 	}
 
+	if(g_Config.m_AeFocusMode && !IsActive())
+		return;
+
 	const float Height = 300.0f;
 	const float Width = Height * Graphics()->ScreenAspect();
 	Graphics()->MapScreen(0.0f, 0.0f, Width, Height);
+
+	const bool ChatUiActive = m_Mode != MODE_NONE && !GameClient()->m_Menus.IsActive();
+	const auto FinishChatUi = [&]() {
+		if(ChatUiActive)
+		{
+			Ui()->RenderPopupMenus();
+			RenderTools()->RenderCursor(Ui()->MousePos(), 18.0f);
+			Ui()->FinishCheck();
+		}
+	};
 
 	float x = 5.0f;
 
@@ -1298,6 +1675,22 @@ void CChat::OnRender()
 	// float y = 300.0f - 20.0f * FontSize() / 6.0f;
 
 	float ScaledFontSize = FontSize() * (8.0f / 6.0f);
+	if(ChatUiActive)
+	{
+		if(!m_ChatCursorInitialized)
+		{
+			SetChatUiMousePos(vec2(Width * 0.5f, y + 8.0f));
+			m_ChatCursorInitialized = true;
+		}
+		Ui()->StartCheck();
+		Ui()->Update();
+		const vec2 Mouse = Ui()->MousePos();
+		if(Mouse.x < 0.0f || Mouse.y < 0.0f || Mouse.x > Width || Mouse.y > Height)
+		{
+			SetChatUiMousePos(vec2(std::clamp(Mouse.x, 0.0f, Width), std::clamp(Mouse.y, 0.0f, Height)));
+			Ui()->Update();
+		}
+	}
 	if(m_Mode != MODE_NONE)
 	{
 		// render chat input
@@ -1332,7 +1725,12 @@ void CChat::OnRender()
 		const bool WasChanged = m_Input.WasChanged();
 		const bool WasCursorChanged = m_Input.WasCursorChanged();
 		const bool Changed = WasChanged || WasCursorChanged;
+		char aDisplayedInputText[MAX_LINE_LENGTH];
+		str_copy(aDisplayedInputText, m_Input.GetString());
 		const STextBoundingBox BoundingBox = m_Input.Render(&InputCursorRect, InputCursor.m_FontSize, TEXTALIGN_TL, Changed, MessageMaxWidth, 0.0f);
+		UpdateKeyboardSoundSample();
+		MaybePlayKeyboardSound(aDisplayedInputText, m_aKeyboardSoundPrevDisplay);
+		str_copy(m_aKeyboardSoundPrevDisplay, aDisplayedInputText, sizeof(m_aKeyboardSoundPrevDisplay));
 
 		Graphics()->ClipDisable();
 
@@ -1364,14 +1762,19 @@ void CChat::OnRender()
 				}
 			}
 		}
+
 	}
 
 #if defined(CONF_VIDEORECORDER)
-	if(!((g_Config.m_ClShowChat && !IVideo::Current()) || (g_Config.m_ClVideoShowChat && IVideo::Current())))
+	const bool ShouldRenderChatLines = (g_Config.m_ClShowChat && !IVideo::Current()) || (g_Config.m_ClVideoShowChat && IVideo::Current());
 #else
-	if(!g_Config.m_ClShowChat)
+	const bool ShouldRenderChatLines = g_Config.m_ClShowChat != 0;
 #endif
+	if(!ShouldRenderChatLines)
+	{
+		FinishChatUi();
 		return;
+	}
 
 	y -= ScaledFontSize;
 
@@ -1382,14 +1785,18 @@ void CChat::OnRender()
 	int64_t Now = time();
 	float HeightLimit = IsScoreBoardOpen ? 180.0f : (m_PrevShowChat ? 50.0f : 200.0f);
 	int OffsetType = IsScoreBoardOpen ? 1 : 0;
+	for(CLine &Line : m_aLines)
+		Line.m_LastRenderRectValid = false;
 
 	float RealMsgPaddingX = MessagePaddingX();
 	float RealMsgPaddingY = MessagePaddingY();
+	float RealMsgPaddingTee = MessageTeeSize() + MESSAGE_TEE_PADDING_RIGHT;
 
 	if(g_Config.m_ClChatOld)
 	{
 		RealMsgPaddingX = 0;
 		RealMsgPaddingY = 0;
+		RealMsgPaddingTee = 0;
 	}
 
 	for(int i = 0; i < MAX_LINES; i++)
@@ -1405,6 +1812,8 @@ void CChat::OnRender()
 		// cut off if msgs waste too much space
 		if(y < HeightLimit)
 			break;
+		Line.m_LastRenderRect = CUIRect(x, y, std::max(90.0f, (float)g_Config.m_ClChatWidth), Line.m_aYOffset[OffsetType]);
+		Line.m_LastRenderRectValid = true;
 
 		float Blend = Now > Line.m_Time + 14 * time_freq() && !m_PrevShowChat ? 1.0f - (Now - Line.m_Time - 14 * time_freq()) / (2.0f * time_freq()) : 1.0f;
 
@@ -1438,11 +1847,20 @@ void CChat::OnRender()
 				RenderTools()->RenderTee(pIdleState, &TeeRenderInfo, EMOTE_NORMAL, vec2(1, 0.1f), TeeRenderPos, Blend);
 			}
 
+			if(!g_Config.m_ClChatOld && Line.m_ClientId >= 0 && Line.m_aName[0] != '\0' && g_Config.m_AeBadges)
+			{
+				const float IconSize = FontSize() * 1.15f;
+				const float IconX = x + RealMsgPaddingX / 2.0f + RealMsgPaddingTee;
+				const float IconY = y + RealMsgPaddingY / 2.0f + (FontSize() - IconSize) * 0.5f;
+				GameClient()->m_AetherBadges.RenderBadgeIcons(Line.m_ClientId, IconX, IconY, IconSize, Blend, 3);
+			}
+
 			const ColorRGBA TextColor = TextRender()->DefaultTextColor().WithMultipliedAlpha(Blend);
 			const ColorRGBA TextOutlineColor = TextRender()->DefaultTextOutlineColor().WithMultipliedAlpha(Blend);
 			TextRender()->RenderTextContainer(Line.m_TextContainerIndex, TextColor, TextOutlineColor, 0, (y + RealMsgPaddingY / 2.0f) - Line.m_TextYOffset);
 		}
 	}
+	FinishChatUi();
 }
 
 void CChat::EnsureCoherentFontSize() const
@@ -1498,10 +1916,12 @@ void CChat::SendChatQueued(const char *pLine)
 		return;
 
 	bool AddEntry = false;
+	const int Team = m_Mode == MODE_ALL ? 0 : 1;
 
 	if(m_LastChatSend + time_freq() < time())
 	{
-		SendChat(m_Mode == MODE_ALL ? 0 : 1, pLine);
+		if(!GameClient()->m_Translate.TranslateOutgoing(Team, pLine))
+			SendChat(Team, pLine);
 		AddEntry = true;
 	}
 	else if(m_PendingChatCounter < 3)
@@ -1514,7 +1934,7 @@ void CChat::SendChatQueued(const char *pLine)
 	{
 		const int Length = str_length(pLine);
 		CHistoryEntry *pEntry = m_History.Allocate(sizeof(CHistoryEntry) + Length);
-		pEntry->m_Team = m_Mode == MODE_ALL ? 0 : 1;
+		pEntry->m_Team = Team;
 		str_copy(pEntry->m_aText, pLine, Length + 1);
 	}
 }

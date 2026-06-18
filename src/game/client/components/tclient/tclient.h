@@ -25,7 +25,26 @@ class CTClient : public CComponent
 	static void RandomFlag(void *pUserData);
 
 	static void ConSpecId(IConsole::IResult *pResult, void *pUserData);
+	static void ConFastSpec(IConsole::IResult *pResult, void *pUserData);
 	void SpecId(int ClientId);
+	enum class EFastSpecRequest
+	{
+		NONE,
+		SPECTATE,
+		RETURN,
+		SELF_SPEC,
+		SELF_RETURN,
+	};
+	EFastSpecRequest m_FastSpecRequest = EFastSpecRequest::NONE;
+	int m_FastSpecTarget = -1;
+	int m_FastSpecNextTick = 0;
+	int m_FastSpecAttempts = 0;
+	int m_FastSpecStartTick = 0;
+	void ClearFastSpecRequest();
+	bool FastSpecTargetValid(int ClientId) const;
+	bool FastSpecLocalGrounded() const;
+	void SendSpecCommandForTarget(int ClientId);
+	void UpdateFastSpecRequest();
 
 	int m_EmoteCycle = 0;
 	static void ConEmoteCycle(IConsole::IResult *pResult, void *pUserData);
@@ -58,6 +77,10 @@ public:
 	void RenderCtfFlag(vec2 Pos, float Alpha);
 
 	bool ChatDoSpecId(const char *pInput);
+	void RequestFastSpecSpectate(int ClientId);
+	void RequestFastSpecReturn();
+	void RequestFastSpecAssist();
+	const char *FastSpecStatus() const;
 	Regex m_RegexChatIgnore;
 };
 

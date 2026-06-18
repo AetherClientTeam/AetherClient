@@ -16,8 +16,10 @@
 #include <game/client/animstate.h>
 #include <game/client/components/chat.h>
 #include <game/client/gameclient.h>
+#include <game/client/prediction/entities/character.h>
 #include <game/client/render.h>
 #include <game/client/ui.h>
+#include <game/collision.h>
 #include <game/localization.h>
 #include <game/version.h>
 
@@ -290,6 +292,228 @@ void CTClient::ConSpecId(IConsole::IResult *pResult, void *pUserData)
 	((CTClient *)pUserData)->SpecId(pResult->GetInteger(0));
 }
 
+void CTClient::ConFastSpec(IConsole::IResult *pResult, void *pUserData)
+{
+	if(pResult->GetInteger(0) != 0)
+		((CTClient *)pUserData)->RequestFastSpecAssist();
+}
+
+void CTClient::ClearFastSpecRequest()
+{
+	m_FastSpecRequest = EFastSpecRequest::NONE;
+	m_FastSpecTarget = -1;
+	m_FastSpecNextTick = 0;
+	m_FastSpecAttempts = 0;
+	m_FastSpecStartTick = 0;
+}
+
+bool CTClient::FastSpecTargetValid(int ClientId) const
+{
+	return ClientId >= 0 && ClientId < MAX_CLIENTS && GameClient()->m_aClients[ClientId].m_Active;
+}
+
+bool CTClient::FastSpecLocalGrounded() const
+{
+	const int LocalId = GameClient()->m_Snap.m_LocalClientId;
+	if(LocalId < 0)
+		return false;
+	if(CCharacter *pChar = GameClient()->m_PredictedWorld.GetCharacterById(LocalId))
+		return pChar->IsGrounded();
+	const auto &Char = GameClient()->m_Snap.m_aCharacters[LocalId];
+	if(!Char.m_Active)
+		return false;
+	const vec2 Pos(Char.m_Cur.m_X, Char.m_Cur.m_Y);
+	const float HalfSize = CCharacterCore::PhysicalSize() / 2.0f;
+	return Collision()->CheckPoint(Pos.x + HalfSize, Pos.y + HalfSize + 5.0f) ||
+	       Collision()->CheckPoint(Pos.x - HalfSize, Pos.y + HalfSize + 5.0f) ||
+	       (Collision()->GetMoveRestrictions(Pos + vec2(0.0f, HalfSize + 4.0f), 0.0f) & CANTMOVE_DOWN) != 0;
+}
+
+void CTClient::SendSpecCommandForTarget(int ClientId)
+{
+	if(!FastSpecTargetValid(ClientId))
+		return;
+	const auto &Player = GameClient()->m_aClients[ClientId];
+	char aBuf[256];
+	str_copy(aBuf, "/spec \"");
+	char *pDst = aBuf + str_length(aBuf);
+	str_escape(&pDst, Player.m_aName, aBuf + sizeof(aBuf));
+	str_append(aBuf, "\"");
+	GameClient()->m_Chat.SendChat(0, aBuf);
+}
+
+void CTClient::RequestFastSpecSpectate(int ClientId)
+{
+	if(Client()->State() != IClient::STATE_ONLINE && Client()->State() != IClient::STATE_DEMOPLAYBACK)
+		return;
+	if(!g_Config.m_AeFastSpec)
+	{
+		SpecId(ClientId);
+		return;
+	}
+	if(Client()->State() == IClient::STATE_DEMOPLAYBACK || GameClient()->m_Snap.m_SpecInfo.m_Active)
+	{
+		GameClient()->m_Spectator.Spectate(ClientId);
+		ClearFastSpecRequest();
+		return;
+	}
+	if(!FastSpecTargetValid(ClientId))
+	{
+		ClearFastSpecRequest();
+		return;
+	}
+	m_FastSpecRequest = EFastSpecRequest::SPECTATE;
+	m_FastSpecTarget = ClientId;
+	m_FastSpecNextTick = 0;
+	m_FastSpecAttempts = 0;
+	m_FastSpecStartTick = Client()->GameTick(g_Config.m_ClDummy);
+	UpdateFastSpecRequest();
+}
+
+void CTClient::RequestFastSpecReturn()
+{
+	if(Client()->State() != IClient::STATE_ONLINE)
+		return;
+	if(!GameClient()->m_Snap.m_SpecInfo.m_Active)
+	{
+		ClearFastSpecRequest();
+		return;
+	}
+	GameClient()->m_Spectator.Spectate(SPEC_FREEVIEW);
+	if(!g_Config.m_AeFastSpec)
+	{
+		GameClient()->m_Chat.SendChat(0, "/spec");
+		return;
+	}
+	m_FastSpecRequest = EFastSpecRequest::RETURN;
+	m_FastSpecTarget = -1;
+	m_FastSpecNextTick = 0;
+	m_FastSpecAttempts = 0;
+	m_FastSpecStartTick = Client()->GameTick(g_Config.m_ClDummy);
+	UpdateFastSpecRequest();
+}
+
+void CTClient::RequestFastSpecAssist()
+{
+	if(Client()->State() != IClient::STATE_ONLINE || !g_Config.m_AeFastSpec)
+		return;
+	if(GameClient()->m_Snap.m_SpecInfo.m_Active)
+	{
+		RequestFastSpecReturn();
+		return;
+	}
+	if(GameClient()->m_Snap.m_LocalClientId < 0)
+		return;
+	m_FastSpecRequest = EFastSpecRequest::SELF_SPEC;
+	m_FastSpecTarget = -1;
+	m_FastSpecNextTick = 0;
+	m_FastSpecAttempts = 0;
+	m_FastSpecStartTick = Client()->GameTick(g_Config.m_ClDummy);
+	UpdateFastSpecRequest();
+}
+
+const char *CTClient::FastSpecStatus() const
+{
+	switch(m_FastSpecRequest)
+	{
+	case EFastSpecRequest::SPECTATE: return "pending spectate";
+	case EFastSpecRequest::RETURN: return "pending return";
+	case EFastSpecRequest::SELF_SPEC: return "waiting ground";
+	case EFastSpecRequest::SELF_RETURN: return "returning";
+	default: return "idle";
+	}
+}
+
+void CTClient::UpdateFastSpecRequest()
+{
+	if(m_FastSpecRequest == EFastSpecRequest::NONE)
+		return;
+	if(Client()->State() != IClient::STATE_ONLINE || !g_Config.m_AeFastSpec)
+	{
+		ClearFastSpecRequest();
+		return;
+	}
+
+	const int Tick = Client()->GameTick(g_Config.m_ClDummy);
+	const int RetryTicks = std::max(4, Client()->GameTickSpeed() / 4);
+	const int ReturnDelayTicks = std::max(2, Client()->GameTickSpeed() / 10);
+	if(m_FastSpecStartTick == 0)
+		m_FastSpecStartTick = Tick;
+	if(Tick - m_FastSpecStartTick > Client()->GameTickSpeed() * 3)
+	{
+		ClearFastSpecRequest();
+		return;
+	}
+	if(Tick < m_FastSpecNextTick)
+		return;
+
+	if(m_FastSpecRequest == EFastSpecRequest::SPECTATE)
+	{
+		if(GameClient()->m_Snap.m_SpecInfo.m_Active)
+		{
+			if(FastSpecTargetValid(m_FastSpecTarget))
+				GameClient()->m_Spectator.Spectate(m_FastSpecTarget);
+			ClearFastSpecRequest();
+			return;
+		}
+		if(!FastSpecTargetValid(m_FastSpecTarget))
+		{
+			ClearFastSpecRequest();
+			return;
+		}
+		SendSpecCommandForTarget(m_FastSpecTarget);
+	}
+	else if(m_FastSpecRequest == EFastSpecRequest::RETURN)
+	{
+		if(!GameClient()->m_Snap.m_SpecInfo.m_Active)
+		{
+			ClearFastSpecRequest();
+			return;
+		}
+		GameClient()->m_Chat.SendChat(0, "/spec");
+	}
+	else if(m_FastSpecRequest == EFastSpecRequest::SELF_SPEC)
+	{
+		if(GameClient()->m_Snap.m_SpecInfo.m_Active)
+		{
+			m_FastSpecRequest = EFastSpecRequest::SELF_RETURN;
+			m_FastSpecNextTick = Tick + ReturnDelayTicks;
+			m_FastSpecAttempts = 0;
+			return;
+		}
+		if(GameClient()->m_Snap.m_LocalClientId < 0)
+		{
+			ClearFastSpecRequest();
+			return;
+		}
+		if(!FastSpecLocalGrounded())
+		{
+			m_FastSpecNextTick = Tick + 1;
+			return;
+		}
+		GameClient()->m_Chat.SendChat(0, "/spec");
+		++m_FastSpecAttempts;
+		m_FastSpecNextTick = Tick + ReturnDelayTicks;
+		if(m_FastSpecAttempts > 12)
+			ClearFastSpecRequest();
+		return;
+	}
+	else if(m_FastSpecRequest == EFastSpecRequest::SELF_RETURN)
+	{
+		if(!GameClient()->m_Snap.m_SpecInfo.m_Active)
+		{
+			ClearFastSpecRequest();
+			return;
+		}
+		GameClient()->m_Chat.SendChat(0, "/spec");
+	}
+
+	++m_FastSpecAttempts;
+	m_FastSpecNextTick = Tick + RetryTicks;
+	if(m_FastSpecAttempts > 12)
+		ClearFastSpecRequest();
+}
+
 bool CTClient::ChatDoSpecId(const char *pInput)
 {
 	const char *pNumber = str_startswith_nocase(pInput, "/specid ");
@@ -313,6 +537,11 @@ void CTClient::SpecId(int ClientId)
 {
 	if(Client()->State() != IClient::STATE_ONLINE && Client()->State() != IClient::STATE_DEMOPLAYBACK)
 		return;
+	if(g_Config.m_AeFastSpec)
+	{
+		RequestFastSpecSpectate(ClientId);
+		return;
+	}
 
 	if(Client()->State() == IClient::STATE_DEMOPLAYBACK || GameClient()->m_Snap.m_SpecInfo.m_Active)
 	{
@@ -414,6 +643,7 @@ void CTClient::OnConsoleInit()
 	Console()->Chain("tc_random_player", ConchainRandomColor, this);
 
 	Console()->Register("spec_id", "v[id]", CFGFLAG_CLIENT, ConSpecId, this, "Spectate a player by Id");
+	Console()->Register("+ae_fast_spec", "", CFGFLAG_CLIENT, ConFastSpec, this, "Temporarily spec yourself on ground contact and return");
 
 	Console()->Register("emote_cycle", "", CFGFLAG_CLIENT, ConEmoteCycle, this, "Cycle through emotes");
 
@@ -544,6 +774,7 @@ bool CTClient::ServerCommandExists(const char *pCommand)
 
 void CTClient::OnRender()
 {
+	UpdateFastSpecRequest();
 	DoFinishCheck();
 }
 
@@ -564,6 +795,7 @@ void CTClient::SetForcedAspect()
 void CTClient::OnStateChange(int OldState, int NewState)
 {
 	SetForcedAspect();
+	ClearFastSpecRequest();
 	for(auto &AirRescuePositions : m_aAirRescuePositions)
 		AirRescuePositions = {};
 }
@@ -571,6 +803,8 @@ void CTClient::OnStateChange(int OldState, int NewState)
 void CTClient::OnNewSnapshot()
 {
 	SetForcedAspect();
+	if(m_FastSpecRequest == EFastSpecRequest::SPECTATE && !FastSpecTargetValid(m_FastSpecTarget))
+		ClearFastSpecRequest();
 	// Update volleyball
 	bool IsVolleyBall = false;
 	if(g_Config.m_TcVolleyBallBetterBall > 0 && g_Config.m_TcVolleyBallBetterBallSkin[0] != '\0')

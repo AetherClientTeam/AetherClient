@@ -4,9 +4,12 @@
 #include <base/str.h>
 
 #include <engine/console.h>
+#include <engine/shared/json.h>
 #include <engine/shared/protocol.h>
 
 #include <game/client/component.h>
+
+#include <string>
 
 enum
 {
@@ -132,6 +135,8 @@ class CWarList : public CComponent
 	// Backend Commands for config file
 	static void ConAddWarEntry(IConsole::IResult *pResult, void *pUserData);
 	static void ConUpsertWarType(IConsole::IResult *pResult, void *pUserData);
+	static void ConExportJson(IConsole::IResult *pResult, void *pUserData);
+	static void ConImportJson(IConsole::IResult *pResult, void *pUserData);
 
 	static void ConfigSaveCallback(IConfigManager *pConfigManager, void *pUserData);
 
@@ -144,6 +149,7 @@ public:
 		new CWarType("none", ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f), false),
 		new CWarType("enemy", ColorRGBA(1.0f, 0.2f, 0.2f, 1.0f), false),
 		new CWarType("team", ColorRGBA(0.0f, 0.9f, 0.2f, 1.0f), false),
+		new CWarType("helper", ColorRGBA(1.0f, 0.86f, 0.25f, 1.0f), false),
 	};
 
 	// None type war entries will float to the top of the list, so they can be assigned a type
@@ -176,6 +182,10 @@ public:
 	void RemoveWarEntry(const char *pName, const char *pClan, const char *pType);
 	void RemoveWarType(const char *pType);
 	void RemoveWarEntryDuplicates(const char *pName, const char *pClan);
+	bool ExportJson(const char *pPath);
+	bool ImportJson(const char *pPath, char *pError, int ErrorSize);
+	bool ExportJsonEntries(std::string &Output) const;
+	bool ImportJsonEntries(const json_value *pEntries, char *pError, int ErrorSize);
 
 	void RemoveWarEntry(CWarEntry *Entry);
 
@@ -188,6 +198,7 @@ public:
 	bool GetAnyWar(int ClientId);
 	bool GetNameWar(int ClientId);
 	bool GetClanWar(int ClientId);
+	bool HasWarType(int ClientId, const char *pType) const;
 
 	void GetReason(char *pReason, int ClientId);
 	CWarDataCache &GetWarData(int ClientId);

@@ -1,6 +1,7 @@
 #include "nameplates.h"
 
 #include <base/str.h>
+#include <base/vmath.h>
 
 #include <engine/font_icons.h>
 #include <engine/graphics.h>
@@ -11,6 +12,7 @@
 #include <generated/client_data.h>
 
 #include <game/client/animstate.h>
+#include <game/client/components/aether/client_variant.h>
 #include <game/client/gameclient.h>
 #include <game/client/prediction/entities/character.h>
 
@@ -32,6 +34,9 @@ public:
 	ColorRGBA m_Color;
 	bool m_ShowName;
 	char m_aName[std::max<size_t>(MAX_NAME_LENGTH, protocol7::MAX_NAME_ARRAY_SIZE)];
+	bool m_ShowBadges;
+	char m_aBadges[96];
+	float m_FontSizeBadges;
 	bool m_ShowFriendMark;
 	bool m_ShowClientId;
 	int m_ClientId;
@@ -41,6 +46,9 @@ public:
 	bool m_ShowClan;
 	char m_aClan[std::max<size_t>(MAX_CLAN_LENGTH, protocol7::MAX_CLAN_ARRAY_SIZE)];
 	float m_FontSizeClan;
+	bool m_ShowDummyOwner;
+	char m_aDummyOwner[MAX_NAME_LENGTH + 16];
+	float m_FontSizeDummyOwner;
 	bool m_ShowDirection;
 	bool m_DirLeft;
 	bool m_DirJump;
@@ -353,8 +361,10 @@ protected:
 		if(!m_Visible)
 			return false;
 		m_Color = Data.m_Color;
+		if(This.m_AetherBlockAwareness.ShouldColorName(Data.m_ClientId))
+			m_Color = This.m_AetherBlockAwareness.NameColorForClient(Data.m_ClientId, Data.m_Color.a);
 		// TClient
-		if(g_Config.m_TcWarList)
+		else if(AetherVariant::WarlistEnabled() && g_Config.m_TcWarList)
 		{
 			if(This.m_WarList.GetWarData(Data.m_ClientId).m_WarName)
 				m_Color = This.m_WarList.GetNameplateColor(Data.m_ClientId).WithAlpha(Data.m_Color.a);
@@ -377,6 +387,77 @@ public:
 		CNamePlatePartText(This) {}
 };
 
+class CNamePlatePartBadges : public CNamePlatePartText
+{
+private:
+	char m_aText[96] = "";
+	float m_FontSize = -INFINITY;
+	float m_IconSize = -INFINITY;
+	int m_ClientId = -1;
+	bool m_UseIcons = false;
+
+protected:
+	bool UpdateNeeded(CGameClient &This, const CNamePlateData &Data) override
+	{
+		m_Visible = Data.m_ShowBadges;
+		if(!m_Visible)
+			return false;
+		m_UseIcons = false;
+		m_Color = ColorRGBA(0.55f, 0.82f, 1.0f, Data.m_Color.a);
+		return m_FontSize != Data.m_FontSizeBadges || str_comp(m_aText, Data.m_aBadges) != 0;
+	}
+	void UpdateText(CGameClient &This, const CNamePlateData &Data) override
+	{
+		m_FontSize = Data.m_FontSizeBadges;
+		str_copy(m_aText, Data.m_aBadges, sizeof(m_aText));
+		CTextCursor Cursor;
+		Cursor.m_FontSize = m_FontSize;
+		This.TextRender()->CreateOrAppendTextContainer(m_TextContainerIndex, &Cursor, m_aText);
+	}
+
+public:
+	CNamePlatePartBadges(CGameClient &This) :
+		CNamePlatePartText(This)
+	{
+		m_Padding.x = -2.0f;
+	}
+
+	void Update(CGameClient &This, const CNamePlateData &Data) override
+	{
+		m_Visible = Data.m_ShowBadges;
+		if(!m_Visible)
+			return;
+
+		const float IconSize = Data.m_FontSize * 1.48f;
+		const int IconCount = This.m_AetherBadges.BadgeIconCount(Data.m_ClientId, 3);
+		if(IconCount > 0)
+		{
+			if(m_TextContainerIndex.Valid())
+				This.TextRender()->DeleteTextContainer(m_TextContainerIndex);
+			m_UseIcons = true;
+			m_ClientId = Data.m_ClientId;
+			m_IconSize = IconSize;
+			m_Color.a = Data.m_Color.a;
+			m_Size = vec2(This.m_AetherBadges.BadgeIconsWidth(Data.m_ClientId, IconSize, 3), IconSize);
+			m_Padding.y = IconSize * 0.42f;
+			return;
+		}
+
+		CNamePlatePartText::Update(This, Data);
+	}
+
+	void Render(CGameClient &This, vec2 Pos) const override
+	{
+		if(m_UseIcons)
+		{
+			const float Width = This.m_AetherBadges.BadgeIconsWidth(m_ClientId, m_IconSize, 3);
+			This.m_AetherBadges.RenderBadgeIcons(m_ClientId, Pos.x - Width / 2.0f, Pos.y - m_IconSize / 2.0f, m_IconSize, m_Color.a, 3);
+			return;
+		}
+		CNamePlatePartText::Render(This, Pos);
+	}
+};
+
 class CNamePlatePartClan : public CNamePlatePartText
 {
 private:
@@ -390,8 +471,10 @@ protected:
 		if(!m_Visible && Data.m_aClan[0] != '\0')
 			return false;
 		m_Color = Data.m_Color;
+		if(This.m_AetherBlockAwareness.ShouldColorName(Data.m_ClientId))
+			m_Color = This.m_AetherBlockAwareness.NameColorForClient(Data.m_ClientId, Data.m_Color.a);
 		// TClient
-		if(This.m_WarList.GetWarData(Data.m_ClientId).m_WarClan)
+		else if(AetherVariant::WarlistEnabled() && This.m_WarList.GetWarData(Data.m_ClientId).m_WarClan)
 			m_Color = This.m_WarList.GetClanColor(Data.m_ClientId).WithAlpha(Data.m_Color.a);
 		return m_FontSize != Data.m_FontSizeClan || str_comp(m_aText, Data.m_aClan) != 0;
 	}
@@ -632,7 +715,7 @@ private:
 protected:
 	bool UpdateNeeded(CGameClient &This, const CNamePlateData &Data) override
 	{
-		m_Visible = Data.m_InGame;
+		m_Visible = Data.m_InGame && AetherVariant::WarlistEnabled() && g_Config.m_TcWarListReason;
 		if(!m_Visible)
 			return false;
 		const char *pReason = This.m_WarList.GetWarData(Data.m_ClientId).m_aReason;
@@ -640,11 +723,11 @@ protected:
 		if(!m_Visible)
 			return false;
 		m_Color = ColorRGBA(0.7f, 0.7f, 0.7f, Data.m_Color.a);
-		return m_FontSize != Data.m_FontSizeClan || str_comp(m_aText, pReason) != 0;
+		return m_FontSize != Data.m_FontSizeClan * 0.72f || str_comp(m_aText, pReason) != 0;
 	}
 	void UpdateText(CGameClient &This, const CNamePlateData &Data) override
 	{
-		m_FontSize = Data.m_FontSizeClan;
+		m_FontSize = Data.m_FontSizeClan * 0.72f;
 		const char *pReason = This.m_WarList.GetWarData(Data.m_ClientId).m_aReason;
 		str_copy(m_aText, pReason, sizeof(m_aText));
 		CTextCursor Cursor;
@@ -654,6 +737,35 @@ protected:
 
 public:
 	CNamePlatePartReason(CGameClient &This) :
+		CNamePlatePartText(This) {}
+};
+
+class CNamePlatePartDummyOwner : public CNamePlatePartText
+{
+private:
+	char m_aText[MAX_NAME_LENGTH + 16] = "";
+	float m_FontSize = -INFINITY;
+
+protected:
+	bool UpdateNeeded(CGameClient &This, const CNamePlateData &Data) override
+	{
+		m_Visible = Data.m_ShowDummyOwner;
+		if(!m_Visible)
+			return false;
+		m_Color = ColorRGBA(0.58f, 0.78f, 1.0f, Data.m_Color.a * 0.86f);
+		return m_FontSize != Data.m_FontSizeDummyOwner || str_comp(m_aText, Data.m_aDummyOwner) != 0;
+	}
+	void UpdateText(CGameClient &This, const CNamePlateData &Data) override
+	{
+		m_FontSize = Data.m_FontSizeDummyOwner;
+		str_copy(m_aText, Data.m_aDummyOwner, sizeof(m_aText));
+		CTextCursor Cursor;
+		Cursor.m_FontSize = m_FontSize;
+		This.TextRender()->CreateOrAppendTextContainer(m_TextContainerIndex, &Cursor, m_aText);
+	}
+
+public:
+	CNamePlatePartDummyOwner(CGameClient &This) :
 		CNamePlatePartText(This) {}
 };
 
@@ -726,12 +838,16 @@ private:
 		AddPart<CNamePlatePartCountry>(This); // TClient
 		AddPart<CNamePlatePartPing>(This); // TClient
 		AddPart<CNamePlatePartIgnoreMark>(This); // TClient
-		AddPart<CNamePlatePartFriendMark>(This);
 		AddPart<CNamePlatePartClientId>(This, false);
+		AddPart<CNamePlatePartBadges>(This);
+		AddPart<CNamePlatePartFriendMark>(This);
 		AddPart<CNamePlatePartName>(This);
 		AddPart<CNamePlatePartNewLine>(This);
 
 		AddPart<CNamePlatePartClan>(This);
+		AddPart<CNamePlatePartNewLine>(This);
+
+		AddPart<CNamePlatePartDummyOwner>(This);
 		AddPart<CNamePlatePartNewLine>(This);
 
 		AddPart<CNamePlatePartReason>(This); // TClient
@@ -867,6 +983,8 @@ void CNamePlates::RenderNamePlateGame(vec2 Position, const CNetObj_PlayerInfo *p
 	Data.m_ShowFriendMark = Data.m_ShowName && g_Config.m_ClNamePlatesFriendMark && GameClient()->m_aClients[pPlayerInfo->m_ClientId].m_Friend;
 	Data.m_ShowClientId = Data.m_ShowName && (g_Config.m_Debug || g_Config.m_ClNamePlatesIds);
 	Data.m_FontSize = 18.0f + 20.0f * g_Config.m_ClNamePlatesSize / 100.0f;
+	Data.m_FontSizeBadges = Data.m_FontSize * 0.60f;
+	Data.m_ShowBadges = Data.m_ShowName && g_Config.m_AeBadges && g_Config.m_AeBadgesNameplates && GameClient()->m_AetherBadges.FormatBadgeText(pPlayerInfo->m_ClientId, Data.m_aBadges, sizeof(Data.m_aBadges), 3);
 
 	Data.m_ClientId = pPlayerInfo->m_ClientId;
 	Data.m_ClientIdSeparateLine = g_Config.m_ClNamePlatesIdsSeparateLine;
@@ -875,6 +993,8 @@ void CNamePlates::RenderNamePlateGame(vec2 Position, const CNetObj_PlayerInfo *p
 	Data.m_ShowClan = Data.m_ShowName && g_Config.m_ClNamePlatesClan;
 	str_copy(Data.m_aClan, GameClient()->m_aClients[pPlayerInfo->m_ClientId].m_aClan);
 	Data.m_FontSizeClan = 18.0f + 20.0f * g_Config.m_ClNamePlatesClanSize / 100.0f;
+	Data.m_ShowDummyOwner = GameClient()->m_AetherBlockAwareness.DummyOwnerLabel(pPlayerInfo->m_ClientId, Data.m_aDummyOwner, sizeof(Data.m_aDummyOwner));
+	Data.m_FontSizeDummyOwner = Data.m_FontSizeClan * 0.62f;
 
 	Data.m_FontSizeHookStrongWeak = 18.0f + 20.0f * g_Config.m_ClNamePlatesStrongSize / 100.0f;
 	Data.m_FontSizeDirection = 18.0f + 20.0f * g_Config.m_ClDirectionSize / 100.0f;
@@ -980,7 +1100,7 @@ void CNamePlates::RenderNamePlateGame(vec2 Position, const CNetObj_PlayerInfo *p
 	}
 
 	// TClient
-	if(g_Config.m_TcWarList && g_Config.m_TcWarListShowClan && GameClient()->m_WarList.GetWarData(pPlayerInfo->m_ClientId).m_WarClan)
+	if(AetherVariant::WarlistEnabled() && g_Config.m_TcWarList && g_Config.m_TcWarListShowClan && GameClient()->m_WarList.GetWarData(pPlayerInfo->m_ClientId).m_WarClan)
 		Data.m_ShowClan = true;
 	Data.m_Local = pPlayerInfo->m_Local;
 
@@ -1009,6 +1129,9 @@ void CNamePlates::RenderNamePlatePreview(vec2 Position, int Dummy)
 	str_copy(Data.m_aName, str_utf8_skip_whitespaces(pName));
 	str_utf8_trim_right(Data.m_aName);
 	Data.m_FontSize = FontSize;
+	Data.m_ShowBadges = false;
+	Data.m_aBadges[0] = '\0';
+	Data.m_FontSizeBadges = FontSize * 0.60f;
 
 	Data.m_ShowFriendMark = Data.m_ShowName && g_Config.m_ClNamePlatesFriendMark;
 
@@ -1024,6 +1147,9 @@ void CNamePlates::RenderNamePlatePreview(vec2 Position, int Dummy)
 	if(Data.m_aClan[0] == '\0')
 		str_copy(Data.m_aClan, "Clan Name");
 	Data.m_FontSizeClan = FontSizeClan;
+	Data.m_ShowDummyOwner = false;
+	Data.m_aDummyOwner[0] = '\0';
+	Data.m_FontSizeDummyOwner = FontSizeClan * 0.62f;
 
 	Data.m_ShowDirection = g_Config.m_ClShowDirection != 0 ? true : false;
 	Data.m_DirLeft = Data.m_DirJump = Data.m_DirRight = true;
@@ -1093,10 +1219,23 @@ void CNamePlates::OnRender()
 	if(!g_Config.m_ClNamePlates && ShowDirection == 0)
 		return;
 
+	auto AetherFpsFogHidesClient = [&](int ClientId) {
+		if(!(g_Config.m_AeOptimizer && g_Config.m_AeOptimizerFpsFog))
+			return false;
+		if(ClientId < 0 || ClientId >= MAX_CLIENTS)
+			return false;
+		if(ClientId == GameClient()->m_aLocalIds[0] || ClientId == GameClient()->m_aLocalIds[1])
+			return false;
+		const float Radius = g_Config.m_AeOptimizerFpsFogRadius * 32.0f;
+		return distance(GameClient()->m_aClients[ClientId].m_RenderPos, GameClient()->m_Camera.m_Center) > Radius;
+	};
+
 	for(int i = 0; i < MAX_CLIENTS; i++)
 	{
 		const CNetObj_PlayerInfo *pInfo = GameClient()->m_Snap.m_apPlayerInfos[i];
 		if(!pInfo)
+			continue;
+		if(AetherFpsFogHidesClient(i))
 			continue;
 
 		// Each player can also have a spectator char whose name plate is displayed independently

@@ -1,6 +1,7 @@
 #include "translate.h"
 
 #include <base/log.h>
+#include <base/system.h>
 
 #include <engine/shared/json.h>
 #include <engine/shared/jsonwriter.h>
@@ -12,6 +13,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <string>
 
 static void UrlEncode(const char *pText, char *pOut, size_t Length)
 {
@@ -36,6 +38,38 @@ static void UrlEncode(const char *pText, char *pOut, size_t Length)
 		}
 	}
 	pOut[OutPos] = '\0';
+}
+
+static void NormalizeLibreTranslateEndpoint(char *pOut, int OutSize)
+{
+	pOut[0] = '\0';
+	if(g_Config.m_TcTranslateEndpoint[0] == '\0')
+		return;
+
+	char aEndpoint[256];
+	str_copy(aEndpoint, g_Config.m_TcTranslateEndpoint);
+	while(aEndpoint[0] != '\0' && aEndpoint[str_length(aEndpoint) - 1] == '/')
+		aEndpoint[str_length(aEndpoint) - 1] = '\0';
+
+	if(str_find(aEndpoint, "://") == nullptr)
+		str_format(pOut, OutSize, "https://%s", aEndpoint);
+	else
+		str_copy(pOut, aEndpoint, OutSize);
+
+	if(str_find(pOut, "/translate") == nullptr)
+		str_append(pOut, "/translate", OutSize);
+}
+
+static const char *EncodeGoogleSource(const char *pSource)
+{
+	if(!pSource || pSource[0] == '\0')
+		return "auto";
+	return pSource;
+}
+
+static bool IsAutoLanguage(const char *pLanguage)
+{
+	return pLanguage == nullptr || pLanguage[0] == '\0' || str_comp_nocase(pLanguage, "auto") == 0;
 }
 
 const char *ITranslateBackend::EncodeTarget(const char *pTarget) const
@@ -143,40 +177,14 @@ private:
 			return false;
 		}
 
-		const json_value *pDetectedLanguage = json_object_get(pObj, "detectedLanguage");
-		if(pDetectedLanguage == &json_value_none)
-		{
-			str_copy(Out.m_Text, "No pDetectedLanguage");
-			return false;
-		}
-		if(pDetectedLanguage->type != json_object)
-		{
-			str_copy(Out.m_Text, "pDetectedLanguage is not object");
-			return false;
-		}
-
-		const json_value *pConfidence = json_object_get(pDetectedLanguage, "confidence");
-		if(pConfidence == &json_value_none || ((pConfidence->type == json_double && pConfidence->u.dbl == 0.0f) ||
-							      (pConfidence->type == json_integer && pConfidence->u.integer == 0)))
-		{
-			str_copy(Out.m_Text, "Unknown language");
-			return false;
-		}
-
-		const json_value *pLanguage = json_object_get(pDetectedLanguage, "language");
-		if(pLanguage == &json_value_none)
-		{
-			str_copy(Out.m_Text, "No language");
-			return false;
-		}
-		if(pLanguage->type != json_string)
-		{
-			str_copy(Out.m_Text, "language is not string");
-			return false;
-		}
-
 		str_copy(Out.m_Text, pTranslatedText->u.string.ptr);
-		str_copy(Out.m_Language, pLanguage->u.string.ptr);
+		const json_value *pDetectedLanguage = json_object_get(pObj, "detectedLanguage");
+		if(pDetectedLanguage != &json_value_none && pDetectedLanguage->type == json_object)
+		{
+			const json_value *pLanguage = json_object_get(pDetectedLanguage, "language");
+			if(pLanguage != &json_value_none && pLanguage->type == json_string)
+				str_copy(Out.m_Language, pLanguage->u.string.ptr);
+		}
 
 		return true;
 	}
@@ -214,7 +222,9 @@ public:
 			Json.WriteStrValue(g_Config.m_TcTranslateKey);
 		}
 		Json.EndObject();
-		CreateHttpRequest(Http, g_Config.m_TcTranslateEndpoint[0] == '\0' ? "localhost:5000/translate" : g_Config.m_TcTranslateEndpoint);
+		char aEndpoint[256];
+		NormalizeLibreTranslateEndpoint(aEndpoint, sizeof(aEndpoint));
+		CreateHttpRequest(Http, aEndpoint);
 		const char *pJson = Json.GetOutputString().c_str();
 		m_pHttpRequest->PostJson(pJson);
 	}
@@ -302,6 +312,90 @@ public:
 	}
 };
 
+class CTranslateBackendGoogle : public ITranslateBackendHttp
+{
+protected:
+	bool ParseResponse(CTranslateResponse &Out) override
+	{
+		json_value *pRoot = m_pHttpRequest->ResultJson();
+		if(!pRoot)
+		{
+			str_copy(Out.m_Text, "Response is not JSON");
+			return false;
+		}
+
+		bool Success = false;
+		if(pRoot->type != json_array)
+		{
+			str_copy(Out.m_Text, "Response is not array");
+		}
+		else
+		{
+			const json_value *pSentences = json_array_get(pRoot, 0);
+			if(!pSentences || pSentences->type != json_array)
+			{
+				str_copy(Out.m_Text, "Missing translation entries");
+			}
+			else
+			{
+				std::string Result;
+				for(int i = 0; i < json_array_length(pSentences); ++i)
+				{
+					const json_value *pSentence = json_array_get(pSentences, i);
+					if(!pSentence || pSentence->type != json_array)
+						continue;
+					const json_value *pTranslated = json_array_get(pSentence, 0);
+					if(pTranslated && pTranslated->type == json_string)
+						Result += pTranslated->u.string.ptr;
+				}
+
+				if(Result.empty())
+				{
+					str_copy(Out.m_Text, "Translation is empty");
+				}
+				else
+				{
+					str_copy(Out.m_Text, Result.c_str(), sizeof(Out.m_Text));
+					const json_value *pDetectedLanguage = json_array_get(pRoot, 2);
+					if(pDetectedLanguage && pDetectedLanguage->type == json_string)
+						str_copy(Out.m_Language, pDetectedLanguage->u.string.ptr, sizeof(Out.m_Language));
+					Success = true;
+				}
+			}
+		}
+
+		json_value_free(pRoot);
+		return Success;
+	}
+
+public:
+	const char *EncodeTarget(const char *pTarget) const override
+	{
+		if(!pTarget || pTarget[0] == '\0')
+			return DefaultConfig::TcTranslateTarget;
+		if(str_comp_nocase(pTarget, "zh") == 0)
+			return "zh-cn";
+		return pTarget;
+	}
+	const char *Name() const override
+	{
+		return "Google Translate";
+	}
+	CTranslateBackendGoogle(IHttp &Http, const char *pText)
+	{
+		char aBuf[4096];
+		str_format(aBuf, sizeof(aBuf), "https://translate.googleapis.com/translate_a/single?client=gtx&sl=%s&tl=%s&dt=t&q=",
+			EncodeGoogleSource("auto"), EncodeTarget(g_Config.m_TcTranslateTarget));
+		UrlEncode(pText, aBuf + strlen(aBuf), sizeof(aBuf) - strlen(aBuf));
+		CreateHttpRequest(Http, aBuf);
+	}
+};
+
+static std::unique_ptr<ITranslateBackend> CreateEmbeddedTranslateBackend(IHttp &Http, const char *pText)
+{
+	return std::make_unique<CTranslateBackendGoogle>(Http, pText);
+}
+
 void CTranslate::ConTranslate(IConsole::IResult *pResult, void *pUserData)
 {
 	const char *pName;
@@ -322,6 +416,12 @@ void CTranslate::ConTranslateId(IConsole::IResult *pResult, void *pUserData)
 
 void CTranslate::OnConsoleInit()
 {
+	// Stop legacy auto-translate from forcing every incoming line after the new explicit toggle exists.
+	if(g_Config.m_TcTranslateAuto)
+		g_Config.m_TcTranslateAuto = 0;
+	if(IsAutoLanguage(g_Config.m_TcTranslateTarget))
+		str_copy(g_Config.m_TcTranslateTarget, DefaultConfig::TcTranslateTarget, sizeof(g_Config.m_TcTranslateTarget));
+	str_copy(g_Config.m_TcTranslateBackend, "google", sizeof(g_Config.m_TcTranslateBackend));
 	Console()->Register("translate", "?r[name]", CFGFLAG_CLIENT, ConTranslate, this, "Translate last message (of a given name)");
 	Console()->Register("translate_id", "v[id]", CFGFLAG_CLIENT, ConTranslateId, this, "Translate last message of the person with this id");
 }
@@ -378,10 +478,7 @@ void CTranslate::Translate(const char *pName, bool ShowProgress)
 		}
 	}
 	if(!pLineBest || pLineBest->m_aText[0] == '\0')
-	{
-		GameClient()->m_Chat.Echo("No message to translate");
 		return;
-	}
 
 	Translate(*pLineBest, ShowProgress);
 }
@@ -397,16 +494,7 @@ void CTranslate::Translate(CChat::CLine &Line, bool ShowProgress)
 	Job.m_pLine = &Line;
 	Job.m_pTranslateResponse = std::make_shared<CTranslateResponse>();
 	Job.m_pLine->m_pTranslateResponse = Job.m_pTranslateResponse;
-
-	if(str_comp_nocase(g_Config.m_TcTranslateBackend, "libretranslate") == 0)
-		Job.m_pBackend = std::make_unique<CTranslateBackendLibretranslate>(*Http(), Job.m_pLine->m_aText);
-	else if(str_comp_nocase(g_Config.m_TcTranslateBackend, "ftapi") == 0)
-		Job.m_pBackend = std::make_unique<CTranslateBackendFtapi>(*Http(), Job.m_pLine->m_aText);
-	else
-	{
-		GameClient()->m_Chat.Echo("Invalid translate backend");
-		return;
-	}
+	Job.m_pBackend = CreateEmbeddedTranslateBackend(*Http(), Job.m_pLine->m_aText);
 
 	if(ShowProgress)
 	{
@@ -450,11 +538,34 @@ void CTranslate::OnRender()
 		return true;
 	};
 	m_vJobs.erase(std::remove_if(m_vJobs.begin(), m_vJobs.end(), ForEach), m_vJobs.end());
+
+	auto ForEachOutgoing = [&](COutgoingTranslateJob &Job) {
+		CTranslateResponse Response;
+		const std::optional<bool> Done = Job.m_pBackend->Update(Response);
+		if(!Done.has_value())
+			return false;
+		if(*Done)
+		{
+			const char *pMessage = Response.m_Text[0] != '\0' ? Response.m_Text : Job.m_aOriginal;
+			GameClient()->m_Chat.SendChat(Job.m_Team, pMessage);
+		}
+		else
+		{
+			char aBuf[sizeof(Response.m_Text) + 64];
+			str_format(aBuf, sizeof(aBuf), "Outgoing translate to %s failed: %s", g_Config.m_TcTranslateTarget, Response.m_Text);
+			GameClient()->m_Chat.Echo(aBuf);
+			GameClient()->m_Chat.SendChat(Job.m_Team, Job.m_aOriginal);
+		}
+		return true;
+	};
+	m_vOutgoingJobs.erase(std::remove_if(m_vOutgoingJobs.begin(), m_vOutgoingJobs.end(), ForEachOutgoing), m_vOutgoingJobs.end());
 }
 
 void CTranslate::AutoTranslate(CChat::CLine &Line)
 {
-	if(!g_Config.m_TcTranslateAuto)
+	if(!g_Config.m_TcTranslateAutoIncoming)
+		return;
+	if(IsAutoLanguage(g_Config.m_TcTranslateTarget))
 		return;
 	if(Line.m_ClientId == CChat::CLIENT_MSG)
 		return;
@@ -463,11 +574,29 @@ void CTranslate::AutoTranslate(CChat::CLine &Line)
 		if(Id >= 0 && Id == Line.m_ClientId)
 			return;
 	}
-	if(str_comp(g_Config.m_TcTranslateBackend, "ftapi") == 0)
-	{
-		// FTAPI quickly gets overloaded, please do not disable this
-		// It may shut down if we spam it too hard
-		return;
-	}
 	Translate(Line, false);
+}
+
+bool CTranslate::TranslateOutgoing(int Team, const char *pLine)
+{
+	if(!g_Config.m_TcTranslateOutgoing)
+		return false;
+	if(IsAutoLanguage(g_Config.m_TcTranslateTarget))
+		return false;
+	if(!pLine || pLine[0] == '\0')
+		return false;
+	if(pLine[0] == '/')
+		return false;
+	if(m_vOutgoingJobs.size() >= 3)
+	{
+		GameClient()->m_Chat.Echo("Outgoing translate queue is full.");
+		return true;
+	}
+
+	COutgoingTranslateJob Job;
+	Job.m_Team = Team;
+	str_copy(Job.m_aOriginal, pLine, sizeof(Job.m_aOriginal));
+	Job.m_pBackend = CreateEmbeddedTranslateBackend(*Http(), pLine);
+	m_vOutgoingJobs.emplace_back(std::move(Job));
+	return true;
 }

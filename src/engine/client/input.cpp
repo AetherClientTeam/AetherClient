@@ -311,6 +311,11 @@ bool CInput::NativeMousePressed(int Index) const
 	return (i & SDL_BUTTON(Index)) != 0;
 }
 
+void CInput::SetNativeMouseCursorVisible(bool Visible)
+{
+	SDL_ShowCursor(Visible ? SDL_ENABLE : SDL_DISABLE);
+}
+
 const std::vector<IInput::CTouchFingerState> &CInput::TouchFingerStates() const
 {
 	return m_vTouchFingerStates;

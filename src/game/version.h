@@ -32,9 +32,15 @@ extern const char *GIT_SHORTREV_HASH;
 
 // client branding
 #ifndef AETHER_VERSION
-#define AETHER_VERSION "0.1.0"
+#define AETHER_VERSION "1.0.0"
 #endif
 #define CLIENT_NAME "Aether"
 #define CLIENT_RELEASE_VERSION AETHER_VERSION
+#ifndef AETHERCLIENT_VERSION
+#define AETHERCLIENT_VERSION CLIENT_RELEASE_VERSION
+#endif
+#ifndef AETHERCLIENT_UPDATE_RELEASE_API_URL
+#define AETHERCLIENT_UPDATE_RELEASE_API_URL "https://api.github.com/repos/AetherClient/AetherClient/releases"
+#endif
 
 #endif

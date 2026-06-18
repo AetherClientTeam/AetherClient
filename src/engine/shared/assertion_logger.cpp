@@ -3,6 +3,7 @@
 #include <base/dbg.h>
 #include <base/io.h>
 #include <base/lock.h>
+#include <base/log.h>
 #include <base/logger.h>
 #include <base/process.h>
 #include <base/str.h>
@@ -41,6 +42,7 @@ void CAssertionLogger::Log(const CLogMessage *pMessage)
 	const CLockScope LockScope(m_DbgMessageMutex);
 	SDebugMessageItem *pMsgItem = (SDebugMessageItem *)m_DbgMessages.Allocate(sizeof(SDebugMessageItem));
 	str_copy(pMsgItem->m_aMessage, pMessage->m_aLine);
+	log_aether_mask_paths(pMsgItem->m_aMessage, sizeof(pMsgItem->m_aMessage));
 }
 
 void CAssertionLogger::GlobalFinish()

@@ -38,6 +38,8 @@ public:
 	CNetObj_PlayerInput m_aLastData[NUM_DUMMIES];
 	int m_aInputDirectionLeft[NUM_DUMMIES];
 	int m_aInputDirectionRight[NUM_DUMMIES];
+	int m_aSnapTapLastDirection[NUM_DUMMIES];
+	bool m_WeaponsGot = false;
 	int m_aShowHookColl[NUM_DUMMIES];
 
 	// TClient
@@ -59,11 +61,14 @@ public:
 	void ClampMousePos();
 	void ResetInput(int Dummy);
 	bool CheckNewInput();
+	int DirectionForInput(int Dummy) const;
+	void GoresMode();
 
 private:
 	static void ConKeyInputState(IConsole::IResult *pResult, void *pUserData);
 	static void ConKeyInputCounter(IConsole::IResult *pResult, void *pUserData);
 	static void ConKeyInputSet(IConsole::IResult *pResult, void *pUserData);
 	static void ConKeyInputNextPrevWeapon(IConsole::IResult *pResult, void *pUserData);
+
 };
 #endif

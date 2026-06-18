@@ -15,6 +15,7 @@
 #include <engine/textrender.h>
 
 #include <game/client/component.h>
+#include <game/client/components/aether/music_player_helpers.h>
 #include <game/client/components/community_icons.h>
 #include <game/client/components/mapimages.h>
 #include <game/client/components/menus_ingame_touch_controls.h>
@@ -114,6 +115,10 @@ public:
 	{
 	};
 
+	struct SCustomAudio : public SCustomItem
+	{
+	};
+
 protected:
 	std::vector<SCustomEntities> m_vEntitiesList;
 	std::vector<SCustomGame> m_vGameList;
@@ -121,6 +126,7 @@ protected:
 	std::vector<SCustomParticle> m_vParticlesList;
 	std::vector<SCustomHud> m_vHudList;
 	std::vector<SCustomExtras> m_vExtrasList;
+	std::vector<SCustomAudio> m_vAudioList;
 
 	bool m_IsInit = false;
 
@@ -132,6 +138,7 @@ protected:
 	static int ParticlesScan(const char *pName, int IsDir, int DirType, void *pUser);
 	static int HudScan(const char *pName, int IsDir, int DirType, void *pUser);
 	static int ExtrasScan(const char *pName, int IsDir, int DirType, void *pUser);
+	static int AudioScan(const char *pName, int IsDir, int DirType, void *pUser);
 
 	static void ConchainAssetsEntities(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
 	static void ConchainAssetGame(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
@@ -139,6 +146,7 @@ protected:
 	static void ConchainAssetEmoticons(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
 	static void ConchainAssetHud(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
 	static void ConchainAssetExtras(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
+	static void ConchainAssetAudio(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
 
 	void ClearCustomItems(int CurTab);
 
@@ -147,6 +155,11 @@ protected:
 	int m_Popup;
 	bool m_ShowStart;
 	bool m_MenuActive;
+	char m_aAetherSearch[128] = {};
+	CLineInput m_AetherSearchInput;
+	AetherMusic::EAetherFeatureId m_AetherExpandedFeature = AetherMusic::EAetherFeatureId::NONE;
+	bool m_AetherSettingsVisible = false;
+	bool m_AetherShowEnabledOnly = false;
 
 	bool m_DummyNamePlatePreview = false;
 
@@ -558,6 +571,7 @@ protected:
 	void RenderServerbrowserInfo(CUIRect View);
 	void RenderServerbrowserInfoScoreboard(CUIRect View, const CServerInfo *pSelectedServer);
 	void RenderServerbrowserFriends(CUIRect View);
+	void RenderServerbrowserAether(CUIRect View);
 	void FriendlistOnUpdate();
 	void PopupConfirmRemoveFriend();
 	void RenderServerbrowserTabBar(CUIRect TabBar);
@@ -645,6 +659,7 @@ public:
 
 	bool IsActive() const { return m_MenuActive; }
 	void SetActive(bool Active);
+	void OpenAetherChessOnline();
 
 	void OnInterfacesInit(CGameClient *pClient) override;
 	void OnInit() override;
@@ -693,6 +708,7 @@ public:
 		SETTINGS_DDNET,
 		SETTINGS_ASSETS,
 		SETTINGS_TCLIENT,
+		SETTINGS_AETHER,
 		SETTINGS_CONFIGS,
 
 		SETTINGS_LENGTH,
@@ -725,6 +741,7 @@ public:
 		SMALL_TAB_BROWSER_FILTER,
 		SMALL_TAB_BROWSER_INFO,
 		SMALL_TAB_BROWSER_FRIENDS,
+		SMALL_TAB_BROWSER_AETHER,
 
 		SMALL_TAB_LENGTH,
 	};
@@ -854,6 +871,52 @@ private:
 	void RenderSettingsTClientStatusBar(CUIRect MainView);
 	void RenderSettingsTClientProfiles(CUIRect MainView);
 	void RenderSettingsTClientConfigs(CUIRect MainView);
+	void RenderSettingsAether(CUIRect MainView);
+	void RenderSettingsAetherAimTraining(CUIRect Body);
+	void RenderSettingsAetherAutoTeamLock(CUIRect Body);
+	void RenderSettingsAetherBrowserUtils(CUIRect Body);
+	void RenderSettingsAetherDescription(CUIRect Body, const char *pText);
+	void RenderSettingsAetherBadges(CUIRect Body);
+	void RenderSettingsAetherPings(CUIRect Body);
+	void RenderSettingsAetherClan(CUIRect Body);
+	void RenderSettingsAetherChatBubbles(CUIRect Body);
+	void RenderSettingsAetherBlockAwareness(CUIRect Body);
+	void RenderSettingsAetherFastInput(CUIRect Body);
+	void RenderSettingsAetherFocusMode(CUIRect Body);
+	void RenderSettingsAetherFastSpec(CUIRect Body);
+	void RenderSettingsAetherTranslator(CUIRect Body);
+	void RenderSettingsAetherGoresMode(CUIRect Body);
+	void RenderSettingsAetherDdraceConfigs(CUIRect Body);
+	void RenderSettingsAetherFailSound(CUIRect Body);
+	void RenderSettingsAetherSound(CUIRect Body);
+	void RenderSettingsAetherKeyboardSound(CUIRect Body);
+	void RenderSettingsAetherGradientTeamColors(CUIRect Body);
+	void RenderSettingsAetherGoresMaps(CUIRect Body);
+	void RenderSettingsAetherAssetsEditor(CUIRect Body);
+	void RenderSettingsAetherAssetsCloud(CUIRect Body);
+	bool IsAetherAssetsEditorOpen() const;
+	void RenderSettingsAetherAssetsEditorPopup(CUIRect Screen);
+	void RenderSettingsAetherInputVisualizer(CUIRect Body);
+	void RenderSettingsAetherKeystrokes(CUIRect Body);
+	void RenderSettingsAetherStabilityTrainer(CUIRect Body);
+	void RenderSettingsAetherMusicPlayer(CUIRect Body);
+	void RenderSettingsAetherNinjaTeePreview(CUIRect Body);
+	void RenderSettingsAetherNinjaTimer(CUIRect Body);
+	void RenderSettingsAetherSweatWeapon(CUIRect Body);
+	void RenderSettingsAetherOrbitAura(CUIRect Body);
+	void RenderSettingsAetherJellyTee(CUIRect Body);
+	void RenderSettingsAetherFinishPrediction(CUIRect Body);
+	void RenderSettingsAetherThreeDParticles(CUIRect Body);
+	void RenderSettingsAetherPsa(CUIRect Body);
+	void RenderSettingsAetherRealHitbox(CUIRect Body);
+	void RenderSettingsAetherSessionStats(CUIRect Body);
+	void RenderSettingsAetherCustomResolution(CUIRect Body);
+	void RenderSettingsAetherOptimizer(CUIRect Body);
+	void RenderSettingsAetherRollbackDemo(CUIRect Body);
+	void RenderSettingsAetherSaveUnsentMessages(CUIRect Body);
+	void RenderSettingsAetherUiScale(CUIRect Body);
+	void RenderSettingsAetherVaultCfg(CUIRect Body);
+	void ResetAetherSettingsState();
 	void RenderTeeCute(const CAnimState *pAnim, const CTeeRenderInfo *pInfo, int Emote, vec2 Dir, vec2 Pos, bool CuteEyes, float Alpha = 1.0f);
 
 	const CWarType *m_pRemoveWarType = nullptr;

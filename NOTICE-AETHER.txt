@@ -1,0 +1,18 @@
+AetherClient Notice
+===================
+
+This repository is an altered client distribution based on DDNet and TClient.
+The original DDNet/Teeworlds/DDRace license text remains in `license.txt` and
+must not be removed.
+
+Aether-authored source files, Aether UI code, Aether family branding assets,
+badge assets, and release packaging scripts are copyright (c) 2026 AetherClient
+contributors unless a file states otherwise.
+
+This notice does not claim ownership of upstream DDNet, Teeworlds, DDRace,
+TClient, bundled third-party libraries, fonts, skins, maps, or assets that are
+covered by their own licenses.
+
+Public release builds must not contain private deployment secrets, database
+URLs, personal filesystem paths, API admin tokens, private keys, or unpublished
+service credentials.

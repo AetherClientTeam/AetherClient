@@ -79,6 +79,8 @@ public:
 		m_ColorBody = ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f);
 		m_ColorFeet = ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f);
 		m_Size = 1.0f;
+		m_AetherScaleX = 1.0f;
+		m_AetherScaleY = 1.0f;
 		m_GotAirJump = true;
 		m_TeeRenderFlags = 0;
 		m_FeetFlipped = false;
@@ -129,6 +131,8 @@ public:
 	ColorRGBA m_ColorBody;
 	ColorRGBA m_ColorFeet;
 	float m_Size;
+	float m_AetherScaleX;
+	float m_AetherScaleY;
 	bool m_GotAirJump;
 	int m_TeeRenderFlags;
 	bool m_FeetFlipped;
@@ -178,6 +182,13 @@ public:
 
 	CSixup m_aSixup[NUM_DUMMIES];
 };
+
+inline void ApplyAetherNinjaTeeColors(CTeeRenderInfo &Info, int ColorBody, int ColorFeet)
+{
+	Info.m_CustomColoredSkin = true;
+	Info.m_ColorBody = color_cast<ColorRGBA>(ColorHSLA(ColorBody).UnclampLighting(0.0f));
+	Info.m_ColorFeet = color_cast<ColorRGBA>(ColorHSLA(ColorFeet).UnclampLighting(0.0f));
+}
 
 class CManagedTeeRenderInfo
 {

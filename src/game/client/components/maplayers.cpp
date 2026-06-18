@@ -2,8 +2,15 @@
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include "maplayers.h"
 
+#include <engine/graphics.h>
+#include <engine/shared/config.h>
+
 #include <game/client/gameclient.h>
 #include <game/localization.h>
+
+#include <algorithm>
+#include <cmath>
+#include <iterator>
 
 CMapLayers::CMapLayers(ERenderType Type, bool OnlineOnly)
 {
@@ -62,4 +69,45 @@ void CMapLayers::OnRender()
 	m_Params.m_DebugRenderTileClips = g_Config.m_DbgRenderTileClips;
 
 	m_MapRenderer.Render(m_Params);
+
+	if(m_Type == ERenderType::RENDERTYPE_FOREGROUND &&
+		g_Config.m_AeOptimizer && g_Config.m_AeOptimizerFpsFog && g_Config.m_AeOptimizerFpsFogRenderRect)
+	{
+		float Width, Height;
+		Graphics()->CalcScreenParams(Graphics()->ScreenAspect(), m_Params.m_Zoom, &Width, &Height);
+		if(!std::isfinite(Width) || !std::isfinite(Height) || Width <= 0.0f || Height <= 0.0f ||
+			!std::isfinite(m_Params.m_Center.x) || !std::isfinite(m_Params.m_Center.y) ||
+			!std::isfinite(m_Params.m_Zoom) || m_Params.m_Zoom <= 0.0f)
+		{
+			return;
+		}
+		Graphics()->MapScreen(m_Params.m_Center.x - Width / 2.0f, m_Params.m_Center.y - Height / 2.0f,
+			m_Params.m_Center.x + Width / 2.0f, m_Params.m_Center.y + Height / 2.0f);
+
+		const int RadiusTiles = std::clamp(g_Config.m_AeOptimizerFpsFogRadius, 6, 160);
+		const float Radius = RadiusTiles * 32.0f;
+		const float Left = m_Params.m_Center.x - Radius;
+		const float Right = m_Params.m_Center.x + Radius;
+		const float Top = m_Params.m_Center.y - Radius;
+		const float Bottom = m_Params.m_Center.y + Radius;
+		constexpr float MaxDebugCoord = 1000000.0f;
+		if(!std::isfinite(Radius) || Radius <= 0.0f ||
+			!std::isfinite(Left) || !std::isfinite(Right) || !std::isfinite(Top) || !std::isfinite(Bottom) ||
+			std::abs(Left) > MaxDebugCoord || std::abs(Right) > MaxDebugCoord ||
+			std::abs(Top) > MaxDebugCoord || std::abs(Bottom) > MaxDebugCoord ||
+			Right <= Left || Bottom <= Top)
+		{
+			return;
+		}
+		const IGraphics::CLineItem aLines[] = {
+			IGraphics::CLineItem(Left, Top, Right, Top),
+			IGraphics::CLineItem(Right, Top, Right, Bottom),
+			IGraphics::CLineItem(Right, Bottom, Left, Bottom),
+			IGraphics::CLineItem(Left, Bottom, Left, Top),
+		};
+		Graphics()->LinesBegin();
+		Graphics()->SetColor(0.55f, 0.75f, 1.0f, 0.75f);
+		Graphics()->LinesDraw(aLines, std::size(aLines));
+		Graphics()->LinesEnd();
+	}
 }

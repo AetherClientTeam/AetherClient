@@ -9,7 +9,7 @@
 
 #include <base/color.h>
 #include <base/vmath.h>
-
+#include <engine/shared/config.h>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -220,7 +220,12 @@ public:
 
 	int ScreenWidth() const { return m_ScreenWidth; }
 	int ScreenHeight() const { return m_ScreenHeight; }
-	float ScreenAspect() const { return (float)ScreenWidth() / (float)ScreenHeight(); }
+	float ScreenAspect() const
+	{
+		if(g_Config.m_AeCustomResolution && g_Config.m_AeCustomResolutionWidth > 0 && g_Config.m_AeCustomResolutionHeight > 0)
+			return (float)g_Config.m_AeCustomResolutionWidth / (float)g_Config.m_AeCustomResolutionHeight;
+		return (float)ScreenWidth() / (float)ScreenHeight();
+	}
 	float ScreenHiDPIScale() const { return m_ScreenHiDPIScale; }
 	int WindowWidth() const { return m_ScreenWidth / m_ScreenHiDPIScale; }
 	int WindowHeight() const { return m_ScreenHeight / m_ScreenHiDPIScale; }

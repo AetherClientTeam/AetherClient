@@ -12,6 +12,7 @@
 #include <generated/protocol.h>
 
 #include <game/client/animstate.h>
+#include <game/client/components/aether/client_variant.h>
 #include <game/client/gameclient.h>
 #include <game/localization.h>
 
@@ -531,7 +532,7 @@ void CSpectator::OnRender()
 		}
 
 		// TClient
-		if(pInfo && pInfo->m_ClientId > 0 && g_Config.m_TcWarList && g_Config.m_TcWarListSpectate && GameClient()->m_WarList.GetAnyWar(pInfo->m_ClientId))
+		if(AetherVariant::WarlistEnabled() && pInfo && pInfo->m_ClientId > 0 && g_Config.m_TcWarList && g_Config.m_TcWarListSpectate && GameClient()->m_WarList.GetAnyWar(pInfo->m_ClientId))
 		{
 			TextRender()->TextColor(GameClient()->m_WarList.GetPriorityColor(pInfo->m_ClientId));
 		}

@@ -62,6 +62,7 @@ public:
 	void OnReset() override;
 	void OnStateChange(int NewState, int OldState) override;
 	void OnRender() override;
+	void Reload();
 
 	void ClearQueue();
 	void Enqueue(int Channel, int SetId);

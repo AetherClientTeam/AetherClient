@@ -1497,6 +1497,7 @@ void CMenus::RenderSettings(CUIRect MainView)
 		Localize("DDNet"),
 		Localize("Assets"),
 		TCLocalize("TClient"),
+		"Aether",
 		Localize("Configs")};
 
 	static CButtonContainer s_aTabButtons[SETTINGS_LENGTH];
@@ -1506,8 +1507,11 @@ void CMenus::RenderSettings(CUIRect MainView)
 		TabBar.HSplitTop(10.0f, nullptr, &TabBar);
 		TabBar.HSplitTop(26.0f, &Button, &TabBar);
 		if(DoButton_MenuTab(&s_aTabButtons[i], apTabs[i], g_Config.m_UiSettingsPage == i, &Button, IGraphics::CORNER_R, &m_aAnimatorsSettingsTab[i]))
+		{
 			g_Config.m_UiSettingsPage = i;
+		}
 	}
+	m_AetherSettingsVisible = g_Config.m_UiSettingsPage == SETTINGS_AETHER;
 
 	if(g_Config.m_UiSettingsPage == SETTINGS_LANGUAGE)
 	{
@@ -1564,9 +1568,14 @@ void CMenus::RenderSettings(CUIRect MainView)
 		GameClient()->m_MenuBackground.ChangePosition(13);
 		RenderSettingsTClient(MainView);
 	}
-	else if(g_Config.m_UiSettingsPage == SETTINGS_CONFIGS)
+	else if(g_Config.m_UiSettingsPage == SETTINGS_AETHER)
 	{
 		GameClient()->m_MenuBackground.ChangePosition(14);
+		RenderSettingsAether(MainView);
+	}
+	else if(g_Config.m_UiSettingsPage == SETTINGS_CONFIGS)
+	{
+		GameClient()->m_MenuBackground.ChangePosition(15);
 		RenderSettingsTClientConfigs(MainView);
 	}
 	else

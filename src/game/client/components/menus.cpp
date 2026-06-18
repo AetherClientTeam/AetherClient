@@ -76,6 +76,7 @@ CMenus::CMenus()
 	m_DemoPlayerState = DEMOPLAYER_NONE;
 	m_Dummy = false;
 	m_TeeSettingsPage = 0;
+	m_AetherSearchInput.SetBuffer(m_aAetherSearch, sizeof(m_aAetherSearch));
 
 	for(SUIAnimator &Animator : m_aAnimatorsSettingsTab)
 	{
@@ -353,7 +354,7 @@ void CMenus::DoLaserPreview(const CUIRect *pRect, const ColorHSLA LaserOutlineCo
 		else
 			TeeRenderInfo.Apply(GameClient()->m_Skins.Find(g_Config.m_ClPlayerSkin));
 		TeeRenderInfo.m_TeeRenderFlags = TEE_EFFECT_FROZEN;
-		TeeRenderInfo.m_Size = 64.0f;
+		TeeRenderInfo.m_Size = 38.0f;
 		TeeRenderInfo.m_ColorBody = ColorRGBA(1, 1, 1);
 		TeeRenderInfo.m_ColorFeet = ColorRGBA(1, 1, 1);
 		RenderTools()->RenderTee(CAnimState::GetIdle(), &TeeRenderInfo, EMOTE_PAIN, vec2(1, 0), From);
@@ -759,14 +760,14 @@ void CMenus::RenderLoading(const char *pCaption, const char *pContent, int Incre
 
 	Ui()->MapScreen();
 
-	if(GameClient()->m_MenuBackground.IsLoading())
+	if(g_Config.m_AeLoadingThemeBackground && GameClient()->m_MenuBackground.IsLoading())
 	{
 		// Avoid rendering while loading the menu background as this would otherwise
 		// cause the regular menu background to be rendered for a few frames while
 		// the menu background is not loaded yet.
 		return;
 	}
-	if(!GameClient()->m_MenuBackground.Render())
+	if(!g_Config.m_AeLoadingThemeBackground || !GameClient()->m_MenuBackground.Render())
 	{
 		RenderBackground();
 	}
@@ -898,6 +899,7 @@ void CMenus::OnInit()
 	Console()->Chain("cl_asset_particles", ConchainAssetParticles, this);
 	Console()->Chain("cl_asset_hud", ConchainAssetHud, this);
 	Console()->Chain("cl_asset_extras", ConchainAssetExtras, this);
+	Console()->Chain("cl_assets_audio", ConchainAssetAudio, this);
 
 	Console()->Chain("demo_play", ConchainDemoPlay, this);
 	Console()->Chain("demo_speed", ConchainDemoSpeed, this);
@@ -1058,6 +1060,11 @@ void CMenus::Render()
 	// Determine the client state once before rendering because it can change
 	// while rendering which causes frames with broken user interface.
 	const IClient::EClientState ClientState = Client()->State();
+	const bool SettingsPageVisible =
+		(ClientState == IClient::STATE_OFFLINE && !m_ShowStart && m_MenuPage == PAGE_SETTINGS) ||
+		(ClientState == IClient::STATE_ONLINE && m_GamePage == PAGE_SETTINGS);
+	if(m_AetherSettingsVisible && !SettingsPageVisible)
+		m_AetherSettingsVisible = false;
 
 	if(ClientState == IClient::STATE_ONLINE || ClientState == IClient::STATE_DEMOPLAYBACK)
 	{
@@ -1132,7 +1139,10 @@ void CMenus::Render()
 				dbg_assert_failed("Invalid m_MenuPage: %d", m_MenuPage);
 			}
 
-			RenderMenubar(TabBar, ClientState);
+			if(IsAetherAssetsEditorOpen())
+				RenderSettingsAetherAssetsEditorPopup(Screen);
+			else
+				RenderMenubar(TabBar, ClientState);
 		}
 		break;
 
@@ -1184,7 +1194,10 @@ void CMenus::Render()
 				dbg_assert_failed("Invalid m_GamePage: %d", m_GamePage);
 			}
 
-			RenderMenubar(TabBar, ClientState);
+			if(IsAetherAssetsEditorOpen())
+				RenderSettingsAetherAssetsEditorPopup(Screen);
+			else
+				RenderMenubar(TabBar, ClientState);
 		}
 		break;
 
@@ -2392,6 +2405,7 @@ void CMenus::SetActive(bool Active)
 	m_MenuActive = Active;
 	if(!m_MenuActive)
 	{
+		m_AetherSettingsVisible = false;
 		if(m_NeedSendinfo)
 		{
 			GameClient()->SendInfo(false);
@@ -2523,6 +2537,7 @@ void CMenus::OnRender()
 	Ui()->Update();
 
 	Render();
+	GameClient()->m_AetherBadges.RenderChessInvitePopup();
 
 	if(IsActive())
 	{

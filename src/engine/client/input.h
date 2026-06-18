@@ -140,6 +140,7 @@ public:
 	void MouseModeRelative() override;
 	vec2 NativeMousePos() const override;
 	bool NativeMousePressed(int Index) const override;
+	void SetNativeMouseCursorVisible(bool Visible) override;
 
 	const std::vector<CTouchFingerState> &TouchFingerStates() const override;
 	void ClearTouchDeltas() override;

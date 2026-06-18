@@ -9,6 +9,8 @@
 #include <generated/protocol.h>
 
 #include <game/client/component.h>
+#include <game/client/components/aether/music_player_helpers.h>
+#include <game/client/ui_rect.h>
 
 struct SScoreInfo
 {
@@ -44,6 +46,19 @@ struct SScoreInfo
 
 class CHud : public CComponent
 {
+	enum class ETClientFrozenTextEditorInteraction
+	{
+		IDLE,
+		DRAGGING_FROZEN_TEXT,
+		RESIZING_FROZEN_TEXT,
+		DRAGGING_LAST_NOTIFY,
+		RESIZING_LAST_NOTIFY,
+		DRAGGING_FROZEN_HUD,
+		RESIZING_FROZEN_HUD,
+		DRAGGING_NINJA_TIMER,
+		RESIZING_NINJA_TIMER,
+	};
+
 	float m_Width, m_Height;
 
 	int m_HudQuadContainerIndex;
@@ -64,8 +79,6 @@ class CHud : public CComponent
 	ESpeedChange m_aLastPlayerSpeedChange[2];
 	STextContainerIndex m_aPlayerPositionContainers[2];
 	float m_aPlayerPrevPosition[2];
-
-	void RenderCursor();
 
 	void RenderTextInfo();
 	void RenderConnectionWarning();
@@ -100,7 +113,22 @@ class CHud : public CComponent
 
 	void RenderScoreHud();
 	int m_LastLocalClientId = -1;
+	bool m_TClientFrozenTextEditorOpen = false;
+	ETClientFrozenTextEditorInteraction m_TClientFrozenTextEditorInteraction = ETClientFrozenTextEditorInteraction::IDLE;
+	CUIRect m_TClientFrozenTextRect;
+	CUIRect m_TClientLastNotifyRect;
+	CUIRect m_TClientFrozenHudRect;
+	CUIRect m_AetherNinjaTimerRect;
+	vec2 m_TClientFrozenTextDragOffset;
+	vec2 m_TClientFrozenTextResizeCenter;
+	vec2 m_TClientLastNotifyDragOffset;
+	vec2 m_TClientLastNotifyResizeCenter;
+	vec2 m_TClientFrozenHudDragOffset;
+	vec2 m_TClientFrozenHudResizeCenter;
+	vec2 m_AetherNinjaTimerDragOffset;
+	vec2 m_AetherNinjaTimerResizeCenter;
 
+	void InitializeTClientEditorRects();
 	void RenderSpectatorHud();
 	void RenderWarmupTimer();
 	void RenderLocalTime(float x);
@@ -115,8 +143,17 @@ public:
 	void OnWindowResize() override;
 	void OnReset() override;
 	void OnRender() override;
+	void OnUpdate() override;
 	void OnInit() override;
 	void OnNewSnapshot() override;
+	AetherMusic::STimerModel GameTimerModel() const;
+	void RenderGameTimerAt(float CenterX, float Y, float FontSize, float Alpha = 1.0f);
+	void RenderCursorOverlay();
+	bool OpenTClientFrozenTextEditor();
+	void CloseTClientFrozenTextEditor();
+	bool IsTClientFrozenTextEditorOpen() const { return m_TClientFrozenTextEditorOpen; }
+	bool OnInput(const IInput::CEvent &Event) override;
+	bool OnCursorMove(float x, float y, IInput::ECursorType CursorType) override;
 
 	// DDRace
 
@@ -125,7 +162,24 @@ public:
 
 private:
 	void RenderRecord();
+	vec2 HudMousePos() const;
+	CUIRect TClientFrozenTextResizeHandleRect() const;
+	CUIRect TClientLastNotifyResizeHandleRect() const;
+	CUIRect TClientFrozenHudResizeHandleRect() const;
+	CUIRect AetherNinjaTimerResizeHandleRect() const;
+	void SetTClientFrozenTextScaleKeepingCenter(int NewScale, vec2 Center);
+	void SetTClientLastNotifySizeKeepingCenter(int NewSize, vec2 Center);
+	void SetTClientFrozenHudSizeKeepingCenter(int NewSize, vec2 Center);
+	void SetAetherNinjaTimerScaleKeepingCenter(int NewScale, vec2 Center);
+	void ClampTClientFrozenText();
+	void ClampTClientLastNotify();
+	void ClampTClientFrozenHud();
+	void ClampAetherNinjaTimer();
+	void RenderTClientHudEditorOverlay(const CUIRect &Rect, const CUIRect &Handle);
+	bool AetherNinjaTimerState(int *pRemainingMs, float *pProgress) const;
+	void RenderAetherNinjaTimer();
 	void RenderDDRaceEffects();
+	void RenderCursor();
 	float m_TimeCpDiff;
 	float m_aPlayerRecord[NUM_DUMMIES];
 	float m_FinishTimeDiff;

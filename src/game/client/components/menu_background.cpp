@@ -308,6 +308,13 @@ bool CMenuBackground::Render()
 		return false;
 
 	m_Camera.m_Zoom = 0.7f;
+	if(g_Config.m_AeOptimizer && g_Config.m_AeOptimizerDisableMenuAnimations)
+	{
+		m_Camera.m_Center = m_RotationCenter + vec2((float)g_Config.m_ClRotationRadius, 0.0f);
+		CMapLayers::OnRender();
+		m_CurrentPosition = -1;
+		return true;
+	}
 
 	float DistToCenter = distance(m_Camera.m_Center, m_RotationCenter);
 	if(!m_ChangedPosition && absolute(DistToCenter - (float)g_Config.m_ClRotationRadius) <= 0.5f)

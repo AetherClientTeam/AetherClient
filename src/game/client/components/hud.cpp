@@ -12,6 +12,8 @@
 
 #include <engine/font_icons.h>
 #include <engine/graphics.h>
+#include <engine/input.h>
+#include <engine/keys.h>
 #include <engine/shared/config.h>
 #include <engine/textrender.h>
 
@@ -40,6 +42,499 @@ CHud::CHud()
 		m_aPlayerPrevSpeed[i] = -INFINITY;
 		m_aPlayerPositionContainers[i].Reset();
 		m_aPlayerPrevPosition[i] = -INFINITY;
+	}
+}
+
+vec2 CHud::HudMousePos() const
+{
+	const vec2 WindowSize(std::max(1.0f, (float)Graphics()->WindowWidth()), std::max(1.0f, (float)Graphics()->WindowHeight()));
+	return Input()->NativeMousePos() / WindowSize * vec2(m_Width, m_Height);
+}
+
+CUIRect CHud::TClientFrozenTextResizeHandleRect() const
+{
+	const float Scale = std::clamp(g_Config.m_TcFrozenTextScale / 100.0f, 0.5f, 2.0f);
+	return CUIRect(m_TClientFrozenTextRect.x + m_TClientFrozenTextRect.w - 8.0f * Scale, m_TClientFrozenTextRect.y + m_TClientFrozenTextRect.h - 8.0f * Scale, 8.0f * Scale, 8.0f * Scale);
+}
+
+CUIRect CHud::TClientLastNotifyResizeHandleRect() const
+{
+	const float Scale = std::clamp(g_Config.m_TcNotifyWhenLastSize / 10.0f, 0.5f, 2.0f);
+	return CUIRect(m_TClientLastNotifyRect.x + m_TClientLastNotifyRect.w - 8.0f * Scale, m_TClientLastNotifyRect.y + m_TClientLastNotifyRect.h - 8.0f * Scale, 8.0f * Scale, 8.0f * Scale);
+}
+
+CUIRect CHud::TClientFrozenHudResizeHandleRect() const
+{
+	const float Scale = std::clamp(g_Config.m_TcFrozenHudTeeSize / 15.0f, 0.5f, 2.0f);
+	return CUIRect(m_TClientFrozenHudRect.x + m_TClientFrozenHudRect.w - 8.0f * Scale, m_TClientFrozenHudRect.y + m_TClientFrozenHudRect.h - 8.0f * Scale, 8.0f * Scale, 8.0f * Scale);
+}
+
+CUIRect CHud::AetherNinjaTimerResizeHandleRect() const
+{
+	const float Scale = std::clamp(g_Config.m_AeNinjaTimerScale / 100.0f, 0.5f, 2.0f);
+	return CUIRect(m_AetherNinjaTimerRect.x + m_AetherNinjaTimerRect.w - 7.0f * Scale, m_AetherNinjaTimerRect.y + m_AetherNinjaTimerRect.h - 7.0f * Scale, 7.0f * Scale, 7.0f * Scale);
+}
+
+void CHud::InitializeTClientEditorRects()
+{
+	m_Width = 300.0f * Graphics()->ScreenAspect();
+	m_Height = 300.0f;
+
+	const float FrozenScale = std::clamp(g_Config.m_TcFrozenTextScale / 100.0f, 0.5f, 2.0f);
+	const float FrozenFontSize = 10.0f * FrozenScale;
+	const char *pFrozenPlaceholder = "2 / 2";
+	const float FrozenTextWidth = TextRender()->TextWidth(FrozenFontSize, pFrozenPlaceholder);
+	const float FrozenX = m_Width * 0.5f + g_Config.m_TcFrozenTextOffsetX - FrozenTextWidth * 0.5f;
+	const float FrozenY = 12.0f + g_Config.m_TcFrozenTextOffsetY;
+	m_TClientFrozenTextRect = CUIRect(FrozenX - 3.0f, FrozenY - 2.0f, FrozenTextWidth + 6.0f, FrozenFontSize + 4.0f);
+	ClampTClientFrozenText();
+
+	const char *pLastNotifyText = g_Config.m_TcNotifyWhenLastText[0] ? g_Config.m_TcNotifyWhenLastText : "Last!";
+	const float LastFontSize = std::max(5.0f, (float)g_Config.m_TcNotifyWhenLastSize);
+	const float LastTextWidth = TextRender()->TextWidth(LastFontSize, pLastNotifyText);
+	const float LastX = std::clamp((g_Config.m_TcNotifyWhenLastX / 100.0f) * m_Width, 1.0f, std::max(1.0f, m_Width - LastTextWidth - 4.0f));
+	const float LastY = std::clamp((g_Config.m_TcNotifyWhenLastY / 100.0f) * m_Height, 1.0f, std::max(1.0f, m_Height - LastFontSize - 4.0f));
+	m_TClientLastNotifyRect = CUIRect(LastX - 3.0f, LastY - 2.0f, LastTextWidth + 6.0f, LastFontSize + 4.0f);
+	ClampTClientLastNotify();
+
+	const float TeeSize = std::max(8.0f, (float)g_Config.m_TcFrozenHudTeeSize);
+	const float StartPos = m_Width / 2.0f + 38.0f * (m_Width / std::max(1.0f, m_Height)) / 1.78f + g_Config.m_TcFrozenHudOffsetX;
+	const float StartY = (float)g_Config.m_TcFrozenHudOffsetY;
+	m_TClientFrozenHudRect = CUIRect(StartPos - TeeSize / 2.0f, StartY, TeeSize * 2.0f, TeeSize + 3.0f);
+	ClampTClientFrozenHud();
+
+	const float NinjaScale = std::clamp(g_Config.m_AeNinjaTimerScale / 100.0f, 0.5f, 2.0f);
+	const float NinjaWidth = 70.0f * NinjaScale;
+	const float NinjaHeight = 16.0f * NinjaScale;
+	m_AetherNinjaTimerRect = CUIRect(m_Width * 0.5f - NinjaWidth * 0.5f + g_Config.m_AeNinjaTimerOffsetX, (float)g_Config.m_AeNinjaTimerOffsetY, NinjaWidth, NinjaHeight);
+	ClampAetherNinjaTimer();
+}
+
+void CHud::ClampTClientFrozenText()
+{
+	m_TClientFrozenTextRect.x = std::clamp(m_TClientFrozenTextRect.x, 0.0f, std::max(0.0f, m_Width - m_TClientFrozenTextRect.w));
+	m_TClientFrozenTextRect.y = std::clamp(m_TClientFrozenTextRect.y, 0.0f, std::max(0.0f, m_Height - m_TClientFrozenTextRect.h));
+	g_Config.m_TcFrozenTextOffsetX = round_to_int((m_TClientFrozenTextRect.x + m_TClientFrozenTextRect.w * 0.5f) - m_Width * 0.5f);
+	g_Config.m_TcFrozenTextOffsetY = round_to_int(m_TClientFrozenTextRect.y - 12.0f);
+}
+
+void CHud::ClampTClientLastNotify()
+{
+	m_TClientLastNotifyRect.x = std::clamp(m_TClientLastNotifyRect.x, 0.0f, std::max(0.0f, m_Width - m_TClientLastNotifyRect.w));
+	m_TClientLastNotifyRect.y = std::clamp(m_TClientLastNotifyRect.y, 0.0f, std::max(0.0f, m_Height - m_TClientLastNotifyRect.h));
+	g_Config.m_TcNotifyWhenLastX = std::clamp(round_to_int((m_TClientLastNotifyRect.x / std::max(1.0f, m_Width)) * 100.0f), 0, 100);
+	g_Config.m_TcNotifyWhenLastY = std::clamp(round_to_int((m_TClientLastNotifyRect.y / std::max(1.0f, m_Height)) * 100.0f), 0, 100);
+}
+
+void CHud::ClampTClientFrozenHud()
+{
+	const float TeeSize = std::max(1.0f, (float)g_Config.m_TcFrozenHudTeeSize);
+	const float Aspect = m_Width / std::max(1.0f, m_Height);
+	const float DefaultStartPos = m_Width / 2.0f + 38.0f * Aspect / 1.78f;
+	m_TClientFrozenHudRect.x = std::clamp(m_TClientFrozenHudRect.x, 0.0f, std::max(0.0f, m_Width - m_TClientFrozenHudRect.w));
+	m_TClientFrozenHudRect.y = std::clamp(m_TClientFrozenHudRect.y, 0.0f, std::max(0.0f, m_Height - m_TClientFrozenHudRect.h));
+	g_Config.m_TcFrozenHudOffsetX = round_to_int(m_TClientFrozenHudRect.x + TeeSize * 0.5f - DefaultStartPos);
+	g_Config.m_TcFrozenHudOffsetY = round_to_int(m_TClientFrozenHudRect.y);
+}
+
+void CHud::ClampAetherNinjaTimer()
+{
+	m_AetherNinjaTimerRect.x = std::clamp(m_AetherNinjaTimerRect.x, 0.0f, std::max(0.0f, m_Width - m_AetherNinjaTimerRect.w));
+	m_AetherNinjaTimerRect.y = std::clamp(m_AetherNinjaTimerRect.y, 0.0f, std::max(0.0f, m_Height - m_AetherNinjaTimerRect.h));
+	g_Config.m_AeNinjaTimerOffsetX = round_to_int((m_AetherNinjaTimerRect.x + m_AetherNinjaTimerRect.w * 0.5f) - m_Width * 0.5f);
+	g_Config.m_AeNinjaTimerOffsetY = round_to_int(m_AetherNinjaTimerRect.y);
+}
+
+void CHud::SetTClientFrozenTextScaleKeepingCenter(int NewScale, vec2 Center)
+{
+	g_Config.m_TcFrozenTextScale = std::clamp(NewScale, 50, 200);
+	const float Scale = g_Config.m_TcFrozenTextScale / 100.0f;
+	const float BaseWidth = std::max(28.0f, m_TClientFrozenTextRect.w / std::max(0.01f, Scale));
+	m_TClientFrozenTextRect.w = BaseWidth * Scale;
+	m_TClientFrozenTextRect.h = 14.0f * Scale;
+	m_TClientFrozenTextRect.x = Center.x - m_TClientFrozenTextRect.w * 0.5f;
+	m_TClientFrozenTextRect.y = Center.y - m_TClientFrozenTextRect.h * 0.5f;
+	ClampTClientFrozenText();
+}
+
+void CHud::SetTClientLastNotifySizeKeepingCenter(int NewSize, vec2 Center)
+{
+	g_Config.m_TcNotifyWhenLastSize = std::clamp(NewSize, 5, 50);
+	const char *pText = g_Config.m_TcNotifyWhenLastText[0] ? g_Config.m_TcNotifyWhenLastText : "Last!";
+	const float FontSize = std::max(5.0f, (float)g_Config.m_TcNotifyWhenLastSize);
+	const float TextWidth = TextRender()->TextWidth(FontSize, pText);
+	m_TClientLastNotifyRect.w = TextWidth + 6.0f;
+	m_TClientLastNotifyRect.h = FontSize + 4.0f;
+	m_TClientLastNotifyRect.x = Center.x - m_TClientLastNotifyRect.w * 0.5f;
+	m_TClientLastNotifyRect.y = Center.y - m_TClientLastNotifyRect.h * 0.5f;
+	ClampTClientLastNotify();
+}
+
+void CHud::SetTClientFrozenHudSizeKeepingCenter(int NewSize, vec2 Center)
+{
+	const float OldSize = std::max(1.0f, (float)g_Config.m_TcFrozenHudTeeSize);
+	g_Config.m_TcFrozenHudTeeSize = std::clamp(NewSize, 8, 27);
+	const float Ratio = g_Config.m_TcFrozenHudTeeSize / OldSize;
+	m_TClientFrozenHudRect.w = std::max(18.0f, m_TClientFrozenHudRect.w * Ratio);
+	m_TClientFrozenHudRect.h = std::max(12.0f, m_TClientFrozenHudRect.h * Ratio);
+	m_TClientFrozenHudRect.x = Center.x - m_TClientFrozenHudRect.w * 0.5f;
+	m_TClientFrozenHudRect.y = Center.y - m_TClientFrozenHudRect.h * 0.5f;
+	ClampTClientFrozenHud();
+}
+
+void CHud::SetAetherNinjaTimerScaleKeepingCenter(int NewScale, vec2 Center)
+{
+	g_Config.m_AeNinjaTimerScale = std::clamp(NewScale, 50, 200);
+	const float Scale = std::clamp(g_Config.m_AeNinjaTimerScale / 100.0f, 0.5f, 2.0f);
+	m_AetherNinjaTimerRect.w = 70.0f * Scale;
+	m_AetherNinjaTimerRect.h = 16.0f * Scale;
+	m_AetherNinjaTimerRect.x = Center.x - m_AetherNinjaTimerRect.w * 0.5f;
+	m_AetherNinjaTimerRect.y = Center.y - m_AetherNinjaTimerRect.h * 0.5f;
+	ClampAetherNinjaTimer();
+}
+
+void CHud::RenderTClientHudEditorOverlay(const CUIRect &Rect, const CUIRect &Handle)
+{
+	const ColorRGBA Theme = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_UiColor, true));
+	const float CenterX = m_Width * 0.5f;
+	const float CenterY = m_Height * 0.5f;
+	const float RectCenterX = Rect.x + Rect.w * 0.5f;
+	const float RectCenterY = Rect.y + Rect.h * 0.5f;
+	Graphics()->TextureClear();
+	Graphics()->DrawRect(CenterX - 0.25f, 0.0f, 0.5f, m_Height, Theme.WithAlpha(std::abs(RectCenterX - CenterX) <= 4.0f ? 0.48f : 0.18f), 0, 0.0f);
+	Graphics()->DrawRect(0.0f, CenterY - 0.25f, m_Width, 0.5f, Theme.WithAlpha(std::abs(RectCenterY - CenterY) <= 4.0f ? 0.48f : 0.18f), 0, 0.0f);
+	Graphics()->DrawRect(Rect.x - 1.0f, Rect.y - 1.0f, Rect.w + 2.0f, Rect.h + 2.0f, Theme.WithAlpha(0.22f), IGraphics::CORNER_ALL, 2.0f);
+	Graphics()->DrawRect(Handle.x, Handle.y, Handle.w, Handle.h, ColorRGBA(0.02f, 0.025f, 0.035f, 0.88f), IGraphics::CORNER_ALL, 1.0f);
+	Graphics()->DrawRect(Handle.x + Handle.w - 1.3f, Handle.y + 1.0f, 1.0f, Handle.h - 2.0f, Theme.WithAlpha(1.0f), 0, 0.0f);
+	Graphics()->DrawRect(Handle.x + 1.0f, Handle.y + Handle.h - 1.3f, Handle.w - 2.0f, 1.0f, Theme.WithAlpha(1.0f), 0, 0.0f);
+	RenderTools()->RenderCursor(HudMousePos(), 12.0f);
+}
+
+bool CHud::OpenTClientFrozenTextEditor()
+{
+	if(Client()->State() != IClient::STATE_ONLINE && Client()->State() != IClient::STATE_DEMOPLAYBACK)
+		return false;
+	m_TClientFrozenTextEditorOpen = true;
+	m_TClientFrozenTextEditorInteraction = ETClientFrozenTextEditorInteraction::IDLE;
+	InitializeTClientEditorRects();
+	Input()->SetNativeMouseCursorVisible(false);
+	Input()->MouseModeAbsolute();
+	return true;
+}
+
+void CHud::CloseTClientFrozenTextEditor()
+{
+	if(!m_TClientFrozenTextEditorOpen)
+		return;
+	m_TClientFrozenTextEditorOpen = false;
+	m_TClientFrozenTextEditorInteraction = ETClientFrozenTextEditorInteraction::IDLE;
+	Input()->SetNativeMouseCursorVisible(true);
+	if(Client()->State() == IClient::STATE_DEMOPLAYBACK)
+		Input()->MouseModeAbsolute();
+	else
+		Input()->MouseModeRelative();
+}
+
+bool CHud::OnInput(const IInput::CEvent &Event)
+{
+	if(!m_TClientFrozenTextEditorOpen)
+		return false;
+	if((Event.m_Flags & IInput::FLAG_PRESS) && Event.m_Key == KEY_ESCAPE)
+	{
+		CloseTClientFrozenTextEditor();
+		return false;
+	}
+	if((Event.m_Flags & IInput::FLAG_PRESS) && Event.m_Key == KEY_R)
+	{
+		g_Config.m_TcFrozenTextOffsetX = 0;
+		g_Config.m_TcFrozenTextOffsetY = 0;
+		g_Config.m_TcFrozenTextScale = 100;
+		g_Config.m_TcFrozenHudOffsetX = 0;
+		g_Config.m_TcFrozenHudOffsetY = 0;
+		g_Config.m_TcFrozenHudTeeSize = 15;
+		g_Config.m_TcNotifyWhenLastX = 20;
+		g_Config.m_TcNotifyWhenLastY = 1;
+		g_Config.m_TcNotifyWhenLastSize = 10;
+		g_Config.m_AeNinjaTimerOffsetX = 0;
+		g_Config.m_AeNinjaTimerOffsetY = 86;
+		g_Config.m_AeNinjaTimerScale = 100;
+		return true;
+	}
+	if((Event.m_Flags & IInput::FLAG_PRESS) && (Event.m_Key == KEY_MOUSE_WHEEL_UP || Event.m_Key == KEY_MOUSE_WHEEL_DOWN))
+	{
+		const vec2 Mouse = HudMousePos();
+		if(m_TClientFrozenTextRect.Inside(Mouse))
+		{
+			const vec2 Center(m_TClientFrozenTextRect.x + m_TClientFrozenTextRect.w * 0.5f, m_TClientFrozenTextRect.y + m_TClientFrozenTextRect.h * 0.5f);
+			SetTClientFrozenTextScaleKeepingCenter(g_Config.m_TcFrozenTextScale + (Event.m_Key == KEY_MOUSE_WHEEL_UP ? 5 : -5), Center);
+			return true;
+		}
+		if(m_TClientLastNotifyRect.Inside(Mouse))
+		{
+			const vec2 Center(m_TClientLastNotifyRect.x + m_TClientLastNotifyRect.w * 0.5f, m_TClientLastNotifyRect.y + m_TClientLastNotifyRect.h * 0.5f);
+			SetTClientLastNotifySizeKeepingCenter(g_Config.m_TcNotifyWhenLastSize + (Event.m_Key == KEY_MOUSE_WHEEL_UP ? 1 : -1), Center);
+			return true;
+		}
+		if(m_TClientFrozenHudRect.Inside(Mouse))
+		{
+			const vec2 Center(m_TClientFrozenHudRect.x + m_TClientFrozenHudRect.w * 0.5f, m_TClientFrozenHudRect.y + m_TClientFrozenHudRect.h * 0.5f);
+			SetTClientFrozenHudSizeKeepingCenter(g_Config.m_TcFrozenHudTeeSize + (Event.m_Key == KEY_MOUSE_WHEEL_UP ? 1 : -1), Center);
+			return true;
+		}
+		if(m_AetherNinjaTimerRect.Inside(Mouse))
+		{
+			const vec2 Center(m_AetherNinjaTimerRect.x + m_AetherNinjaTimerRect.w * 0.5f, m_AetherNinjaTimerRect.y + m_AetherNinjaTimerRect.h * 0.5f);
+			SetAetherNinjaTimerScaleKeepingCenter(g_Config.m_AeNinjaTimerScale + (Event.m_Key == KEY_MOUSE_WHEEL_UP ? 5 : -5), Center);
+			return true;
+		}
+		return true;
+	}
+	if(Event.m_Key == KEY_MOUSE_1)
+	{
+		if(Event.m_Flags & IInput::FLAG_PRESS)
+		{
+			const vec2 Mouse = HudMousePos();
+			if(TClientFrozenHudResizeHandleRect().Inside(Mouse))
+			{
+				m_TClientFrozenTextEditorInteraction = ETClientFrozenTextEditorInteraction::RESIZING_FROZEN_HUD;
+				m_TClientFrozenHudResizeCenter = vec2(m_TClientFrozenHudRect.x + m_TClientFrozenHudRect.w * 0.5f, m_TClientFrozenHudRect.y + m_TClientFrozenHudRect.h * 0.5f);
+				return true;
+			}
+			if(AetherNinjaTimerResizeHandleRect().Inside(Mouse))
+			{
+				m_TClientFrozenTextEditorInteraction = ETClientFrozenTextEditorInteraction::RESIZING_NINJA_TIMER;
+				m_AetherNinjaTimerResizeCenter = vec2(m_AetherNinjaTimerRect.x + m_AetherNinjaTimerRect.w * 0.5f, m_AetherNinjaTimerRect.y + m_AetherNinjaTimerRect.h * 0.5f);
+				return true;
+			}
+			if(TClientLastNotifyResizeHandleRect().Inside(Mouse))
+			{
+				m_TClientFrozenTextEditorInteraction = ETClientFrozenTextEditorInteraction::RESIZING_LAST_NOTIFY;
+				m_TClientLastNotifyResizeCenter = vec2(m_TClientLastNotifyRect.x + m_TClientLastNotifyRect.w * 0.5f, m_TClientLastNotifyRect.y + m_TClientLastNotifyRect.h * 0.5f);
+				return true;
+			}
+			if(TClientFrozenTextResizeHandleRect().Inside(Mouse))
+			{
+				m_TClientFrozenTextEditorInteraction = ETClientFrozenTextEditorInteraction::RESIZING_FROZEN_TEXT;
+				m_TClientFrozenTextResizeCenter = vec2(m_TClientFrozenTextRect.x + m_TClientFrozenTextRect.w * 0.5f, m_TClientFrozenTextRect.y + m_TClientFrozenTextRect.h * 0.5f);
+				return true;
+			}
+			if(m_TClientLastNotifyRect.Inside(Mouse))
+			{
+				m_TClientFrozenTextEditorInteraction = ETClientFrozenTextEditorInteraction::DRAGGING_LAST_NOTIFY;
+				m_TClientLastNotifyDragOffset = Mouse - vec2(m_TClientLastNotifyRect.x, m_TClientLastNotifyRect.y);
+				return true;
+			}
+			if(m_TClientFrozenHudRect.Inside(Mouse))
+			{
+				m_TClientFrozenTextEditorInteraction = ETClientFrozenTextEditorInteraction::DRAGGING_FROZEN_HUD;
+				m_TClientFrozenHudDragOffset = Mouse - vec2(m_TClientFrozenHudRect.x, m_TClientFrozenHudRect.y);
+				return true;
+			}
+			if(m_AetherNinjaTimerRect.Inside(Mouse))
+			{
+				m_TClientFrozenTextEditorInteraction = ETClientFrozenTextEditorInteraction::DRAGGING_NINJA_TIMER;
+				m_AetherNinjaTimerDragOffset = Mouse - vec2(m_AetherNinjaTimerRect.x, m_AetherNinjaTimerRect.y);
+				return true;
+			}
+			if(m_TClientFrozenTextRect.Inside(Mouse))
+			{
+				m_TClientFrozenTextEditorInteraction = ETClientFrozenTextEditorInteraction::DRAGGING_FROZEN_TEXT;
+				m_TClientFrozenTextDragOffset = Mouse - vec2(m_TClientFrozenTextRect.x, m_TClientFrozenTextRect.y);
+				return true;
+			}
+			return true;
+		}
+		if(Event.m_Flags & IInput::FLAG_RELEASE)
+		{
+			const bool WasEditing = m_TClientFrozenTextEditorInteraction != ETClientFrozenTextEditorInteraction::IDLE;
+			m_TClientFrozenTextEditorInteraction = ETClientFrozenTextEditorInteraction::IDLE;
+			return WasEditing || m_TClientFrozenTextEditorOpen;
+		}
+	}
+	if((Event.m_Flags & ~IInput::FLAG_RELEASE) != 0 && (Event.m_Key == KEY_MOUSE_2 || Event.m_Key == KEY_MOUSE_3 || Event.m_Key == KEY_SPACE))
+		return true;
+	return false;
+}
+
+bool CHud::OnCursorMove(float x, float y, IInput::ECursorType CursorType)
+{
+	(void)x;
+	(void)y;
+	(void)CursorType;
+	if(!m_TClientFrozenTextEditorOpen)
+		return false;
+	const vec2 Mouse = HudMousePos();
+	if(m_TClientFrozenTextEditorInteraction == ETClientFrozenTextEditorInteraction::DRAGGING_FROZEN_TEXT)
+	{
+		m_TClientFrozenTextRect.x = Mouse.x - m_TClientFrozenTextDragOffset.x;
+		m_TClientFrozenTextRect.y = Mouse.y - m_TClientFrozenTextDragOffset.y;
+		if(std::abs((m_TClientFrozenTextRect.x + m_TClientFrozenTextRect.w * 0.5f) - m_Width * 0.5f) <= 4.0f)
+			m_TClientFrozenTextRect.x = m_Width * 0.5f - m_TClientFrozenTextRect.w * 0.5f;
+		if(std::abs((m_TClientFrozenTextRect.y + m_TClientFrozenTextRect.h * 0.5f) - m_Height * 0.5f) <= 4.0f)
+			m_TClientFrozenTextRect.y = m_Height * 0.5f - m_TClientFrozenTextRect.h * 0.5f;
+		ClampTClientFrozenText();
+		return true;
+	}
+	if(m_TClientFrozenTextEditorInteraction == ETClientFrozenTextEditorInteraction::DRAGGING_LAST_NOTIFY)
+	{
+		m_TClientLastNotifyRect.x = Mouse.x - m_TClientLastNotifyDragOffset.x;
+		m_TClientLastNotifyRect.y = Mouse.y - m_TClientLastNotifyDragOffset.y;
+		if(std::abs((m_TClientLastNotifyRect.x + m_TClientLastNotifyRect.w * 0.5f) - m_Width * 0.5f) <= 4.0f)
+			m_TClientLastNotifyRect.x = m_Width * 0.5f - m_TClientLastNotifyRect.w * 0.5f;
+		if(std::abs((m_TClientLastNotifyRect.y + m_TClientLastNotifyRect.h * 0.5f) - m_Height * 0.5f) <= 4.0f)
+			m_TClientLastNotifyRect.y = m_Height * 0.5f - m_TClientLastNotifyRect.h * 0.5f;
+		ClampTClientLastNotify();
+		return true;
+	}
+	if(m_TClientFrozenTextEditorInteraction == ETClientFrozenTextEditorInteraction::DRAGGING_FROZEN_HUD)
+	{
+		m_TClientFrozenHudRect.x = Mouse.x - m_TClientFrozenHudDragOffset.x;
+		m_TClientFrozenHudRect.y = Mouse.y - m_TClientFrozenHudDragOffset.y;
+		if(std::abs((m_TClientFrozenHudRect.x + m_TClientFrozenHudRect.w * 0.5f) - m_Width * 0.5f) <= 4.0f)
+			m_TClientFrozenHudRect.x = m_Width * 0.5f - m_TClientFrozenHudRect.w * 0.5f;
+		if(std::abs((m_TClientFrozenHudRect.y + m_TClientFrozenHudRect.h * 0.5f) - m_Height * 0.5f) <= 4.0f)
+			m_TClientFrozenHudRect.y = m_Height * 0.5f - m_TClientFrozenHudRect.h * 0.5f;
+		ClampTClientFrozenHud();
+		return true;
+	}
+	if(m_TClientFrozenTextEditorInteraction == ETClientFrozenTextEditorInteraction::DRAGGING_NINJA_TIMER)
+	{
+		m_AetherNinjaTimerRect.x = Mouse.x - m_AetherNinjaTimerDragOffset.x;
+		m_AetherNinjaTimerRect.y = Mouse.y - m_AetherNinjaTimerDragOffset.y;
+		if(std::abs((m_AetherNinjaTimerRect.x + m_AetherNinjaTimerRect.w * 0.5f) - m_Width * 0.5f) <= 4.0f)
+			m_AetherNinjaTimerRect.x = m_Width * 0.5f - m_AetherNinjaTimerRect.w * 0.5f;
+		if(std::abs((m_AetherNinjaTimerRect.y + m_AetherNinjaTimerRect.h * 0.5f) - m_Height * 0.5f) <= 4.0f)
+			m_AetherNinjaTimerRect.y = m_Height * 0.5f - m_AetherNinjaTimerRect.h * 0.5f;
+		ClampAetherNinjaTimer();
+		return true;
+	}
+	if(m_TClientFrozenTextEditorInteraction == ETClientFrozenTextEditorInteraction::RESIZING_FROZEN_TEXT)
+	{
+		const float BaseWidth = std::max(28.0f, m_TClientFrozenTextRect.w / std::max(0.01f, g_Config.m_TcFrozenTextScale / 100.0f));
+		const float BaseHeight = 14.0f;
+		const float HorizontalScale = std::abs(Mouse.x - m_TClientFrozenTextResizeCenter.x) / (BaseWidth * 0.5f);
+		const float VerticalScale = std::abs(Mouse.y - m_TClientFrozenTextResizeCenter.y) / (BaseHeight * 0.5f);
+		SetTClientFrozenTextScaleKeepingCenter((int)std::round(std::max(HorizontalScale, VerticalScale) * 100.0f), m_TClientFrozenTextResizeCenter);
+		return true;
+	}
+	if(m_TClientFrozenTextEditorInteraction == ETClientFrozenTextEditorInteraction::RESIZING_LAST_NOTIFY)
+	{
+		const char *pText = g_Config.m_TcNotifyWhenLastText[0] ? g_Config.m_TcNotifyWhenLastText : "Last!";
+		const float BaseWidth = std::max(24.0f, TextRender()->TextWidth(10.0f, pText) + 6.0f);
+		const float BaseHeight = 14.0f;
+		const float HorizontalScale = std::abs(Mouse.x - m_TClientLastNotifyResizeCenter.x) / (BaseWidth * 0.5f);
+		const float VerticalScale = std::abs(Mouse.y - m_TClientLastNotifyResizeCenter.y) / (BaseHeight * 0.5f);
+		SetTClientLastNotifySizeKeepingCenter((int)std::round(std::max(HorizontalScale, VerticalScale) * 10.0f), m_TClientLastNotifyResizeCenter);
+		return true;
+	}
+	if(m_TClientFrozenTextEditorInteraction == ETClientFrozenTextEditorInteraction::RESIZING_FROZEN_HUD)
+	{
+		const float BaseWidth = std::max(18.0f, m_TClientFrozenHudRect.w / std::max(0.01f, g_Config.m_TcFrozenHudTeeSize / 15.0f));
+		const float BaseHeight = std::max(12.0f, m_TClientFrozenHudRect.h / std::max(0.01f, g_Config.m_TcFrozenHudTeeSize / 15.0f));
+		const float HorizontalScale = std::abs(Mouse.x - m_TClientFrozenHudResizeCenter.x) / (BaseWidth * 0.5f);
+		const float VerticalScale = std::abs(Mouse.y - m_TClientFrozenHudResizeCenter.y) / (BaseHeight * 0.5f);
+		SetTClientFrozenHudSizeKeepingCenter((int)std::round(std::max(HorizontalScale, VerticalScale) * 15.0f), m_TClientFrozenHudResizeCenter);
+		return true;
+	}
+	if(m_TClientFrozenTextEditorInteraction == ETClientFrozenTextEditorInteraction::RESIZING_NINJA_TIMER)
+	{
+		const float BaseWidth = 70.0f;
+		const float BaseHeight = 16.0f;
+		const float HorizontalScale = std::abs(Mouse.x - m_AetherNinjaTimerResizeCenter.x) / (BaseWidth * 0.5f);
+		const float VerticalScale = std::abs(Mouse.y - m_AetherNinjaTimerResizeCenter.y) / (BaseHeight * 0.5f);
+		SetAetherNinjaTimerScaleKeepingCenter((int)std::round(std::max(HorizontalScale, VerticalScale) * 100.0f), m_AetherNinjaTimerResizeCenter);
+		return true;
+	}
+	return true;
+}
+
+void CHud::OnUpdate()
+{
+	if(!m_TClientFrozenTextEditorOpen || m_TClientFrozenTextEditorInteraction == ETClientFrozenTextEditorInteraction::IDLE)
+		return;
+
+	m_Width = 300.0f * Graphics()->ScreenAspect();
+	m_Height = 300.0f;
+
+	if(!Input()->NativeMousePressed(1))
+	{
+		m_TClientFrozenTextEditorInteraction = ETClientFrozenTextEditorInteraction::IDLE;
+		return;
+	}
+
+	const vec2 Mouse = HudMousePos();
+	if(m_TClientFrozenTextEditorInteraction == ETClientFrozenTextEditorInteraction::DRAGGING_FROZEN_TEXT)
+	{
+		m_TClientFrozenTextRect.x = Mouse.x - m_TClientFrozenTextDragOffset.x;
+		m_TClientFrozenTextRect.y = Mouse.y - m_TClientFrozenTextDragOffset.y;
+		if(std::abs((m_TClientFrozenTextRect.x + m_TClientFrozenTextRect.w * 0.5f) - m_Width * 0.5f) <= 4.0f)
+			m_TClientFrozenTextRect.x = m_Width * 0.5f - m_TClientFrozenTextRect.w * 0.5f;
+		if(std::abs((m_TClientFrozenTextRect.y + m_TClientFrozenTextRect.h * 0.5f) - m_Height * 0.5f) <= 4.0f)
+			m_TClientFrozenTextRect.y = m_Height * 0.5f - m_TClientFrozenTextRect.h * 0.5f;
+		ClampTClientFrozenText();
+	}
+	else if(m_TClientFrozenTextEditorInteraction == ETClientFrozenTextEditorInteraction::DRAGGING_LAST_NOTIFY)
+	{
+		m_TClientLastNotifyRect.x = Mouse.x - m_TClientLastNotifyDragOffset.x;
+		m_TClientLastNotifyRect.y = Mouse.y - m_TClientLastNotifyDragOffset.y;
+		if(std::abs((m_TClientLastNotifyRect.x + m_TClientLastNotifyRect.w * 0.5f) - m_Width * 0.5f) <= 4.0f)
+			m_TClientLastNotifyRect.x = m_Width * 0.5f - m_TClientLastNotifyRect.w * 0.5f;
+		if(std::abs((m_TClientLastNotifyRect.y + m_TClientLastNotifyRect.h * 0.5f) - m_Height * 0.5f) <= 4.0f)
+			m_TClientLastNotifyRect.y = m_Height * 0.5f - m_TClientLastNotifyRect.h * 0.5f;
+		ClampTClientLastNotify();
+	}
+	else if(m_TClientFrozenTextEditorInteraction == ETClientFrozenTextEditorInteraction::DRAGGING_FROZEN_HUD)
+	{
+		m_TClientFrozenHudRect.x = Mouse.x - m_TClientFrozenHudDragOffset.x;
+		m_TClientFrozenHudRect.y = Mouse.y - m_TClientFrozenHudDragOffset.y;
+		if(std::abs((m_TClientFrozenHudRect.x + m_TClientFrozenHudRect.w * 0.5f) - m_Width * 0.5f) <= 4.0f)
+			m_TClientFrozenHudRect.x = m_Width * 0.5f - m_TClientFrozenHudRect.w * 0.5f;
+		if(std::abs((m_TClientFrozenHudRect.y + m_TClientFrozenHudRect.h * 0.5f) - m_Height * 0.5f) <= 4.0f)
+			m_TClientFrozenHudRect.y = m_Height * 0.5f - m_TClientFrozenHudRect.h * 0.5f;
+		ClampTClientFrozenHud();
+	}
+	else if(m_TClientFrozenTextEditorInteraction == ETClientFrozenTextEditorInteraction::DRAGGING_NINJA_TIMER)
+	{
+		m_AetherNinjaTimerRect.x = Mouse.x - m_AetherNinjaTimerDragOffset.x;
+		m_AetherNinjaTimerRect.y = Mouse.y - m_AetherNinjaTimerDragOffset.y;
+		if(std::abs((m_AetherNinjaTimerRect.x + m_AetherNinjaTimerRect.w * 0.5f) - m_Width * 0.5f) <= 4.0f)
+			m_AetherNinjaTimerRect.x = m_Width * 0.5f - m_AetherNinjaTimerRect.w * 0.5f;
+		if(std::abs((m_AetherNinjaTimerRect.y + m_AetherNinjaTimerRect.h * 0.5f) - m_Height * 0.5f) <= 4.0f)
+			m_AetherNinjaTimerRect.y = m_Height * 0.5f - m_AetherNinjaTimerRect.h * 0.5f;
+		ClampAetherNinjaTimer();
+	}
+	else if(m_TClientFrozenTextEditorInteraction == ETClientFrozenTextEditorInteraction::RESIZING_FROZEN_TEXT)
+	{
+		const float BaseWidth = std::max(28.0f, m_TClientFrozenTextRect.w / std::max(0.01f, g_Config.m_TcFrozenTextScale / 100.0f));
+		const float BaseHeight = 14.0f;
+		const float HorizontalScale = std::abs(Mouse.x - m_TClientFrozenTextResizeCenter.x) / (BaseWidth * 0.5f);
+		const float VerticalScale = std::abs(Mouse.y - m_TClientFrozenTextResizeCenter.y) / (BaseHeight * 0.5f);
+		SetTClientFrozenTextScaleKeepingCenter((int)std::round(std::max(HorizontalScale, VerticalScale) * 100.0f), m_TClientFrozenTextResizeCenter);
+	}
+	else if(m_TClientFrozenTextEditorInteraction == ETClientFrozenTextEditorInteraction::RESIZING_LAST_NOTIFY)
+	{
+		const char *pText = g_Config.m_TcNotifyWhenLastText[0] ? g_Config.m_TcNotifyWhenLastText : "Last!";
+		const float BaseWidth = std::max(24.0f, TextRender()->TextWidth(10.0f, pText) + 6.0f);
+		const float BaseHeight = 14.0f;
+		const float HorizontalScale = std::abs(Mouse.x - m_TClientLastNotifyResizeCenter.x) / (BaseWidth * 0.5f);
+		const float VerticalScale = std::abs(Mouse.y - m_TClientLastNotifyResizeCenter.y) / (BaseHeight * 0.5f);
+		SetTClientLastNotifySizeKeepingCenter((int)std::round(std::max(HorizontalScale, VerticalScale) * 10.0f), m_TClientLastNotifyResizeCenter);
+	}
+	else if(m_TClientFrozenTextEditorInteraction == ETClientFrozenTextEditorInteraction::RESIZING_FROZEN_HUD)
+	{
+		const float BaseWidth = std::max(18.0f, m_TClientFrozenHudRect.w / std::max(0.01f, g_Config.m_TcFrozenHudTeeSize / 15.0f));
+		const float BaseHeight = std::max(12.0f, m_TClientFrozenHudRect.h / std::max(0.01f, g_Config.m_TcFrozenHudTeeSize / 15.0f));
+		const float HorizontalScale = std::abs(Mouse.x - m_TClientFrozenHudResizeCenter.x) / (BaseWidth * 0.5f);
+		const float VerticalScale = std::abs(Mouse.y - m_TClientFrozenHudResizeCenter.y) / (BaseHeight * 0.5f);
+		SetTClientFrozenHudSizeKeepingCenter((int)std::round(std::max(HorizontalScale, VerticalScale) * 15.0f), m_TClientFrozenHudResizeCenter);
+	}
+	else if(m_TClientFrozenTextEditorInteraction == ETClientFrozenTextEditorInteraction::RESIZING_NINJA_TIMER)
+	{
+		const float BaseWidth = 70.0f;
+		const float BaseHeight = 16.0f;
+		const float HorizontalScale = std::abs(Mouse.x - m_AetherNinjaTimerResizeCenter.x) / (BaseWidth * 0.5f);
+		const float VerticalScale = std::abs(Mouse.y - m_AetherNinjaTimerResizeCenter.y) / (BaseHeight * 0.5f);
+		SetAetherNinjaTimerScaleKeepingCenter((int)std::round(std::max(HorizontalScale, VerticalScale) * 100.0f), m_AetherNinjaTimerResizeCenter);
 	}
 }
 
@@ -119,44 +614,40 @@ void CHud::OnInit()
 
 void CHud::RenderGameTimer()
 {
-	float Half = m_Width / 2.0f;
+	RenderGameTimerAt(m_Width / 2.0f, 2.0f, 10.0f);
+}
 
-	if(!(GameClient()->m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_SUDDENDEATH))
+AetherMusic::STimerModel CHud::GameTimerModel() const
+{
+	AetherMusic::STimerInput Input;
+	if(!GameClient()->m_Snap.m_pGameInfoObj)
+		return {};
+	Input.m_GameTick = Client()->GameTick(g_Config.m_ClDummy);
+	Input.m_TickSpeed = Client()->GameTickSpeed();
+	Input.m_RoundStartTick = GameClient()->m_Snap.m_pGameInfoObj->m_RoundStartTick;
+	Input.m_TimeLimitMinutes = GameClient()->m_Snap.m_pGameInfoObj->m_TimeLimit;
+	Input.m_WarmupTimer = GameClient()->m_Snap.m_pGameInfoObj->m_WarmupTimer;
+	Input.m_GameOver = GameClient()->m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_GAMEOVER;
+	Input.m_RaceTime = GameClient()->m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_RACETIME;
+	Input.m_SuddenDeath = GameClient()->m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_SUDDENDEATH;
+	return AetherMusic::TimerModel(Input);
+}
+
+void CHud::RenderGameTimerAt(float CenterX, float Y, float FontSize, float Alpha)
+{
+	const AetherMusic::STimerModel Model = GameTimerModel();
+	if(!Model.m_Visible)
+		return;
+	const float Width = TextRender()->TextWidth(FontSize, Model.m_Text.c_str(), -1, -1.0f);
+	if(Model.m_Urgent)
 	{
-		char aBuf[32];
-		int Time = 0;
-		if(GameClient()->m_Snap.m_pGameInfoObj->m_TimeLimit && (GameClient()->m_Snap.m_pGameInfoObj->m_WarmupTimer <= 0))
-		{
-			Time = GameClient()->m_Snap.m_pGameInfoObj->m_TimeLimit * 60 - ((Client()->GameTick(g_Config.m_ClDummy) - GameClient()->m_Snap.m_pGameInfoObj->m_RoundStartTick) / Client()->GameTickSpeed());
-
-			if(GameClient()->m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_GAMEOVER)
-				Time = 0;
-		}
-		else if(GameClient()->m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_RACETIME)
-		{
-			// The Warmup timer is negative in this case to make sure that incompatible clients will not see a warmup timer
-			Time = (Client()->GameTick(g_Config.m_ClDummy) + GameClient()->m_Snap.m_pGameInfoObj->m_WarmupTimer) / Client()->GameTickSpeed();
-		}
-		else
-			Time = (Client()->GameTick(g_Config.m_ClDummy) - GameClient()->m_Snap.m_pGameInfoObj->m_RoundStartTick) / Client()->GameTickSpeed();
-
-		str_time((int64_t)Time * 100, ETimeFormat::DAYS, aBuf, sizeof(aBuf));
-		float FontSize = 10.0f;
-		static float s_TextWidthM = TextRender()->TextWidth(FontSize, "00:00", -1, -1.0f);
-		static float s_TextWidthH = TextRender()->TextWidth(FontSize, "00:00:00", -1, -1.0f);
-		static float s_TextWidth0D = TextRender()->TextWidth(FontSize, "0d 00:00:00", -1, -1.0f);
-		static float s_TextWidth00D = TextRender()->TextWidth(FontSize, "00d 00:00:00", -1, -1.0f);
-		static float s_TextWidth000D = TextRender()->TextWidth(FontSize, "000d 00:00:00", -1, -1.0f);
-		float w = Time >= 3600 * 24 * 100 ? s_TextWidth000D : (Time >= 3600 * 24 * 10 ? s_TextWidth00D : (Time >= 3600 * 24 ? s_TextWidth0D : (Time >= 3600 ? s_TextWidthH : s_TextWidthM)));
-		// last 60 sec red, last 10 sec blink
-		if(GameClient()->m_Snap.m_pGameInfoObj->m_TimeLimit && Time <= 60 && (GameClient()->m_Snap.m_pGameInfoObj->m_WarmupTimer <= 0))
-		{
-			float Alpha = Time <= 10 && (2 * time() / time_freq()) % 2 ? 0.5f : 1.0f;
-			TextRender()->TextColor(1.0f, 0.25f, 0.25f, Alpha);
-		}
-		TextRender()->Text(Half - w / 2, 2, FontSize, aBuf, -1.0f);
-		TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+		const float UrgentAlpha = Model.m_Seconds <= 10 && (2 * time() / time_freq()) % 2 ? 0.5f : 1.0f;
+		TextRender()->TextColor(1.0f, 0.25f, 0.25f, Alpha * UrgentAlpha);
 	}
+	else
+		TextRender()->TextColor(1.0f, 1.0f, 1.0f, Alpha);
+	TextRender()->Text(CenterX - Width / 2.0f, Y, FontSize, Model.m_Text.c_str(), -1.0f);
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
 void CHud::RenderPauseNotification()
@@ -623,7 +1114,7 @@ void CHud::RenderTextInfo()
 		Graphics()->RenderQuadContainerAsSprite(m_HudQuadContainerIndex, m_aCursorOffset[CurWeapon], m_Width / 2.0f, m_Height / 2.0f, 0.36f, 0.36f);
 	}
 	// render team in freeze text and last notify
-	if((g_Config.m_TcShowFrozenText > 0 || g_Config.m_TcShowFrozenHud > 0 || g_Config.m_TcNotifyWhenLast) && GameClient()->m_GameInfo.m_EntitiesDDRace)
+	if(((g_Config.m_TcShowFrozenText > 0 || g_Config.m_TcShowFrozenHud > 0 || g_Config.m_TcNotifyWhenLast) && GameClient()->m_GameInfo.m_EntitiesDDRace) || m_TClientFrozenTextEditorOpen)
 	{
 		int NumInTeam = 0;
 		int NumFrozen = 0;
@@ -649,17 +1140,35 @@ void CHud::RenderTextInfo()
 		}
 
 		// Notify when last
-		if(g_Config.m_TcNotifyWhenLast)
+		if(g_Config.m_TcNotifyWhenLast || m_TClientFrozenTextEditorOpen)
 		{
-			if(NumInTeam > 1 && NumInTeam - NumFrozen == 1)
+			if((g_Config.m_TcNotifyWhenLast && NumInTeam > 1 && NumInTeam - NumFrozen == 1) || m_TClientFrozenTextEditorOpen)
 			{
+				const char *pLastNotifyText = g_Config.m_TcNotifyWhenLastText[0] ? g_Config.m_TcNotifyWhenLastText : "Last!";
 				TextRender()->TextColor(color_cast<ColorRGBA>(ColorHSLA(g_Config.m_TcNotifyWhenLastColor)));
-				float FontSize = g_Config.m_TcNotifyWhenLastSize;
-				float XPos = std::clamp((g_Config.m_TcNotifyWhenLastX / 100.0f) * m_Width, 1.0f, m_Width - FontSize);
-				float YPos = std::clamp((g_Config.m_TcNotifyWhenLastY / 100.0f) * m_Height, 1.0f, m_Height - FontSize);
+				float FontSize = std::max(5.0f, (float)g_Config.m_TcNotifyWhenLastSize);
+				const float TextWidth = TextRender()->TextWidth(FontSize, pLastNotifyText);
+				float XPos;
+				float YPos;
+				if(m_TClientFrozenTextEditorOpen)
+				{
+					m_TClientLastNotifyRect.w = TextWidth + 6.0f;
+					m_TClientLastNotifyRect.h = FontSize + 4.0f;
+					ClampTClientLastNotify();
+					XPos = m_TClientLastNotifyRect.x + 3.0f;
+					YPos = m_TClientLastNotifyRect.y + 2.0f;
+				}
+				else
+				{
+					XPos = std::clamp((g_Config.m_TcNotifyWhenLastX / 100.0f) * m_Width, 1.0f, std::max(1.0f, m_Width - TextWidth - 4.0f));
+					YPos = std::clamp((g_Config.m_TcNotifyWhenLastY / 100.0f) * m_Height, 1.0f, std::max(1.0f, m_Height - FontSize - 4.0f));
+					m_TClientLastNotifyRect = CUIRect(XPos - 3.0f, YPos - 2.0f, TextWidth + 6.0f, FontSize + 4.0f);
+				}
 
-				TextRender()->Text(XPos, YPos, FontSize, g_Config.m_TcNotifyWhenLastText, -1.0f);
+				TextRender()->Text(XPos, YPos, FontSize, pLastNotifyText, -1.0f);
 				TextRender()->TextColor(TextRender()->DefaultTextColor());
+				if(m_TClientFrozenTextEditorOpen)
+					RenderTClientHudEditorOverlay(m_TClientLastNotifyRect, TClientLastNotifyResizeHandleRect());
 			}
 		}
 		// Show freeze text
@@ -669,13 +1178,48 @@ void CHud::RenderTextInfo()
 		else if(g_Config.m_TcShowFrozenText == 2)
 			str_format(aBuf, sizeof(aBuf), "%d / %d", NumFrozen, NumInTeam);
 		if(g_Config.m_TcShowFrozenText > 0)
-			TextRender()->Text(m_Width / 2.0f - TextRender()->TextWidth(10.0f, aBuf) / 2.0f, 12.0f, 10.0f, aBuf);
+		{
+			const float FontSize = 10.0f * std::clamp(g_Config.m_TcFrozenTextScale / 100.0f, 0.5f, 2.0f);
+			const float TextWidth = TextRender()->TextWidth(FontSize, aBuf);
+			float X;
+			float Y;
+			if(m_TClientFrozenTextEditorOpen)
+			{
+				m_TClientFrozenTextRect.w = TextWidth + 6.0f;
+				m_TClientFrozenTextRect.h = FontSize + 4.0f;
+				ClampTClientFrozenText();
+				X = m_TClientFrozenTextRect.x + 3.0f;
+				Y = m_TClientFrozenTextRect.y + 2.0f;
+			}
+			else
+			{
+				X = m_Width * 0.5f + g_Config.m_TcFrozenTextOffsetX - TextWidth * 0.5f;
+				Y = 12.0f + g_Config.m_TcFrozenTextOffsetY;
+				m_TClientFrozenTextRect = CUIRect(X - 3.0f, Y - 2.0f, TextWidth + 6.0f, FontSize + 4.0f);
+			}
+			TextRender()->Text(X, Y, FontSize, aBuf, -1.0f);
+			if(m_TClientFrozenTextEditorOpen)
+				RenderTClientHudEditorOverlay(m_TClientFrozenTextRect, TClientFrozenTextResizeHandleRect());
+		}
+		else if(m_TClientFrozenTextEditorOpen)
+		{
+			const float FontSize = 10.0f * std::clamp(g_Config.m_TcFrozenTextScale / 100.0f, 0.5f, 2.0f);
+			const char *pPlaceholder = "2 / 2";
+			const float TextWidth = TextRender()->TextWidth(FontSize, pPlaceholder);
+			m_TClientFrozenTextRect.w = TextWidth + 6.0f;
+			m_TClientFrozenTextRect.h = FontSize + 4.0f;
+			ClampTClientFrozenText();
+			const float X = m_TClientFrozenTextRect.x + 3.0f;
+			const float Y = m_TClientFrozenTextRect.y + 2.0f;
+			TextRender()->Text(X, Y, FontSize, pPlaceholder, -1.0f);
+			RenderTClientHudEditorOverlay(m_TClientFrozenTextRect, TClientFrozenTextResizeHandleRect());
+		}
 
 		// str_format(aBuf, sizeof(aBuf), "%d", GameClient()->m_aClients[GameClient()->m_Snap.m_LocalClientId].m_PrevPredicted.m_FreezeEnd);
 		// str_format(aBuf, sizeof(aBuf), "%d", g_Config.m_ClWhatsMyPing);
 		// TextRender()->Text(0, m_Width / 2 - TextRender()->TextWidth(0, 10, aBuf, -1, -1.0f) / 2, 20, 10, aBuf, -1.0f);
 
-		if(g_Config.m_TcShowFrozenHud > 0 && !GameClient()->m_Scoreboard.IsActive() && !(LocalTeamID == 0 && g_Config.m_TcFrozenHudTeamOnly))
+		if((g_Config.m_TcShowFrozenHud > 0 && !GameClient()->m_Scoreboard.IsActive() && !(LocalTeamID == 0 && g_Config.m_TcFrozenHudTeamOnly)) || m_TClientFrozenTextEditorOpen)
 		{
 			CTeeRenderInfo FreezeInfo;
 			const CSkin *pSkin = GameClient()->m_Skins.Find("x_ninja");
@@ -689,17 +1233,31 @@ void CHud::RenderTextInfo()
 
 			float ProgressiveOffset = 0.0f;
 			float TeeSize = g_Config.m_TcFrozenHudTeeSize;
+			const int DisplayCount = std::max(NumInTeam, m_TClientFrozenTextEditorOpen ? 2 : 0);
 			int MaxTees = (int)(8.3f * (m_Width / m_Height) * 13.0f / TeeSize);
 			if(!g_Config.m_ClShowfps && !g_Config.m_ClShowpred)
 				MaxTees = (int)(9.5f * (m_Width / m_Height) * 13.0f / TeeSize);
+			MaxTees = std::max(1, MaxTees);
 			int MaxRows = g_Config.m_TcFrozenMaxRows;
-			float StartPos = m_Width / 2.0f + 38.0f * (m_Width / m_Height) / 1.78f;
+			float StartPos = m_Width / 2.0f + 38.0f * (m_Width / m_Height) / 1.78f + g_Config.m_TcFrozenHudOffsetX;
+			float StartY = (float)g_Config.m_TcFrozenHudOffsetY;
 
-			int TotalRows = std::min(MaxRows, (NumInTeam + MaxTees - 1) / MaxTees);
+			int TotalRows = std::max(1, std::min(MaxRows, (DisplayCount + MaxTees - 1) / MaxTees));
+			const int VisibleColumns = std::max(1, std::min(DisplayCount, MaxTees));
+			if(m_TClientFrozenTextEditorOpen)
+			{
+				m_TClientFrozenHudRect.w = TeeSize * VisibleColumns;
+				m_TClientFrozenHudRect.h = TeeSize + 3.0f + (TotalRows - 1) * TeeSize;
+				ClampTClientFrozenHud();
+				StartPos = m_TClientFrozenHudRect.x + TeeSize / 2.0f;
+				StartY = m_TClientFrozenHudRect.y;
+			}
+			else
+				m_TClientFrozenHudRect = CUIRect(StartPos - TeeSize / 2.0f, StartY, TeeSize * VisibleColumns, TeeSize + 3.0f + (TotalRows - 1) * TeeSize);
 			Graphics()->TextureClear();
 			Graphics()->QuadsBegin();
 			Graphics()->SetColor(0.0f, 0.0f, 0.0f, 0.4f);
-			Graphics()->DrawRectExt(StartPos - TeeSize / 2.0f, 0.0f, TeeSize * std::min(NumInTeam, MaxTees), TeeSize + 3.0f + (TotalRows - 1) * TeeSize, 5.0f, IGraphics::CORNER_B);
+			Graphics()->DrawRectExt(m_TClientFrozenHudRect.x, m_TClientFrozenHudRect.y, m_TClientFrozenHudRect.w, m_TClientFrozenHudRect.h, 5.0f, IGraphics::CORNER_B);
 			Graphics()->QuadsEnd();
 
 			bool Overflow = NumInTeam > MaxTees * MaxRows;
@@ -743,7 +1301,7 @@ void CHud::RenderTextInfo()
 						const CAnimState *pIdleState = CAnimState::GetIdle();
 						vec2 OffsetToMid;
 						CRenderTools::GetRenderTeeOffsetToRenderedTee(pIdleState, &TeeInfo, OffsetToMid);
-						vec2 TeeRenderPos(StartPos + ProgressiveOffset, TeeSize * (0.7f) + CurrentRow * TeeSize);
+						vec2 TeeRenderPos(StartPos + ProgressiveOffset, StartY + TeeSize * (0.7f) + CurrentRow * TeeSize);
 						float Alpha = 1.0f;
 						CNetObj_Character CurChar = GameClient()->m_aClients[i].m_RenderCur;
 						if(g_Config.m_TcShowFrozenHudSkins && Frozen)
@@ -763,6 +1321,16 @@ void CHud::RenderTextInfo()
 						ProgressiveOffset += TeeSize;
 					}
 				}
+			}
+			if(m_TClientFrozenTextEditorOpen)
+			{
+				if(NumInTeam == 0)
+				{
+					TextRender()->TextColor(1.0f, 1.0f, 1.0f, 0.72f);
+					TextRender()->Text(m_TClientFrozenHudRect.x + 3.0f, m_TClientFrozenHudRect.y + 3.0f, 7.0f, "Frozen HUD");
+					TextRender()->TextColor(TextRender()->DefaultTextColor());
+				}
+				RenderTClientHudEditorOverlay(m_TClientFrozenHudRect, TClientFrozenHudResizeHandleRect());
 			}
 		}
 	}
@@ -800,6 +1368,8 @@ void CHud::RenderTeambalanceWarning()
 
 void CHud::RenderCursor()
 {
+	if(GameClient()->m_AetherBadges.IsPingWheelActive())
+		return;
 	const float Scale = (float)g_Config.m_TcCursorScale / 100.0f;
 	if(Scale <= 0.0f)
 		return;
@@ -1985,6 +2555,9 @@ void CHud::OnRender()
 	if(!GameClient()->m_Snap.m_pGameInfoObj)
 		return;
 
+	if(g_Config.m_AeFocusMode)
+		return;
+
 	m_Width = 300.0f * Graphics()->ScreenAspect();
 	m_Height = 300.0f;
 	Graphics()->MapScreen(0.0f, 0.0f, m_Width, m_Height);
@@ -2028,7 +2601,7 @@ void CHud::OnRender()
 			RenderSpectatorHud();
 		}
 
-		if(g_Config.m_ClShowhudTimer)
+		if(g_Config.m_ClShowhudTimer && !g_Config.m_AeMusicPlayer)
 			RenderGameTimer();
 		RenderPauseNotification();
 		RenderSuddenDeath();
@@ -2037,6 +2610,36 @@ void CHud::OnRender()
 		RenderDummyActions();
 		RenderWarmupTimer();
 		RenderTextInfo();
+		if(g_Config.m_AeFastInput && g_Config.m_AeFastInputDebug)
+		{
+			char aBuf[192];
+			const char *pMode = g_Config.m_AeFastInputMode == 2 ? "Saiko+" : "Adaptive";
+			const char *pSharpnessLabel = g_Config.m_AeFastInputSmoothCorrections < 30 ? "soft" : (g_Config.m_AeFastInputSmoothCorrections < 70 ? "balanced" : "sharp");
+			const int LocalId = GameClient()->m_Snap.m_LocalClientId;
+			const int InteractionState = LocalId >= 0 ? GameClient()->m_aClients[LocalId].m_AetherFastInteractionState : 0;
+			const char *pInteraction = "none";
+			if(InteractionState == 1)
+				pInteraction = "hook";
+			else if(InteractionState == 2)
+				pInteraction = "dragged";
+			else if(InteractionState == 3)
+				pInteraction = "freeze-save";
+			else if(InteractionState == 4)
+				pInteraction = "snap";
+			str_format(aBuf, sizeof(aBuf), "Aether FI: %s | move %dms | action %dms | saiko %.2ft | sharp %d%% %s | margin %s | interaction %s",
+				pMode,
+				g_Config.m_AeFastInputMode == 2 ? (g_Config.m_AeSaikoPlusAmount + 2) / 5 : g_Config.m_AeFastInputMovementAmount,
+				g_Config.m_AeFastInputMode == 2 ? (g_Config.m_AeSaikoPlusAmount + 2) / 5 : g_Config.m_AeFastInputActionAmount,
+				g_Config.m_AeSaikoPlusAmount / 100.0f,
+				g_Config.m_AeFastInputSmoothCorrections,
+				pSharpnessLabel,
+				g_Config.m_AeFastInputAutoMargin ? "auto" : "manual",
+				(g_Config.m_AeFastInputMode != 2 && g_Config.m_AeFastInputInteractionAssist) ? pInteraction : "off");
+			TextRender()->TextColor(0.72f, 0.88f, 1.0f, 0.9f);
+			TextRender()->Text(5.0f, 96.0f, 6.0f, aBuf, -1.0f);
+			TextRender()->TextColor(TextRender()->DefaultTextColor());
+		}
+		RenderAetherNinjaTimer();
 		GameClient()->m_TClient.RenderCenterLines();
 		RenderLocalTime((m_Width / 7) * 3);
 		if(Client()->State() != IClient::STATE_DEMOPLAYBACK)
@@ -2046,6 +2649,79 @@ void CHud::OnRender()
 		if(g_Config.m_ClShowRecord)
 			RenderRecord();
 	}
+}
+
+bool CHud::AetherNinjaTimerState(int *pRemainingMs, float *pProgress) const
+{
+	const int ClientId = GameClient()->m_Snap.m_SpecInfo.m_Active ? GameClient()->m_Snap.m_SpecInfo.m_SpectatorId : GameClient()->m_Snap.m_LocalClientId;
+	if(ClientId < 0 || ClientId >= MAX_CLIENTS || ClientId == SPEC_FREEVIEW)
+		return false;
+	const int TickSpeed = std::max(1, Client()->GameTickSpeed());
+	const int MaxTicks = std::max(1, g_pData->m_Weapons.m_Ninja.m_Duration * TickSpeed / 1000);
+	const int Tick = Client()->GameTick(g_Config.m_ClDummy);
+	int RemainingTicks = 0;
+
+	if(!GameClient()->m_Snap.m_SpecInfo.m_Active)
+	{
+		const CCharacterCore &Predicted = GameClient()->m_aClients[ClientId].m_Predicted;
+		if(Predicted.m_aWeapons[WEAPON_NINJA].m_Got)
+			RemainingTicks = Predicted.m_Ninja.m_ActivationTick + MaxTicks - Tick;
+	}
+
+	const auto &SnapChar = GameClient()->m_Snap.m_aCharacters[ClientId];
+	if(RemainingTicks <= 0 && SnapChar.m_Active && SnapChar.m_Cur.m_Weapon == WEAPON_NINJA)
+		RemainingTicks = SnapChar.m_Cur.m_AmmoCount - Tick;
+
+	if(RemainingTicks <= 0)
+		return false;
+	RemainingTicks = std::clamp(RemainingTicks, 0, MaxTicks);
+	*pRemainingMs = RemainingTicks * 1000 / TickSpeed;
+	*pProgress = RemainingTicks / (float)MaxTicks;
+	return true;
+}
+
+void CHud::RenderAetherNinjaTimer()
+{
+	if(!g_Config.m_AeNinjaTimer && !m_TClientFrozenTextEditorOpen)
+		return;
+
+	int RemainingMs = 0;
+	float Progress = 0.0f;
+	const bool Active = AetherNinjaTimerState(&RemainingMs, &Progress);
+	if(!Active && !m_TClientFrozenTextEditorOpen)
+		return;
+
+	const float Scale = std::clamp(g_Config.m_AeNinjaTimerScale / 100.0f, 0.5f, 2.0f);
+	const float Width = 70.0f * Scale;
+	const float Height = 16.0f * Scale;
+	m_AetherNinjaTimerRect = CUIRect(m_Width * 0.5f - Width * 0.5f + g_Config.m_AeNinjaTimerOffsetX, (float)g_Config.m_AeNinjaTimerOffsetY, Width, Height);
+	if(m_TClientFrozenTextEditorOpen)
+		ClampAetherNinjaTimer();
+
+	char aBuf[32];
+	str_format(aBuf, sizeof(aBuf), "Ninja %.2fs", Active ? RemainingMs / 1000.0f : 0.0f);
+	Graphics()->TextureClear();
+	Graphics()->DrawRect(m_AetherNinjaTimerRect.x, m_AetherNinjaTimerRect.y, m_AetherNinjaTimerRect.w, m_AetherNinjaTimerRect.h, ColorRGBA(0.08f, 0.10f, 0.13f, 0.72f), IGraphics::CORNER_ALL, 4.0f * Scale);
+	Graphics()->DrawRect(m_AetherNinjaTimerRect.x, m_AetherNinjaTimerRect.y + m_AetherNinjaTimerRect.h - 2.0f * Scale, m_AetherNinjaTimerRect.w * std::clamp(Progress, 0.0f, 1.0f), 2.0f * Scale, ColorRGBA(0.42f, 0.78f, 1.0f, 0.72f), IGraphics::CORNER_B, 2.0f * Scale);
+
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 0.95f);
+	const float FontSize = 6.2f * Scale;
+	TextRender()->Text(m_AetherNinjaTimerRect.x + m_AetherNinjaTimerRect.w * 0.5f - TextRender()->TextWidth(FontSize, aBuf) * 0.5f, m_AetherNinjaTimerRect.y + 4.1f * Scale, FontSize, aBuf, -1.0f);
+	TextRender()->TextColor(TextRender()->DefaultTextColor());
+
+	if(m_TClientFrozenTextEditorOpen)
+		RenderTClientHudEditorOverlay(m_AetherNinjaTimerRect, AetherNinjaTimerResizeHandleRect());
+}
+
+void CHud::RenderCursorOverlay()
+{
+	if(Client()->State() != IClient::STATE_ONLINE && Client()->State() != IClient::STATE_DEMOPLAYBACK)
+		return;
+	if(!GameClient()->m_Snap.m_pGameInfoObj)
+		return;
+	m_Width = 300.0f * Graphics()->ScreenAspect();
+	m_Height = 300.0f;
+	Graphics()->MapScreen(0.0f, 0.0f, m_Width, m_Height);
 	RenderCursor();
 }
 

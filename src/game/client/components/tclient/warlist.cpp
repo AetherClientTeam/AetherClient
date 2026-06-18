@@ -2,10 +2,44 @@
 
 #include <engine/graphics.h>
 #include <engine/shared/config.h>
+#include <engine/shared/json.h>
+#include <engine/shared/jsonwriter.h>
+#include <engine/storage.h>
 
 #include <game/client/animstate.h>
 #include <game/client/gameclient.h>
 #include <game/client/render.h>
+
+#include <cstdlib>
+
+namespace
+{
+const char *AetherWarlistExportType(const char *pType)
+{
+	return str_comp(pType, "team") == 0 ? "ally" : pType;
+}
+
+const char *AetherWarlistImportType(const char *pType)
+{
+	if(str_comp_nocase(pType, "ally") == 0 || str_comp_nocase(pType, "team") == 0)
+		return "team";
+	if(str_comp_nocase(pType, "enemy") == 0)
+		return "enemy";
+	if(str_comp_nocase(pType, "helper") == 0)
+		return "helper";
+	return nullptr;
+}
+
+const char *AetherJsonString(const json_value *pObject, const char *pKey)
+{
+	if(!pObject || pObject->type != json_object)
+		return "";
+	const json_value *pValue = json_object_get(pObject, pKey);
+	if(!pValue || pValue->type != json_string)
+		return "";
+	return json_string_get(pValue);
+}
+}
 
 void CWarList::OnNewSnapshot()
 {
@@ -20,6 +54,8 @@ void CWarList::OnConsoleInit()
 
 	Console()->Register("update_war_group", "i[group_index] s[name] i[color]", CFGFLAG_CLIENT, ConUpsertWarType, this, "Update or add a specific war group");
 	Console()->Register("add_war_entry", "s[group] s[name] s[clan] r[reason]", CFGFLAG_CLIENT, ConAddWarEntry, this, "Adds a specific war entry");
+	Console()->Register("ae_warlist_export", "?s[path]", CFGFLAG_CLIENT, ConExportJson, this, "Export warlist to a JSON file");
+	Console()->Register("ae_warlist_import", "?s[path]", CFGFLAG_CLIENT, ConImportJson, this, "Import warlist from a JSON file");
 
 	Console()->Register("war_name", "s[group] s[name] ?r[reason]", CFGFLAG_CLIENT, ConName, this, "Add a name war entry");
 	Console()->Register("war_clan", "s[group] s[clan] ?r[reason]", CFGFLAG_CLIENT, ConClan, this, "Add a clan war entry");
@@ -122,6 +158,27 @@ void CWarList::ConUpsertWarType(IConsole::IResult *pResult, void *pUserData)
 	ColorRGBA Color = color_cast<ColorRGBA>(ColorHSLA(ColorInt));
 	CWarList *pThis = static_cast<CWarList *>(pUserData);
 	pThis->UpsertWarType(Index, pType, Color);
+}
+
+void CWarList::ConExportJson(IConsole::IResult *pResult, void *pUserData)
+{
+	CWarList *pThis = static_cast<CWarList *>(pUserData);
+	const char *pPath = pResult->NumArguments() > 0 ? pResult->GetString(0) : "aether/warlist_export.json";
+	if(pThis->ExportJson(pPath))
+		pThis->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "aether/warlist", "warlist exported");
+	else
+		pThis->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "aether/warlist", "warlist export failed");
+}
+
+void CWarList::ConImportJson(IConsole::IResult *pResult, void *pUserData)
+{
+	CWarList *pThis = static_cast<CWarList *>(pUserData);
+	const char *pPath = pResult->NumArguments() > 0 ? pResult->GetString(0) : "aether/warlist_export.json";
+	char aError[256] = "";
+	if(pThis->ImportJson(pPath, aError, sizeof(aError)))
+		pThis->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "aether/warlist", "warlist imported");
+	else
+		pThis->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "aether/warlist", aError[0] ? aError : "warlist import failed");
 }
 
 void CWarList::AddWarEntryInGame(int WarType, const char *pName, const char *pReason, bool IsClan)
@@ -277,6 +334,156 @@ void CWarList::RemoveWarEntryDuplicates(const char *pName, const char *pClan)
 	}
 }
 
+bool CWarList::ExportJson(const char *pPath)
+{
+	if(!pPath || pPath[0] == '\0')
+		return false;
+	Storage()->CreateFolder("aether", IStorage::TYPE_SAVE);
+	IOHANDLE File = Storage()->OpenFile(pPath, IOFLAG_WRITE, IStorage::TYPE_SAVE_OR_ABSOLUTE);
+	if(!File)
+		return false;
+
+	CJsonFileWriter Json(File);
+	Json.BeginObject();
+	Json.WriteAttribute("version");
+	Json.WriteIntValue(1);
+	Json.WriteAttribute("entries");
+	Json.BeginArray();
+	for(const CWarEntry &Entry : m_vWarEntries)
+	{
+		if(!Entry.m_pWarType || str_comp(Entry.m_pWarType->m_aWarName, "none") == 0)
+			continue;
+		Json.BeginObject();
+		Json.WriteAttribute("type");
+		Json.WriteStrValue(AetherWarlistExportType(Entry.m_pWarType->m_aWarName));
+		Json.WriteAttribute("name");
+		Json.WriteStrValue(Entry.m_aName);
+		Json.WriteAttribute("clan");
+		Json.WriteStrValue(Entry.m_aClan);
+		Json.WriteAttribute("reason");
+		Json.WriteStrValue(Entry.m_aReason);
+		Json.EndObject();
+	}
+	Json.EndArray();
+	Json.EndObject();
+	return true;
+}
+
+bool CWarList::ExportJsonEntries(std::string &Output) const
+{
+	CJsonStringWriter Json;
+	Json.BeginArray();
+	for(const CWarEntry &Entry : m_vWarEntries)
+	{
+		if(!Entry.m_pWarType || str_comp(Entry.m_pWarType->m_aWarName, "none") == 0)
+			continue;
+		Json.BeginObject();
+		Json.WriteAttribute("type");
+		Json.WriteStrValue(AetherWarlistExportType(Entry.m_pWarType->m_aWarName));
+		Json.WriteAttribute("name");
+		Json.WriteStrValue(Entry.m_aName);
+		Json.WriteAttribute("clan");
+		Json.WriteStrValue(Entry.m_aClan);
+		Json.WriteAttribute("reason");
+		Json.WriteStrValue(Entry.m_aReason);
+		Json.EndObject();
+	}
+	Json.EndArray();
+	Output = Json.GetOutputString();
+	return true;
+}
+
+bool CWarList::ImportJsonEntries(const json_value *pEntries, char *pError, int ErrorSize)
+{
+	auto SetError = [&](const char *pText) {
+		if(pError && ErrorSize > 0)
+			str_copy(pError, pText, ErrorSize);
+	};
+	if(!pEntries || pEntries->type != json_array)
+	{
+		SetError("warlist import failed: entries must be an array");
+		return false;
+	}
+
+	int Imported = 0;
+	for(int i = 0; i < json_array_length(pEntries); ++i)
+	{
+		const json_value *pEntry = json_array_get(pEntries, i);
+		if(!pEntry || pEntry->type != json_object)
+			continue;
+		const char *pType = AetherWarlistImportType(AetherJsonString(pEntry, "type"));
+		const char *pName = AetherJsonString(pEntry, "name");
+		const char *pClan = AetherJsonString(pEntry, "clan");
+		const char *pReason = AetherJsonString(pEntry, "reason");
+		if(!pType || (pName[0] == '\0' && pClan[0] == '\0'))
+			continue;
+		RemoveWarEntryDuplicates(pName, pClan);
+		AddWarEntry(pName, pClan, pReason, pType);
+		++Imported;
+	}
+	UpdateWarPlayers();
+
+	if(Imported <= 0)
+	{
+		SetError("warlist import failed: no usable entries");
+		return false;
+	}
+	if(pError && ErrorSize > 0)
+		str_format(pError, ErrorSize, "warlist imported: %d entries", Imported);
+	return true;
+}
+
+bool CWarList::ImportJson(const char *pPath, char *pError, int ErrorSize)
+{
+	auto SetError = [&](const char *pText) {
+		if(pError && ErrorSize > 0)
+			str_copy(pError, pText, ErrorSize);
+	};
+	if(!pPath || pPath[0] == '\0')
+	{
+		SetError("warlist import failed: empty path");
+		return false;
+	}
+
+	void *pFileData = nullptr;
+	unsigned FileSize = 0;
+	if(!Storage()->ReadFile(pPath, IStorage::TYPE_SAVE_OR_ABSOLUTE, &pFileData, &FileSize))
+	{
+		SetError("warlist import failed: file not found");
+		return false;
+	}
+
+	json_settings JsonSettings{};
+	char aJsonError[256] = "";
+	json_value *pRoot = json_parse_ex(&JsonSettings, static_cast<const json_char *>(pFileData), FileSize, aJsonError);
+	free(pFileData);
+	if(!pRoot)
+	{
+		char aBuf[320];
+		str_format(aBuf, sizeof(aBuf), "warlist import failed: %s", aJsonError);
+		SetError(aBuf);
+		return false;
+	}
+	if(pRoot->type != json_object)
+	{
+		json_value_free(pRoot);
+		SetError("warlist import failed: root must be an object");
+		return false;
+	}
+
+	const json_value *pEntries = json_object_get(pRoot, "entries");
+	if(!pEntries || pEntries->type != json_array)
+	{
+		json_value_free(pRoot);
+		SetError("warlist import failed: entries must be an array");
+		return false;
+	}
+
+	bool Result = ImportJsonEntries(pEntries, pError, ErrorSize);
+	json_value_free(pRoot);
+	return Result;
+}
+
 void CWarList::AddWarType(const char *pType, ColorRGBA Color)
 {
 	if(str_comp(pType, "none") == 0)
@@ -394,6 +601,18 @@ bool CWarList::GetClanWar(int ClientId)
 	if(ClientId < 0)
 		return false;
 	return m_WarPlayers[ClientId].m_WarClan;
+}
+
+bool CWarList::HasWarType(int ClientId, const char *pType) const
+{
+	if(ClientId < 0 || ClientId >= MAX_CLIENTS)
+		return false;
+	for(size_t i = 0; i < m_WarTypes.size(); ++i)
+	{
+		if(str_comp(m_WarTypes[i]->m_aWarName, pType) == 0)
+			return i < m_WarPlayers[ClientId].m_WarGroupMatches.size() && m_WarPlayers[ClientId].m_WarGroupMatches[i];
+	}
+	return false;
 }
 
 void CWarList::GetReason(char *pReason, int ClientId)

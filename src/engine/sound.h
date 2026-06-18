@@ -69,6 +69,7 @@ public:
 	virtual int LoadWV(const char *pFilename, int StorageType = IStorage::TYPE_ALL) = 0;
 	virtual int LoadOpusFromMem(const void *pData, unsigned DataSize, bool ForceLoad, const char *pContextName) = 0;
 	virtual int LoadWVFromMem(const void *pData, unsigned DataSize, bool ForceLoad, const char *pContextName) = 0;
+	virtual int LoadS16PcmInterleavedFromMem(const short *pInterleaved, int NumFrames, int Channels, int SampleRate, bool ForceLoad, const char *pContextName) = 0;
 	virtual void UnloadSample(int SampleId) = 0;
 
 	virtual float GetSampleTotalTime(int SampleId) = 0; // in s

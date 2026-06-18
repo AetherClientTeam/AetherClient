@@ -19,6 +19,48 @@
 #include <game/client/projectile_data.h>
 #include <game/mapitems.h>
 
+#include <cmath>
+
+namespace
+{
+bool AetherIsSweatLaserType(int Type)
+{
+	return Type == LASERTYPE_RIFLE || Type == LASERTYPE_SHOTGUN;
+}
+
+ColorRGBA AetherConfigColor(int ColorConfig, float Alpha = 1.0f)
+{
+	ColorRGBA Color = color_cast<ColorRGBA>(ColorHSLA(ColorConfig));
+	Color.a *= Alpha;
+	return Color;
+}
+
+void AetherDrawBeamQuad(IGraphics *pGraphics, vec2 From, vec2 Pos, vec2 Dir, float Width, ColorRGBA Color, float StartInset = 0.0f, float EndInset = 0.0f)
+{
+	const float Len = distance(Pos, From);
+	if(Len <= StartInset + EndInset)
+		return;
+
+	const vec2 Normal = vec2(Dir.y, -Dir.x) * Width;
+	const vec2 Start = From + Dir * StartInset;
+	const vec2 End = Pos - Dir * EndInset;
+	pGraphics->SetColor(Color);
+	IGraphics::CFreeformItem Freeform(Start - Normal, Start + Normal, End - Normal, End + Normal);
+	pGraphics->QuadsDrawFreeform(&Freeform, 1);
+}
+
+float AetherHash01(int Value)
+{
+	unsigned int X = (unsigned int)Value;
+	X ^= X >> 16;
+	X *= 0x7feb352du;
+	X ^= X >> 15;
+	X *= 0x846ca68bu;
+	X ^= X >> 16;
+	return (X & 0xffff) / 65535.0f;
+}
+}
+
 void CItems::RenderProjectile(const CProjectileData *pCurrent, int ItemId)
 {
 	int CurWeapon = std::clamp(pCurrent->m_Type, 0, NUM_WEAPONS - 1);
@@ -360,6 +402,10 @@ void CItems::RenderLaser(vec2 From, vec2 Pos, ColorRGBA OuterColor, ColorRGBA In
 			TicksBody = std::clamp(Thickness, 1.0f, 5.0f);
 		}
 		vec2 Dir = normalize_pre_length(Pos - From, Len);
+		const bool WeaponSweatLaser = g_Config.m_AeSweatWeapon && AetherIsSweatLaserType(Type);
+		const bool EntitySweatLaser = g_Config.m_AeSweatWeaponEntitiesLaser && !AetherIsSweatLaserType(Type);
+		const bool SweatLaser = WeaponSweatLaser || EntitySweatLaser;
+		const float SweatThickness = SweatLaser ? std::clamp(g_Config.m_AeSweatWeaponThickness / 100.0f, 0.60f, 3.00f) : 1.0f;
 
 		float Ms = TicksBody * 1000.0f / Client()->GameTickSpeed();
 		float a;
@@ -375,12 +421,29 @@ void CItems::RenderLaser(vec2 From, vec2 Pos, ColorRGBA OuterColor, ColorRGBA In
 		a = std::clamp(a, 0.0f, 1.0f);
 		float Ia = 1 - a;
 
+		if(SweatLaser && g_Config.m_AeSweatWeaponCustomColors)
+		{
+			if(WeaponSweatLaser)
+			{
+				OuterColor = AetherConfigColor(Type == LASERTYPE_RIFLE ? g_Config.m_AeSweatWeaponCrystalGlowColor : g_Config.m_AeSweatWeaponShotgunGlowColor, OuterColor.a);
+				InnerColor = AetherConfigColor(Type == LASERTYPE_RIFLE ? g_Config.m_AeSweatWeaponCrystalCoreColor : g_Config.m_AeSweatWeaponShotgunCoreColor, InnerColor.a);
+			}
+			else
+			{
+				OuterColor = AetherConfigColor(g_Config.m_AeSweatWeaponEntitiesGlowColor, OuterColor.a);
+				InnerColor = AetherConfigColor(g_Config.m_AeSweatWeaponEntitiesCoreColor, InnerColor.a);
+			}
+		}
+
+		if(SweatLaser)
+			RenderSweatLaser(From, Pos, Dir, Len, Ia, TicksHead, Type, OuterColor, InnerColor);
+
 		Graphics()->TextureClear();
 		Graphics()->QuadsBegin();
 
 		// do outline
 		Graphics()->SetColor(OuterColor);
-		vec2 Out = vec2(Dir.y, -Dir.x) * (7.0f * Ia);
+		vec2 Out = vec2(Dir.y, -Dir.x) * (7.0f * Ia * SweatThickness);
 
 		IGraphics::CFreeformItem Freeform(
 			From - Out, From + Out,
@@ -388,7 +451,7 @@ void CItems::RenderLaser(vec2 From, vec2 Pos, ColorRGBA OuterColor, ColorRGBA In
 		Graphics()->QuadsDrawFreeform(&Freeform, 1);
 
 		// do inner
-		Out = vec2(Dir.y, -Dir.x) * (5.0f * Ia);
+		Out = vec2(Dir.y, -Dir.x) * (5.0f * Ia * SweatThickness);
 		vec2 ExtraOutlinePos = Dir;
 		vec2 ExtraOutlineFrom = Type == LASERTYPE_DOOR ? vec2(0, 0) : Dir;
 		Graphics()->SetColor(InnerColor); // center
@@ -399,6 +462,9 @@ void CItems::RenderLaser(vec2 From, vec2 Pos, ColorRGBA OuterColor, ColorRGBA In
 		Graphics()->QuadsDrawFreeform(&Freeform, 1);
 
 		Graphics()->QuadsEnd();
+
+		if(SweatLaser && g_Config.m_AeSweatWeaponElectric)
+			RenderSweatLaserElectric(From, Pos, Dir, Len, Ia, TicksHead, OuterColor.WithAlpha(1.0f), InnerColor.WithAlpha(1.0f));
 	}
 
 	// render head
@@ -460,7 +526,129 @@ void CItems::RenderLaser(vec2 From, vec2 Pos, ColorRGBA OuterColor, ColorRGBA In
 		Graphics()->RenderQuadContainerAsSprite(m_ItemsQuadContainerIndex, m_aParticleSplatOffset[CurParticle], Pos.x, Pos.y);
 		Graphics()->SetColor(InnerColor);
 		Graphics()->RenderQuadContainerAsSprite(m_ItemsQuadContainerIndex, m_aParticleSplatOffset[CurParticle], Pos.x, Pos.y, 20.f / 24.f, 20.f / 24.f);
+		if(g_Config.m_AeSweatWeapon && AetherIsSweatLaserType(Type))
+		{
+			Graphics()->TextureClear();
+			Graphics()->QuadsBegin();
+			const float Pulse = 0.75f + 0.25f * std::sin(TicksHead * 0.28f);
+			const float Size = (7.0f + 3.0f * Pulse) * std::clamp(g_Config.m_AeSweatWeaponThickness / 100.0f, 0.60f, 3.00f);
+			for(int i = 0; i < 8; ++i)
+			{
+				const float Angle0 = TicksHead * 0.055f + i * pi / 4.0f;
+				const float Angle1 = Angle0 + pi / 9.0f;
+				const vec2 P0 = Pos + vec2(std::cos(Angle0), std::sin(Angle0)) * (Size * 0.68f);
+				const vec2 P1 = Pos + vec2(std::cos(Angle1), std::sin(Angle1)) * (Size * (0.92f + 0.18f * std::sin(TicksHead * 0.17f + i)));
+				const vec2 SegmentDir = normalize(P1 - P0);
+				AetherDrawBeamQuad(Graphics(), P0, P1, SegmentDir, 1.1f + Pulse * 0.4f, OuterColor.WithAlpha(0.26f));
+				if((i % 2) == 0)
+					AetherDrawBeamQuad(Graphics(), Pos, P1, normalize(P1 - Pos), 0.7f, InnerColor.WithAlpha(0.22f));
+			}
+			Graphics()->QuadsEnd();
+		}
 	}
+}
+
+void CItems::RenderSweatLaser(vec2 From, vec2 Pos, vec2 Dir, float Length, float Fade, float TicksHead, int Type, ColorRGBA OuterColor, ColorRGBA InnerColor) const
+{
+	if(Length <= 0.0f || Fade <= 0.0f)
+		return;
+
+	const ColorRGBA GlowBase = OuterColor.WithAlpha(1.0f);
+	const ColorRGBA CoreBase = InnerColor.WithAlpha(1.0f);
+	const float Glow = std::clamp(g_Config.m_AeSweatWeaponGlow / 100.0f, 0.0f, 1.0f);
+	const float Sparkles = std::clamp(g_Config.m_AeSweatWeaponSparkles / 100.0f, 0.0f, 1.0f);
+	const float Thickness = std::clamp(g_Config.m_AeSweatWeaponThickness / 100.0f, 0.60f, 3.00f);
+	const float EntityWidthScale = AetherIsSweatLaserType(Type) ? 1.0f : 0.72f;
+
+	Graphics()->TextureClear();
+	Graphics()->QuadsBegin();
+	AetherDrawBeamQuad(Graphics(), From, Pos, Dir, 18.0f * EntityWidthScale * Fade * Thickness, GlowBase.WithAlpha(0.08f * Glow * Fade), 2.0f, 2.0f);
+	AetherDrawBeamQuad(Graphics(), From, Pos, Dir, 12.0f * EntityWidthScale * Fade * Thickness, GlowBase.WithAlpha(0.13f * Glow * Fade), 1.0f, 1.0f);
+	AetherDrawBeamQuad(Graphics(), From, Pos, Dir, 8.0f * EntityWidthScale * Fade * Thickness, GlowBase.WithAlpha(0.22f * Glow * Fade));
+
+	if(g_Config.m_AeSweatWeaponShine && Sparkles > 0.0f)
+	{
+		const float Speed = std::clamp(g_Config.m_AeSweatWeaponShineSpeed / 100.0f, 0.10f, 2.0f);
+		const float Phase = std::fmod(TicksHead * 0.018f * Speed, 1.0f);
+		const int SparkleCount = 5;
+		for(int i = 0; i < SparkleCount; ++i)
+		{
+			const float T = std::fmod(Phase + i * 0.23f, 1.0f);
+			const float FadeEdge = std::sin(T * pi);
+			const vec2 Center = From + Dir * (Length * T);
+			const float Size = (2.0f + Sparkles * 4.0f) * Fade * FadeEdge;
+			if(Size <= 0.15f)
+				continue;
+
+			const float Alpha = (0.22f + 0.38f * Sparkles) * Fade * FadeEdge;
+			const vec2 Start = Center - Dir * (Size * 2.4f);
+			const vec2 End = Center + Dir * (Size * 2.4f);
+			AetherDrawBeamQuad(Graphics(), Start, End, Dir, Size, CoreBase.WithAlpha(Alpha));
+		}
+	}
+	Graphics()->QuadsEnd();
+}
+
+void CItems::RenderSweatLaserElectric(vec2 From, vec2 Pos, vec2 Dir, float Length, float Fade, float TicksHead, ColorRGBA GlowColor, ColorRGBA CoreColor) const
+{
+	const float Density = std::clamp(g_Config.m_AeSweatWeaponArcDensity / 100.0f, 0.0f, 1.0f);
+	const float ArcOpacity = std::clamp(g_Config.m_AeSweatWeaponArcOpacity / 100.0f, 0.0f, 2.0f);
+	if(Length <= 32.0f || Fade <= 0.0f || Density <= 0.0f)
+		return;
+
+	const vec2 Normal = vec2(Dir.y, -Dir.x);
+	const float Speed = std::clamp(g_Config.m_AeSweatWeaponShineSpeed / 100.0f, 0.1f, 2.0f);
+	const float Time = TicksHead * 0.055f * Speed;
+	const bool OptimizerBudget = g_Config.m_AeOptimizer != 0;
+	const int SegmentCount = std::clamp((int)std::ceil(Length / (OptimizerBudget ? 26.0f : 18.0f)), 8, OptimizerBudget ? 40 : 72);
+	const int TraceCount = OptimizerBudget ? 1 : (1 + (Density > 0.75f ? 1 : 0));
+	const float Amplitude = (3.2f + Density * 7.0f) * Fade;
+	const float Width = (0.75f + Density * 1.05f) * Fade;
+	const float Flicker = 0.78f + 0.22f * std::sin(Time * 7.0f);
+
+	Graphics()->TextureClear();
+	Graphics()->QuadsBegin();
+	for(int Trace = 0; Trace < TraceCount; ++Trace)
+	{
+		const float TracePhase = Trace * 2.15f;
+		const float TraceAlpha = Trace == 0 ? 1.0f : (Trace == 1 ? 0.56f : 0.34f);
+		vec2 Prev;
+		bool HasPrev = false;
+		for(int Segment = 0; Segment <= SegmentCount; ++Segment)
+		{
+			const float T = Segment / (float)SegmentCount;
+			const float Triangle = (2.0f / pi) * std::asin(std::sin(T * pi * (9.0f + Density * 8.0f) + Time + TracePhase));
+			const float Detail = std::sin(T * pi * (23.0f + Trace * 3.0f) - Time * 1.7f + TracePhase) * 0.28f;
+			const float EdgeFade = std::sin(T * pi);
+			const float Offset = (Triangle + Detail) * Amplitude * EdgeFade;
+			const vec2 Next = From + Dir * (Length * T) + Normal * Offset;
+			if(HasPrev)
+			{
+				const vec2 SegmentDir = normalize(Next - Prev);
+				AetherDrawBeamQuad(Graphics(), Prev, Next, SegmentDir, Width + 1.5f, GlowColor.WithAlpha(std::min(1.0f, 0.18f * ArcOpacity * Density * Fade * Flicker * TraceAlpha)));
+				AetherDrawBeamQuad(Graphics(), Prev, Next, SegmentDir, Width, CoreColor.WithAlpha(std::min(1.0f, 0.62f * ArcOpacity * Density * Fade * Flicker * TraceAlpha)));
+			}
+			Prev = Next;
+			HasPrev = true;
+		}
+	}
+
+	const int ParticleCount = OptimizerBudget ? (2 + (int)std::round(Density * 3.0f)) : (3 + (int)std::round(Density * 5.0f));
+	for(int i = 0; i < ParticleCount; ++i)
+	{
+		const float BaseT = (i + 0.5f) / std::max(1.0f, (float)ParticleCount);
+		const float T = std::clamp(BaseT + std::sin(Time * 0.9f + i * 1.37f) * 0.035f, 0.04f, 0.96f);
+		const float Side = AetherHash01(i * 97) > 0.5f ? 1.0f : -1.0f;
+		const float Pulse = 0.55f + 0.45f * std::sin(Time * 3.1f + i * 1.9f);
+		const float Drift = std::sin(Time * 1.5f + i * 2.7f) * (1.4f + Density * 2.4f);
+		const float Offset = Side * (6.0f + AetherHash01(i * 43) * 9.0f + Drift) * Fade;
+		const vec2 Center = From + Dir * (Length * T) + Normal * Offset;
+		const float Size = (1.2f + Density * 2.8f) * Fade * (0.75f + Pulse * 0.45f);
+		const vec2 ParticleDir = normalize(Dir + Normal * Side * 0.38f);
+		AetherDrawBeamQuad(Graphics(), Center - ParticleDir * Size, Center + ParticleDir * Size, ParticleDir, Size * 1.45f, GlowColor.WithAlpha(std::min(1.0f, 0.26f * ArcOpacity * Density * Fade * Pulse)));
+		AetherDrawBeamQuad(Graphics(), Center - ParticleDir * (Size * 0.70f), Center + ParticleDir * (Size * 0.70f), ParticleDir, Size * 0.55f, GlowColor.WithAlpha(std::min(1.0f, 0.72f * ArcOpacity * Density * Fade * Pulse)));
+	}
+	Graphics()->QuadsEnd();
 }
 
 void CItems::OnRender()

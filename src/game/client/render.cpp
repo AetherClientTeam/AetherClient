@@ -286,12 +286,12 @@ void CRenderTools::RenderTee7(const CAnimState *pAnim, const CTeeRenderInfo *pIn
 			if(Filling == 1)
 			{
 				vec2 BodyPos = Position + vec2(pAnim->GetBody()->m_X, pAnim->GetBody()->m_Y) * AnimScale;
-				IGraphics::CQuadItem BodyItem(BodyPos.x, BodyPos.y, BaseSize, BaseSize);
+				IGraphics::CQuadItem BodyItem(BodyPos.x, BodyPos.y, BaseSize * pInfo->m_AetherScaleX, BaseSize * pInfo->m_AetherScaleY);
 				IGraphics::CQuadItem Item;
 
 				if(IsBot && !OutLine)
 				{
-					IGraphics::CQuadItem BotItem(BodyPos.x + (2.f / 3.f) * AnimScale, BodyPos.y + (-16 + 2.f / 3.f) * AnimScale, BaseSize, BaseSize); // x+0.66, y+0.66 to correct some rendering bug
+					IGraphics::CQuadItem BotItem(BodyPos.x + (2.f / 3.f) * AnimScale, BodyPos.y + (-16 + 2.f / 3.f) * AnimScale, BaseSize * pInfo->m_AetherScaleX, BaseSize * pInfo->m_AetherScaleY); // x+0.66, y+0.66 to correct some rendering bug
 
 					// draw bot visuals (background)
 					Graphics()->TextureSet(pInfo->m_aSixup[g_Config.m_ClDummy].m_BotTexture);
@@ -414,8 +414,8 @@ void CRenderTools::RenderTee7(const CAnimState *pAnim, const CTeeRenderInfo *pIn
 						break;
 					}
 
-					float EyeScale = BaseSize * 0.60f;
-					float h = Emote == EMOTE_BLINK ? BaseSize * 0.15f / 2.0f : EyeScale / 2.0f;
+					float EyeScale = BaseSize * 0.60f * pInfo->m_AetherScaleX;
+					float h = (Emote == EMOTE_BLINK ? BaseSize * 0.15f / 2.0f : BaseSize * 0.30f) * pInfo->m_AetherScaleY;
 					vec2 Offset = vec2(Direction.x * 0.125f, -0.05f + Direction.y * 0.10f) * BaseSize;
 					IGraphics::CQuadItem QuadItem(BodyPos.x + Offset.x, BodyPos.y + Offset.y, EyeScale, h);
 					Graphics()->QuadsDraw(&QuadItem, 1);
@@ -479,7 +479,7 @@ void CRenderTools::RenderTee7(const CAnimState *pAnim, const CTeeRenderInfo *pIn
 				Graphics()->SelectSprite7(client_data7::SPRITE_TEE_FOOT);
 			}
 
-			IGraphics::CQuadItem QuadItem(Position.x + pFoot->m_X * AnimScale, Position.y + pFoot->m_Y * AnimScale, w, h);
+			IGraphics::CQuadItem QuadItem(Position.x + pFoot->m_X * AnimScale, Position.y + pFoot->m_Y * AnimScale, w * pInfo->m_AetherScaleX, h * pInfo->m_AetherScaleY);
 			Graphics()->QuadsDraw(&QuadItem, 1);
 			Graphics()->QuadsEnd();
 		}
@@ -527,7 +527,7 @@ void CRenderTools::RenderTee6(const CAnimState *pAnim, const CTeeRenderInfo *pIn
 				float BodyScale;
 				GetRenderTeeBodyScale(BaseSize, BodyScale);
 				Graphics()->TextureSet(OutLine == 1 ? pSkinTextures->m_BodyOutline : pSkinTextures->m_Body);
-				Graphics()->RenderQuadContainerAsSprite(m_TeeQuadContainerIndex, OutLine, BodyPos.x, BodyPos.y, BodyScale, BodyScale);
+				Graphics()->RenderQuadContainerAsSprite(m_TeeQuadContainerIndex, OutLine, BodyPos.x, BodyPos.y, BodyScale * pInfo->m_AetherScaleX, BodyScale * pInfo->m_AetherScaleY);
 
 				// draw eyes
 				if(Pass == 1)
@@ -559,8 +559,8 @@ void CRenderTools::RenderTee6(const CAnimState *pAnim, const CTeeRenderInfo *pIn
 						break;
 					}
 
-					float EyeScale = BaseSize * 0.40f;
-					float h = Emote == EMOTE_BLINK ? BaseSize * 0.15f : EyeScale;
+					float EyeScale = BaseSize * 0.40f * pInfo->m_AetherScaleX;
+					float h = (Emote == EMOTE_BLINK ? BaseSize * 0.15f : BaseSize * 0.40f) * pInfo->m_AetherScaleY;
 					float EyeSeparation = (0.075f - 0.010f * absolute(Direction.x)) * BaseSize;
 					vec2 Offset = vec2(Direction.x * 0.125f, -0.05f + Direction.y * 0.10f) * BaseSize;
 
@@ -622,7 +622,7 @@ void CRenderTools::RenderTee6(const CAnimState *pAnim, const CTeeRenderInfo *pIn
 				Graphics()->TextureSet(OutLine == 1 ? pSkinTextures->m_FeetOutline : pSkinTextures->m_Feet);
 			}
 
-			Graphics()->RenderQuadContainerAsSprite(m_TeeQuadContainerIndex, QuadOffset, Position.x + pFoot->m_X * AnimScale, Position.y + pFoot->m_Y * AnimScale, w / 64.f, h / 32.f);
+			Graphics()->RenderQuadContainerAsSprite(m_TeeQuadContainerIndex, QuadOffset, Position.x + pFoot->m_X * AnimScale, Position.y + pFoot->m_Y * AnimScale, (w / 64.f) * pInfo->m_AetherScaleX, (h / 32.f) * pInfo->m_AetherScaleY);
 		}
 	}
 }

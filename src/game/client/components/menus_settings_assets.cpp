@@ -8,6 +8,7 @@
 #include <engine/textrender.h>
 
 #include <game/client/gameclient.h>
+#include <game/client/components/sounds.h>
 #include <game/client/ui_listbox.h>
 #include <game/localization.h>
 
@@ -32,7 +33,8 @@ enum
 	ASSETS_TAB_PARTICLES = 3,
 	ASSETS_TAB_HUD = 4,
 	ASSETS_TAB_EXTRAS = 5,
-	NUMBER_OF_ASSETS_TABS = 6,
+	ASSETS_TAB_AUDIO = 6,
+	NUMBER_OF_ASSETS_TABS = 7,
 };
 
 void CMenus::LoadEntities(SCustomEntities *pEntitiesItem, void *pUser)
@@ -209,12 +211,65 @@ int CMenus::ExtrasScan(const char *pName, int IsDir, int DirType, void *pUser)
 	return AssetScan(pName, IsDir, DirType, pThis->m_vExtrasList, "extras", pGraphics, pUser);
 }
 
+static bool IsAudioPackSoundFile(const char *pName)
+{
+	const int Len = str_length(pName);
+	return (Len > 3 && str_comp_nocase(pName + Len - 3, ".wv") == 0) ||
+	       (Len > 4 && str_comp_nocase(pName + Len - 4, ".wav") == 0);
+}
+
+struct SAudioPackProbe
+{
+	bool m_Found = false;
+};
+
+static int AudioPackProbeScan(const char *pName, int IsDir, int DirType, void *pUser)
+{
+	(void)DirType;
+	if(!IsDir && IsAudioPackSoundFile(pName))
+		static_cast<SAudioPackProbe *>(pUser)->m_Found = true;
+	return 0;
+}
+
+static bool AudioPackHasSoundFiles(IStorage *pStorage, const char *pPackName)
+{
+	if(!pStorage || !pPackName || pPackName[0] == '\0' || pPackName[0] == '.')
+		return false;
+
+	SAudioPackProbe Probe;
+	char aPath[IO_MAX_PATH_LENGTH];
+	str_format(aPath, sizeof(aPath), "assets/audio/%s/audio", pPackName);
+	pStorage->ListDirectory(IStorage::TYPE_ALL, aPath, AudioPackProbeScan, &Probe);
+	if(Probe.m_Found)
+		return true;
+
+	str_format(aPath, sizeof(aPath), "assets/audio/%s", pPackName);
+	pStorage->ListDirectory(IStorage::TYPE_ALL, aPath, AudioPackProbeScan, &Probe);
+	return Probe.m_Found;
+}
+
+int CMenus::AudioScan(const char *pName, int IsDir, int DirType, void *pUser)
+{
+	(void)DirType;
+	auto *pRealUser = (SMenuAssetScanUser *)pUser;
+	auto *pThis = (CMenus *)pRealUser->m_pUser;
+	if(!IsDir || pName[0] == '.' || str_comp(pName, "default") == 0 || !AudioPackHasSoundFiles(pThis->Storage(), pName))
+		return 0;
+
+	SCustomAudio AudioItem;
+	str_copy(AudioItem.m_aName, pName);
+	pThis->m_vAudioList.push_back(AudioItem);
+	pRealUser->m_LoadedFunc();
+	return 0;
+}
+
 static std::vector<const CMenus::SCustomEntities *> gs_vpSearchEntitiesList;
 static std::vector<const CMenus::SCustomGame *> gs_vpSearchGamesList;
 static std::vector<const CMenus::SCustomEmoticon *> gs_vpSearchEmoticonsList;
 static std::vector<const CMenus::SCustomParticle *> gs_vpSearchParticlesList;
 static std::vector<const CMenus::SCustomHud *> gs_vpSearchHudList;
 static std::vector<const CMenus::SCustomExtras *> gs_vpSearchExtrasList;
+static std::vector<const CMenus::SCustomAudio *> gs_vpSearchAudioList;
 
 static bool gs_aInitCustomList[NUMBER_OF_ASSETS_TABS] = {
 	true,
@@ -242,6 +297,8 @@ static const CMenus::SCustomItem *GetCustomItem(int CurTab, size_t Index)
 		return gs_vpSearchHudList[Index];
 	else if(CurTab == ASSETS_TAB_EXTRAS)
 		return gs_vpSearchExtrasList[Index];
+	else if(CurTab == ASSETS_TAB_AUDIO)
+		return gs_vpSearchAudioList[Index];
 	dbg_assert_failed("Invalid CurTab: %d", CurTab);
 }
 
@@ -306,6 +363,11 @@ void CMenus::ClearCustomItems(int CurTab)
 		// reload current DDNet particles skin
 		GameClient()->LoadExtrasSkin(g_Config.m_ClAssetExtras);
 	}
+	else if(CurTab == ASSETS_TAB_AUDIO)
+	{
+		m_vAudioList.clear();
+		GameClient()->m_Sounds.Reload();
+	}
 	else
 	{
 		dbg_assert_failed("Invalid CurTab: %d", CurTab);
@@ -362,7 +424,8 @@ void CMenus::RenderSettingsCustom(CUIRect MainView)
 		Localize("Emoticons"),
 		Localize("Particles"),
 		Localize("HUD"),
-		Localize("Extras")};
+		Localize("Extras"),
+		Localize("Audio")};
 
 	for(int Tab = ASSETS_TAB_ENTITIES; Tab < NUMBER_OF_ASSETS_TABS; ++Tab)
 	{
@@ -418,6 +481,21 @@ void CMenus::RenderSettingsCustom(CUIRect MainView)
 	{
 		InitAssetList(m_vExtrasList, "assets/extras", "extras", ExtrasScan, Graphics(), Storage(), &User);
 	}
+	else if(s_CurCustomTab == ASSETS_TAB_AUDIO)
+	{
+		if(m_vAudioList.empty())
+		{
+			SCustomAudio AudioItem;
+			str_copy(AudioItem.m_aName, "default");
+			m_vAudioList.push_back(AudioItem);
+
+			Storage()->CreateFolder("assets/audio", IStorage::TYPE_SAVE);
+			Storage()->ListDirectory(IStorage::TYPE_ALL, "assets/audio", AudioScan, &User);
+			std::sort(m_vAudioList.begin(), m_vAudioList.end());
+		}
+		if(m_vAudioList.size() != gs_aCustomListSize[s_CurCustomTab])
+			gs_aInitCustomList[s_CurCustomTab] = true;
+	}
 	else
 	{
 		dbg_assert_failed("Invalid s_CurCustomTab: %d", s_CurCustomTab);
@@ -465,6 +543,10 @@ void CMenus::RenderSettingsCustom(CUIRect MainView)
 		{
 			ListSize = InitSearchList(gs_vpSearchExtrasList, m_vExtrasList);
 		}
+		else if(s_CurCustomTab == ASSETS_TAB_AUDIO)
+		{
+			ListSize = InitSearchList(gs_vpSearchAudioList, m_vAudioList);
+		}
 		gs_aInitCustomList[s_CurCustomTab] = false;
 		gs_aCustomListSize[s_CurCustomTab] = ListSize;
 	}
@@ -500,6 +582,12 @@ void CMenus::RenderSettingsCustom(CUIRect MainView)
 	else if(s_CurCustomTab == ASSETS_TAB_EXTRAS)
 	{
 		SearchListSize = gs_vpSearchExtrasList.size();
+	}
+	else if(s_CurCustomTab == ASSETS_TAB_AUDIO)
+	{
+		SearchListSize = gs_vpSearchAudioList.size();
+		TextureHeight = 36;
+		TextureWidth = 150;
 	}
 
 	static CListBox s_ListBox;
@@ -538,6 +626,11 @@ void CMenus::RenderSettingsCustom(CUIRect MainView)
 		else if(s_CurCustomTab == ASSETS_TAB_EXTRAS)
 		{
 			if(str_comp(pItem->m_aName, g_Config.m_ClAssetExtras) == 0)
+				OldSelected = i;
+		}
+		else if(s_CurCustomTab == ASSETS_TAB_AUDIO)
+		{
+			if(str_comp(pItem->m_aName, g_Config.m_ClAssetsAudio) == 0)
 				OldSelected = i;
 		}
 
@@ -599,6 +692,11 @@ void CMenus::RenderSettingsCustom(CUIRect MainView)
 				str_copy(g_Config.m_ClAssetExtras, GetCustomItem(s_CurCustomTab, NewSelected)->m_aName);
 				GameClient()->LoadExtrasSkin(g_Config.m_ClAssetExtras);
 			}
+			else if(s_CurCustomTab == ASSETS_TAB_AUDIO)
+			{
+				str_copy(g_Config.m_ClAssetsAudio, GetCustomItem(s_CurCustomTab, NewSelected)->m_aName);
+				GameClient()->m_Sounds.Reload();
+			}
 		}
 	}
 
@@ -632,6 +730,8 @@ void CMenus::RenderSettingsCustom(CUIRect MainView)
 			str_copy(aBufFull, "assets/hud");
 		else if(s_CurCustomTab == ASSETS_TAB_EXTRAS)
 			str_copy(aBufFull, "assets/extras");
+		else if(s_CurCustomTab == ASSETS_TAB_AUDIO)
+			str_copy(aBufFull, "assets/audio");
 		Storage()->GetCompletePath(IStorage::TYPE_SAVE, aBufFull, aBuf, sizeof(aBuf));
 		Storage()->CreateFolder("assets", IStorage::TYPE_SAVE);
 		Storage()->CreateFolder(aBufFull, IStorage::TYPE_SAVE);
@@ -738,4 +838,20 @@ void CMenus::ConchainAssetExtras(IConsole::IResult *pResult, void *pUserData, IC
 	}
 
 	pfnCallback(pResult, pCallbackUserData);
+}
+
+void CMenus::ConchainAssetAudio(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData)
+{
+	CMenus *pThis = (CMenus *)pUserData;
+	bool Reload = false;
+	if(pResult->NumArguments() == 1)
+	{
+		const char *pArg = pResult->GetString(0);
+		if(str_comp(pArg, g_Config.m_ClAssetsAudio) != 0)
+			Reload = true;
+	}
+
+	pfnCallback(pResult, pCallbackUserData);
+	if(Reload)
+		pThis->GameClient()->m_Sounds.Reload();
 }

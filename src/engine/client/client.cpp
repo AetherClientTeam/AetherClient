@@ -442,7 +442,7 @@ void CClient::SetState(EClientState State)
 	{
 		const bool Registered = m_ServerBrowser.IsRegistered(ServerAddress());
 		Discord()->SetGameInfo(m_CurrentServerInfo, Registered);
-		Steam()->SetGameInfo(ServerAddress(), GameClient()->Map()->BaseName(), Registered);
+		Steam()->SetGameInfo(ServerAddress(), GameClient()->Map()->IsLoaded() ? GameClient()->Map()->BaseName() : m_CurrentServerInfo.m_aMap, Registered);
 	}
 	else if(OldState == IClient::STATE_ONLINE)
 	{
@@ -892,9 +892,12 @@ void CClient::SetCurrentServerInfo(const CServerInfo &ServerInfo)
 {
 	m_CurrentServerInfo = ServerInfo;
 	m_CurrentServerInfoRequestTime = -1;
-	str_copy(m_CurrentServerInfo.m_aMap, GameClient()->Map()->BaseName());
-	m_CurrentServerInfo.m_MapCrc = GameClient()->Map()->Crc();
-	m_CurrentServerInfo.m_MapSize = GameClient()->Map()->Size();
+	if(GameClient()->Map()->IsLoaded())
+	{
+		str_copy(m_CurrentServerInfo.m_aMap, GameClient()->Map()->BaseName());
+		m_CurrentServerInfo.m_MapCrc = GameClient()->Map()->Crc();
+		m_CurrentServerInfo.m_MapSize = GameClient()->Map()->Size();
+	}
 }
 
 void CClient::LoadDebugFont()
@@ -2869,7 +2872,7 @@ void CClient::Update()
 					SendInput();
 				}
 
-				if(g_Config.m_TcFastInput && GameClient()->CheckNewInput())
+				if((g_Config.m_AeFastInput || g_Config.m_TcFastInput) && GameClient()->CheckNewInput())
 				{
 					Repredict = true;
 				}
@@ -3922,6 +3925,11 @@ void CClient::SaveReplay(const int Length, const char *pFilename)
 		GameClient()->Echo(Localize("Replay feature is disabled!"));
 		return;
 	}
+	if(State() != IClient::STATE_ONLINE || !GameClient()->Map()->IsLoaded())
+	{
+		m_pConsole->Print(IConsole::OUTPUT_LEVEL_STANDARD, "replay", "ERROR: no loaded map to save replay from.");
+		return;
+	}
 
 	if(!DemoRecorder(RECORDER_REPLAYS)->IsRecording())
 	{
@@ -4102,6 +4110,11 @@ void CClient::Con_DemoSpeed(IConsole::IResult *pResult, void *pUserData)
 void CClient::DemoRecorder_Start(const char *pFilename, bool WithTimestamp, int Recorder)
 {
 	dbg_assert(State() == IClient::STATE_ONLINE, "Client must be online to record demo");
+	if(!GameClient()->Map()->IsLoaded())
+	{
+		log_error("demo_recorder", "Cannot start demo recorder before a map is loaded.");
+		return;
+	}
 
 	char aFilename[IO_MAX_PATH_LENGTH];
 	if(WithTimestamp)
@@ -4133,6 +4146,9 @@ void CClient::DemoRecorder_Start(const char *pFilename, bool WithTimestamp, int 
 
 void CClient::DemoRecorder_HandleAutoStart()
 {
+	if(!GameClient()->Map()->IsLoaded())
+		return;
+
 	if(g_Config.m_ClAutoDemoRecord)
 	{
 		DemoRecorder(RECORDER_AUTO)->Stop(IDemoRecorder::EStopMode::KEEP_FILE);
@@ -4159,7 +4175,7 @@ void CClient::DemoRecorder_UpdateReplayRecorder()
 		DemoRecorder(RECORDER_REPLAYS)->Stop(IDemoRecorder::EStopMode::REMOVE_FILE);
 	}
 
-	if(g_Config.m_ClReplays && !DemoRecorder(RECORDER_REPLAYS)->IsRecording())
+	if(g_Config.m_ClReplays && !DemoRecorder(RECORDER_REPLAYS)->IsRecording() && GameClient()->Map()->IsLoaded())
 	{
 		char aFilename[IO_MAX_PATH_LENGTH];
 		str_format(aFilename, sizeof(aFilename), "replays/replay_tmp_%s", GameClient()->Map()->BaseName());
@@ -4194,8 +4210,10 @@ void CClient::Con_Record(IConsole::IResult *pResult, void *pUserData)
 
 	if(pResult->NumArguments())
 		pSelf->DemoRecorder_Start(pResult->GetString(0), false, RECORDER_MANUAL);
-	else
+	else if(pSelf->GameClient()->Map()->IsLoaded())
 		pSelf->DemoRecorder_Start(pSelf->GameClient()->Map()->BaseName(), true, RECORDER_MANUAL);
+	else
+		log_error("demo_recorder", "Cannot start demo recorder before a map is loaded.");
 }
 
 void CClient::Con_StopRecord(IConsole::IResult *pResult, void *pUserData)
@@ -5098,6 +5116,11 @@ int main(int argc, const char **argv)
 void CClient::RaceRecord_Start(const char *pFilename)
 {
 	dbg_assert(State() == IClient::STATE_ONLINE, "Client must be online to record demo");
+	if(!GameClient()->Map()->IsLoaded())
+	{
+		log_error("race_demo_recorder", "Cannot start race recorder before a map is loaded.");
+		return;
+	}
 
 	m_aDemoRecorder[RECORDER_RACE].Start(
 		Storage(),
@@ -5240,7 +5263,25 @@ int CClient::MaxLatencyTicks() const
 
 int CClient::PredictionMargin() const
 {
-	return m_ServerCapabilities.m_SyncWeaponInput ? g_Config.m_ClPredictionMargin : 10;
+	if(!m_ServerCapabilities.m_SyncWeaponInput)
+		return 10;
+
+	int Margin = g_Config.m_ClPredictionMargin;
+	if(g_Config.m_AeFastInputAutoMargin)
+	{
+		int FastInputMargin = 0;
+		if(g_Config.m_AeFastInput)
+		{
+			if(g_Config.m_AeFastInputMode == 2)
+				FastInputMargin = (std::clamp(g_Config.m_AeSaikoPlusAmount, 0, 500) + 2) / 5;
+			else
+				FastInputMargin = std::max(std::clamp(g_Config.m_AeFastInputMovementAmount, 0, 50), std::clamp(g_Config.m_AeFastInputActionAmount, 0, 50));
+		}
+		else if(g_Config.m_TcFastInput)
+			FastInputMargin = std::clamp(g_Config.m_TcFastInputAmount, 1, 100);
+		Margin = std::max(Margin, FastInputMargin);
+	}
+	return Margin;
 }
 
 int CClient::UdpConnectivity(int NetType)

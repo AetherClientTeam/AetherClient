@@ -86,4 +86,9 @@ struct LOG_COLOR
  */
 [[gnu::format(printf, 4, 0)]] void log_log_color_v(LEVEL level, LOG_COLOR color, const char *sys, const char *fmt, va_list args);
 
+/**
+ * Masks private local filesystem paths in-place for log/assert output.
+ */
+void log_aether_mask_paths(char *pLine, int LineSize);
+
 #endif // BASE_LOG_H

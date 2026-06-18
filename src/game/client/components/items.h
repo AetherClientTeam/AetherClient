@@ -31,6 +31,9 @@ public:
 	void RenderLaser(vec2 From, vec2 Pos, ColorRGBA OuterColor, ColorRGBA InnerColor, float TicksBody, float TicksHead, int Type) const;
 
 private:
+	void RenderSweatLaser(vec2 From, vec2 Pos, vec2 Dir, float Length, float Fade, float TicksHead, int Type, ColorRGBA OuterColor, ColorRGBA InnerColor) const;
+	void RenderSweatLaserElectric(vec2 From, vec2 Pos, vec2 Dir, float Length, float Fade, float TicksHead, ColorRGBA GlowColor, ColorRGBA CoreColor) const;
+
 	int m_BlueFlagOffset;
 	int m_RedFlagOffset;
 	int m_PickupHealthOffset;

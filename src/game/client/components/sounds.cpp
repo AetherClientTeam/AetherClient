@@ -3,6 +3,8 @@
 
 #include "sounds.h"
 
+#include <base/log.h>
+#include <base/str.h>
 #include <base/time.h>
 
 #include <engine/engine.h>
@@ -11,10 +13,120 @@
 
 #include <generated/client_data.h>
 
+#include <game/client/components/aether/audio_decoder.h>
 #include <game/client/components/camera.h>
 #include <game/client/components/menus.h>
 #include <game/client/gameclient.h>
 #include <game/localization.h>
+
+#include <vector>
+
+namespace
+{
+bool SoundPathHasExtension(const char *pPath, const char *pExt)
+{
+	const int PathLen = str_length(pPath);
+	const int ExtLen = str_length(pExt);
+	return PathLen >= ExtLen && str_comp_nocase(pPath + PathLen - ExtLen, pExt) == 0;
+}
+
+void SoundBaseName(const char *pPath, char *pOut, int OutSize)
+{
+	if(OutSize <= 0)
+		return;
+	pOut[0] = '\0';
+	const char *pBase = pPath ? pPath : "";
+	for(const char *p = pBase; *p; ++p)
+	{
+		if(*p == '/' || *p == '\\')
+			pBase = p + 1;
+	}
+	str_copy(pOut, pBase, OutSize);
+}
+
+bool SoundPackNameIsSafe(const char *pPack)
+{
+	if(!pPack || pPack[0] == '\0' || str_comp(pPack, "default") == 0)
+		return false;
+	for(const char *p = pPack; *p; ++p)
+	{
+		if(*p == '/' || *p == '\\' || *p == ':' || *p == '<' || *p == '>' || *p == '|' || *p == '*' || *p == '?')
+			return false;
+	}
+	return true;
+}
+
+int LoadAudioPackWav(CGameClient *pGameClient, const char *pRelPath, const char *pDebugName)
+{
+	char aAbsolute[IO_MAX_PATH_LENGTH];
+	IOHANDLE File = pGameClient->Storage()->OpenFile(pRelPath, IOFLAG_READ, IStorage::TYPE_ALL, aAbsolute, sizeof(aAbsolute));
+	if(!File)
+		return -1;
+	io_close(File);
+
+	std::vector<short> vPcm;
+	int Channels = 0;
+	int SampleRate = 0;
+	if(!AetherAudio::DecodeAudioFileToS16Pcm(aAbsolute, vPcm, Channels, SampleRate, pDebugName) || vPcm.empty() || (Channels != 1 && Channels != 2) || SampleRate <= 0)
+	{
+		log_error("aether/audio-pack", "unsupported or broken wav '%s', falling back", pRelPath);
+		return -1;
+	}
+
+	const int NumFrames = (int)(vPcm.size() / (size_t)Channels);
+	if(NumFrames <= 0)
+		return -1;
+	return pGameClient->Sound()->LoadS16PcmInterleavedFromMem(vPcm.data(), NumFrames, Channels, SampleRate, false, pDebugName);
+}
+
+int LoadAudioPackSample(CGameClient *pGameClient, const char *pDefaultFilename)
+{
+	if(!pGameClient || !pDefaultFilename)
+		return -1;
+
+	if(!SoundPackNameIsSafe(g_Config.m_ClAssetsAudio))
+		return pGameClient->Sound()->LoadWV(pDefaultFilename);
+
+	char aBase[IO_MAX_PATH_LENGTH];
+	SoundBaseName(pDefaultFilename, aBase, sizeof(aBase));
+	if(aBase[0] == '\0')
+		return pGameClient->Sound()->LoadWV(pDefaultFilename);
+
+	const char *apPackDirs[] = {
+		"assets/audio/%s/audio/%s",
+		"assets/audio/%s/%s",
+	};
+
+	for(const char *pFmt : apPackDirs)
+	{
+		char aCandidate[IO_MAX_PATH_LENGTH];
+		str_format(aCandidate, sizeof(aCandidate), pFmt, g_Config.m_ClAssetsAudio, aBase);
+		if(pGameClient->Storage()->FileExists(aCandidate, IStorage::TYPE_ALL))
+		{
+			const int Id = SoundPathHasExtension(aCandidate, ".wav") ? LoadAudioPackWav(pGameClient, aCandidate, aBase) : pGameClient->Sound()->LoadWV(aCandidate, IStorage::TYPE_ALL);
+			if(Id >= 0)
+				return Id;
+		}
+
+		if(SoundPathHasExtension(aBase, ".wv"))
+		{
+			char aWavBase[IO_MAX_PATH_LENGTH];
+			str_copy(aWavBase, aBase, sizeof(aWavBase));
+			aWavBase[str_length(aWavBase) - 3] = '\0';
+			str_append(aWavBase, ".wav");
+			str_format(aCandidate, sizeof(aCandidate), pFmt, g_Config.m_ClAssetsAudio, aWavBase);
+			if(pGameClient->Storage()->FileExists(aCandidate, IStorage::TYPE_ALL))
+			{
+				const int Id = LoadAudioPackWav(pGameClient, aCandidate, aWavBase);
+				if(Id >= 0)
+					return Id;
+			}
+		}
+	}
+
+	return pGameClient->Sound()->LoadWV(pDefaultFilename);
+}
+}
 
 CSoundLoading::CSoundLoading(CGameClient *pGameClient, bool Render) :
 	m_pGameClient(pGameClient),
@@ -35,7 +147,7 @@ void CSoundLoading::Run()
 			if(State() == IJob::STATE_ABORTED)
 				return;
 
-			int Id = m_pGameClient->Sound()->LoadWV(g_pData->m_aSounds[s].m_aSounds[i].m_pFilename);
+			int Id = LoadAudioPackSample(m_pGameClient, g_pData->m_aSounds[s].m_aSounds[i].m_pFilename);
 			g_pData->m_aSounds[s].m_aSounds[i].m_Id = Id;
 			// try to render a frame
 			if(m_Render)
@@ -119,6 +231,33 @@ void CSounds::OnInit()
 		CSoundLoading(GameClient(), true).Run();
 		m_WaitForSoundJob = false;
 	}
+}
+
+void CSounds::Reload()
+{
+	if(m_pSoundJob && m_WaitForSoundJob)
+		m_pSoundJob->Abort();
+	m_pSoundJob.reset();
+	m_WaitForSoundJob = false;
+
+	Sound()->StopAll();
+	ClearQueue();
+
+	for(int s = 0; s < g_pData->m_NumSounds; ++s)
+	{
+		for(int i = 0; i < g_pData->m_aSounds[s].m_NumSounds; ++i)
+		{
+			int &Id = g_pData->m_aSounds[s].m_aSounds[i].m_Id;
+			if(Id >= 0)
+			{
+				Sound()->UnloadSample(Id);
+				Id = -1;
+			}
+		}
+	}
+
+	CSoundLoading(GameClient(), false).Run();
+	log_info("aether/audio-pack", "reloaded audio pack '%s'", g_Config.m_ClAssetsAudio);
 }
 
 void CSounds::OnReset()

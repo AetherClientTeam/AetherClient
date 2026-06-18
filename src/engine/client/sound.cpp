@@ -667,6 +667,41 @@ int CSound::LoadWVFromMem(const void *pData, unsigned DataSize, bool ForceLoad, 
 	return pSample->m_Index;
 }
 
+int CSound::LoadS16PcmInterleavedFromMem(const short *pInterleaved, int NumFrames, int Channels, int SampleRate, bool ForceLoad, const char *pContextName)
+{
+	if(!m_SoundEnabled && !ForceLoad)
+		return -1;
+	if(!pInterleaved || NumFrames <= 0 || SampleRate <= 0 || (Channels != 1 && Channels != 2))
+	{
+		log_error("sound/pcm", "Invalid PCM sample. Context='%s'", pContextName ? pContextName : "");
+		return -1;
+	}
+
+	CSample *pSample = AllocSample();
+	if(!pSample)
+		return -1;
+
+	const size_t Samples = (size_t)NumFrames * (size_t)Channels;
+	const size_t Bytes = Samples * sizeof(short);
+	short *pCopy = static_cast<short *>(malloc(Bytes));
+	if(!pCopy)
+	{
+		UnloadSample(pSample->m_Index);
+		return -1;
+	}
+	mem_copy(pCopy, pInterleaved, Bytes);
+
+	pSample->m_pData = pCopy;
+	pSample->m_NumFrames = NumFrames;
+	pSample->m_Rate = SampleRate;
+	pSample->m_Channels = Channels;
+	pSample->m_LoopStart = 0;
+	pSample->m_PausedAt = 0;
+
+	RateConvert(*pSample);
+	return pSample->m_Index;
+}
+
 void CSound::UnloadSample(int SampleId)
 {
 	if(SampleId == -1)

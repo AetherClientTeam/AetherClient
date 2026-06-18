@@ -21,6 +21,7 @@ public:
 
 	virtual void Update() = 0;
 	virtual void InitiateUpdate() = 0;
+	virtual void ApplyUpdateAndRestart() = 0;
 
 	virtual EUpdaterState GetCurrentState() = 0;
 	virtual void GetCurrentFile(char *pBuf, int BufSize) = 0;

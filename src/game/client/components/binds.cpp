@@ -123,6 +123,17 @@ bool CBinds::OnInput(const IInput::CEvent &Event)
 
 	bool Handled = false;
 
+	const auto BuildExecutableBind = [&](const char *pBind, char *pOut, int OutSize) {
+		str_copy(pOut, pBind, OutSize);
+		if(g_Config.m_AeGoresMode &&
+			!GameClient()->m_Controls.m_WeaponsGot &&
+			str_find(pOut, "+fire") &&
+			!str_find(pOut, "+prevweapon"))
+		{
+			str_append(pOut, ";+prevweapon", OutSize);
+		}
+	};
+
 	if(Event.m_Flags & IInput::FLAG_PRESS)
 	{
 		auto ActiveBind = std::find_if(m_vActiveBinds.begin(), m_vActiveBinds.end(), [&](const CBindSlot &Bind) {
@@ -139,7 +150,9 @@ bool CBinds::OnInput(const IInput::CEvent &Event)
 						m_MouseOnAction = true;
 					}
 				}
-				Console()->ExecuteLineStroked(1, pBind, IConsole::CLIENT_ID_UNSPECIFIED);
+				char aBind[512];
+				BuildExecutableBind(pBind, aBind, sizeof(aBind));
+				Console()->ExecuteLineStroked(1, aBind, IConsole::CLIENT_ID_UNSPECIFIED);
 				m_vActiveBinds.emplace_back(Event.m_Key, Mask);
 			};
 
@@ -162,7 +175,9 @@ bool CBinds::OnInput(const IInput::CEvent &Event)
 			// Have to check for nullptr again because the previous execute can unbind itself
 			if(m_aapKeyBindings[ActiveBind->m_ModifierMask][ActiveBind->m_Key])
 			{
-				Console()->ExecuteLineStroked(1, m_aapKeyBindings[ActiveBind->m_ModifierMask][ActiveBind->m_Key], IConsole::CLIENT_ID_UNSPECIFIED);
+				char aBind[512];
+				BuildExecutableBind(m_aapKeyBindings[ActiveBind->m_ModifierMask][ActiveBind->m_Key], aBind, sizeof(aBind));
+				Console()->ExecuteLineStroked(1, aBind, IConsole::CLIENT_ID_UNSPECIFIED);
 			}
 			Handled = true;
 		}
@@ -184,7 +199,9 @@ bool CBinds::OnInput(const IInput::CEvent &Event)
 			{
 				return;
 			}
-			Console()->ExecuteLineStroked(0, m_aapKeyBindings[Bind.m_ModifierMask][Bind.m_Key], IConsole::CLIENT_ID_UNSPECIFIED);
+			char aBind[512];
+			BuildExecutableBind(m_aapKeyBindings[Bind.m_ModifierMask][Bind.m_Key], aBind, sizeof(aBind));
+			Console()->ExecuteLineStroked(0, aBind, IConsole::CLIENT_ID_UNSPECIFIED);
 		};
 
 		// Release active bind that uses this primary key

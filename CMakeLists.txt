@@ -122,10 +122,11 @@ endif()
 option(WEBSOCKETS "Enable websockets support" OFF)
 option(MYSQL "Enable mysql support" OFF)
 option(TEST_MYSQL "Test mysql support in unit tests (also sets -DMYSQL=ON)" OFF)
-option(AUTOUPDATE "Enable the autoupdater" OFF)
-if(AUTOUPDATE)
-  message(FATAL_ERROR "Aether autoupdate is disabled until an official signed update service is configured")
+set(AUTOUPDATE_DEFAULT OFF)
+if(TARGET_OS STREQUAL "windows")
+  set(AUTOUPDATE_DEFAULT ON)
 endif()
+option(AUTOUPDATE "Enable the autoupdater" ${AUTOUPDATE_DEFAULT})
 option(INFORM_UPDATE "Inform about available updates" ON)
 option(VIDEORECORDER "Enable video recording support via FFmpeg" ON)
 option(UPNP "Enable UPnP support" OFF)
@@ -742,7 +743,7 @@ endif()
 
 if(TARGET_OS STREQUAL "windows")
   set(PLATFORM_CLIENT)
-  set(PLATFORM_CLIENT_LIBS opengl32.lib winmm.lib imm32.lib)
+  set(PLATFORM_CLIENT_LIBS opengl32.lib winmm.lib imm32.lib windowsapp.lib Mmdevapi.lib windowscodecs.lib mfplat.lib mfreadwrite.lib mfuuid.lib)
   set(PLATFORM_LIBS)
   list(APPEND PLATFORM_LIBS shlwapi.lib) # PathIsRelativeW
   list(APPEND PLATFORM_LIBS version.lib) # GetFileVersionInfoSizeW
@@ -1038,6 +1039,78 @@ endif()
 ########################################################################
 
 set(EXPECTED_DATA
+  core/badges/chess_winner.png
+  core/badges/founder.png
+  core/badges/tester.png
+  core/ddrace_configs/deep_fly_off.cfg
+  core/ddrace_configs/deep_fly_on.cfg
+  core/ddrace_configs/edge2edge_off.cfg
+  core/ddrace_configs/edge2edge_on.cfg
+  core/ddrace_configs/show_others_off.cfg
+  core/ddrace_configs/show_others_on.cfg
+  core/ddrace_configs/super_off.cfg
+  core/ddrace_configs/super_on.cfg
+  core/logos/aether_1024.png
+  core/logos/aether_256.png
+  core/logos/aether_512.png
+  core/logos/aether_icon_large_1024.png
+  core/logos/aether_icon_large_256.png
+  core/logos/aether_icon_large_512.png
+  core/logos/aether_icon_medium_1024.png
+  core/logos/aether_icon_medium_256.png
+  core/logos/aether_icon_medium_512.png
+  core/logos/aether_icon_small_1024.png
+  core/logos/aether_icon_small_256.png
+  core/logos/aether_icon_small_512.png
+  core/logos/aether_lockup_1024.png
+  core/logos/aether_lockup_256.png
+  core/logos/aether_lockup_512.png
+  core/logos/manifest.json
+  core/logos/vera_1024.png
+  core/logos/vera_256.png
+  core/logos/vera_512.png
+  core/logos/vera_icon_large_1024.png
+  core/logos/vera_icon_large_256.png
+  core/logos/vera_icon_large_512.png
+  core/logos/vera_icon_medium_1024.png
+  core/logos/vera_icon_medium_256.png
+  core/logos/vera_icon_medium_512.png
+  core/logos/vera_icon_small_1024.png
+  core/logos/vera_icon_small_256.png
+  core/logos/vera_icon_small_512.png
+  core/logos/vera_lockup_1024.png
+  core/logos/vera_lockup_256.png
+  core/logos/vera_lockup_512.png
+  core/logos/vex_1024.png
+  core/logos/vex_256.png
+  core/logos/vex_512.png
+  core/logos/vex_icon_large_1024.png
+  core/logos/vex_icon_large_256.png
+  core/logos/vex_icon_large_512.png
+  core/logos/vex_icon_medium_1024.png
+  core/logos/vex_icon_medium_256.png
+  core/logos/vex_icon_medium_512.png
+  core/logos/vex_icon_small_1024.png
+  core/logos/vex_icon_small_256.png
+  core/logos/vex_icon_small_512.png
+  core/logos/vex_lockup_1024.png
+  core/logos/vex_lockup_256.png
+  core/logos/vex_lockup_512.png
+  core/logos/via_1024.png
+  core/logos/via_256.png
+  core/logos/via_512.png
+  core/logos/via_icon_large_1024.png
+  core/logos/via_icon_large_256.png
+  core/logos/via_icon_large_512.png
+  core/logos/via_icon_medium_1024.png
+  core/logos/via_icon_medium_256.png
+  core/logos/via_icon_medium_512.png
+  core/logos/via_icon_small_1024.png
+  core/logos/via_icon_small_256.png
+  core/logos/via_icon_small_512.png
+  core/logos/via_lockup_1024.png
+  core/logos/via_lockup_256.png
+  core/logos/via_lockup_512.png
   announcement.txt
   arrow.png
   assets/entities/comfort/ddnet.png
@@ -1611,6 +1684,7 @@ set(EXPECTED_DATA
   mapres/winter_mountains.png
   mapres/winter_mountains2.png
   mapres/winter_mountains3.png
+  maps/AllOfGores.map
   maps/Gold\ Mine.map
   maps/LearnToPlay.map
   maps/Sunny\ Side\ Up.map
@@ -2223,6 +2297,7 @@ set_src(ENGINE_SHARED GLOB_RECURSE src/engine/shared
   config_domains.h
   config_includes.h
   config_variables.h
+  config_variables_aether.h
   config_variables_tclient.h
   console.cpp
   console.h
@@ -2400,6 +2475,17 @@ set(LIBS
 add_library(engine-gfx EXCLUDE_FROM_ALL OBJECT ${ENGINE_GFX})
 target_include_directories(engine-gfx PRIVATE ${PNG_INCLUDE_DIRS})
 add_library(engine-shared EXCLUDE_FROM_ALL OBJECT ${ENGINE_EXTERNAL} ${ENGINE_INTERFACE} ${ENGINE_SHARED} ${ENGINE_UUID_SHARED} ${BASE})
+if(TARGET_OS STREQUAL "windows")
+  target_compile_definitions(engine-shared PRIVATE
+    PLAT_CLIENT_EXEC="${CLIENT_EXECUTABLE}.exe"
+    PLAT_SERVER_EXEC="${SERVER_EXECUTABLE}.exe"
+  )
+else()
+  target_compile_definitions(engine-shared PRIVATE
+    PLAT_CLIENT_EXEC="${CLIENT_EXECUTABLE}"
+    PLAT_SERVER_EXEC="${SERVER_EXECUTABLE}"
+  )
+endif()
 add_library(game-shared EXCLUDE_FROM_ALL OBJECT ${GAME_SHARED} ${GAME_GENERATED_SHARED})
 add_dependencies(engine-shared generate_protocol)
 add_dependencies(game-shared generate_protocol)
@@ -2509,6 +2595,59 @@ if(CLIENT)
     animstate.h
     component.cpp
     component.h
+    components/aether/aim_training.cpp
+    components/aether/aim_training.h
+    components/aether/audio_decoder.cpp
+    components/aether/audio_decoder.h
+    components/aether/auto_team_lock.cpp
+    components/aether/auto_team_lock.h
+    components/aether/badges.cpp
+    components/aether/badges.h
+    components/aether/block_awareness.cpp
+    components/aether/block_awareness.h
+    components/aether/browser_utils.cpp
+    components/aether/browser_utils.h
+    components/aether/browser_utils_helpers.cpp
+    components/aether/browser_utils_helpers.h
+    components/aether/chat_bubbles.cpp
+    components/aether/chat_bubbles.h
+    components/aether/client_variant.h
+    components/aether/crosshair_layer.cpp
+    components/aether/crosshair_layer.h
+    components/aether/fail_sound.cpp
+    components/aether/fail_sound.h
+    components/aether/finish_prediction.cpp
+    components/aether/finish_prediction.h
+    components/aether/gores_maps.cpp
+    components/aether/gores_maps.h
+    components/aether/input_visualizer.cpp
+    components/aether/input_visualizer.h
+    components/aether/keystrokes.cpp
+    components/aether/keystrokes.h
+    components/aether/media_backend.cpp
+    components/aether/media_backend.h
+    components/aether/music_player.cpp
+    components/aether/music_player.h
+    components/aether/music_player_helpers.cpp
+    components/aether/music_player_helpers.h
+    components/aether/optimizer.cpp
+    components/aether/optimizer.h
+    components/aether/psa.cpp
+    components/aether/psa.h
+    components/aether/real_hitbox.cpp
+    components/aether/real_hitbox.h
+    components/aether/realtime_client.cpp
+    components/aether/realtime_client.h
+    components/aether/rollback_demo.cpp
+    components/aether/rollback_demo.h
+    components/aether/session_stats.cpp
+    components/aether/session_stats.h
+    components/aether/stability_trainer.cpp
+    components/aether/stability_trainer.h
+    components/aether/three_d_particles.cpp
+    components/aether/three_d_particles.h
+    components/aether/vault_cfg.cpp
+    components/aether/vault_cfg.h
     components/background.cpp
     components/background.h
     components/binds.cpp
@@ -2567,6 +2706,7 @@ if(CLIENT)
     components/menu_background.h
     components/menus.cpp
     components/menus.h
+    components/menus_aether.cpp
     components/menus_browser.cpp
     components/menus_demo.cpp
     components/menus_ingame.cpp
@@ -2853,70 +2993,109 @@ if(CLIENT)
     set(CLIENT_MANIFEST)
   endif()
 
-  # Target
-  if(TARGET_OS STREQUAL "android")
-    add_library(game-client SHARED
-      ${CLIENT_SRC}
-      ${CLIENT_ICON}
-      ${CLIENT_VERSIONINFO}
-      ${CLIENT_MANIFEST}
-      ${DEPS_CLIENT}
-      $<TARGET_OBJECTS:engine-gfx>
-      $<TARGET_OBJECTS:engine-shared>
-      $<TARGET_OBJECTS:game-shared>
-      $<TARGET_OBJECTS:rust-bridge-shared>
+  function(add_aether_client_target TARGET_NAME OUTPUT_NAME VARIANT_KEY)
+    if(TARGET_OS STREQUAL "android")
+      add_library(${TARGET_NAME} SHARED
+        ${CLIENT_SRC}
+        ${CLIENT_ICON}
+        ${CLIENT_VERSIONINFO}
+        ${CLIENT_MANIFEST}
+        ${DEPS_CLIENT}
+        $<TARGET_OBJECTS:engine-gfx>
+        $<TARGET_OBJECTS:engine-shared>
+        $<TARGET_OBJECTS:game-shared>
+        $<TARGET_OBJECTS:rust-bridge-shared>
+      )
+    else()
+      add_executable(${TARGET_NAME} WIN32
+        ${CLIENT_SRC}
+        ${CLIENT_ICON}
+        ${CLIENT_VERSIONINFO}
+        ${CLIENT_MANIFEST}
+        ${DEPS_CLIENT}
+        $<TARGET_OBJECTS:engine-gfx>
+        $<TARGET_OBJECTS:engine-shared>
+        $<TARGET_OBJECTS:game-shared>
+        $<TARGET_OBJECTS:rust-bridge-shared>
+      )
+    endif()
+    set_property(TARGET ${TARGET_NAME}
+        PROPERTY OUTPUT_NAME ${OUTPUT_NAME}
     )
-  else()
-    add_executable(game-client WIN32
-      ${CLIENT_SRC}
-      ${CLIENT_ICON}
-      ${CLIENT_VERSIONINFO}
-      ${CLIENT_MANIFEST}
-      ${DEPS_CLIENT}
-      $<TARGET_OBJECTS:engine-gfx>
-      $<TARGET_OBJECTS:engine-shared>
-      $<TARGET_OBJECTS:game-shared>
-      $<TARGET_OBJECTS:rust-bridge-shared>
+    target_compile_definitions(${TARGET_NAME} PRIVATE
+      AETHER_CLIENT_VARIANT="${VARIANT_KEY}"
+      AETHER_CLIENT_IDENTITY="${VARIANT_KEY}"
+      AETHER_CLIENT_EXECUTABLE="${OUTPUT_NAME}"
+      CLIENT_EXECUTABLE="${OUTPUT_NAME}"
     )
-  endif()
-  set_property(TARGET game-client
-      PROPERTY OUTPUT_NAME ${CLIENT_EXECUTABLE}
-  )
-  target_link_libraries(game-client ${LIBS_CLIENT})
+    if(TARGET_OS STREQUAL "windows")
+      target_compile_definitions(${TARGET_NAME} PRIVATE
+        PLAT_CLIENT_EXEC="${OUTPUT_NAME}.exe"
+        PLAT_SERVER_EXEC="${SERVER_EXECUTABLE}.exe"
+      )
+    else()
+      target_compile_definitions(${TARGET_NAME} PRIVATE
+        PLAT_CLIENT_EXEC="${OUTPUT_NAME}"
+        PLAT_SERVER_EXEC="${SERVER_EXECUTABLE}"
+      )
+    endif()
+    target_link_libraries(${TARGET_NAME} ${LIBS_CLIENT})
 
-  if(MSVC)
-    target_compile_options(game-client PRIVATE /bigobj) # TClient, required for ChaiScript
-    target_link_options(game-client PRIVATE /ENTRY:mainCRTStartup)
-  endif()
+    if(MSVC)
+      target_compile_options(${TARGET_NAME} PRIVATE /bigobj) # TClient, required for ChaiScript
+      target_link_options(${TARGET_NAME} PRIVATE /ENTRY:mainCRTStartup)
+    endif()
 
-  if(WIN32 AND NOT MSVC)
-    target_compile_options(game-client PRIVATE -Wa,-mbig-obj) # TClient, required for ChaiScript
-  endif()
+    if(WIN32 AND NOT MSVC)
+      target_compile_options(${TARGET_NAME} PRIVATE -Wa,-mbig-obj) # TClient, required for ChaiScript
+    endif()
 
-  # Silence warnings from ChaiScript
-  target_include_directories(game-client SYSTEM PRIVATE
-    ${PROJECT_SOURCE_DIR}/src/engine/external/chaiscript)
+    # Silence warnings from ChaiScript
+    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
+      ${PROJECT_SOURCE_DIR}/src/engine/external/chaiscript)
 
-  target_include_directories(game-client SYSTEM PRIVATE
-    ${FREETYPE_INCLUDE_DIRS}
-    ${GLEW_INCLUDE_DIRS}
-    ${OGG_INCLUDE_DIRS}
-    ${OPUSFILE_INCLUDE_DIRS}
-    ${OPUS_INCLUDE_DIRS}
-    ${PNG_INCLUDE_DIRS}
-    ${SDL2_INCLUDE_DIRS}
-    ${WAVPACK_INCLUDE_DIRS}
-    ${FFMPEG_INCLUDE_DIRS}
-    ${DISCORDSDK_INCLUDE_DIRS}
+    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
+      ${FREETYPE_INCLUDE_DIRS}
+      ${GLEW_INCLUDE_DIRS}
+      ${OGG_INCLUDE_DIRS}
+      ${OPUSFILE_INCLUDE_DIRS}
+      ${OPUS_INCLUDE_DIRS}
+      ${PNG_INCLUDE_DIRS}
+      ${SDL2_INCLUDE_DIRS}
+      ${WAVPACK_INCLUDE_DIRS}
+      ${FFMPEG_INCLUDE_DIRS}
+      ${DISCORDSDK_INCLUDE_DIRS}
 
-    ${VULKAN_INCLUDE_DIRS}
+      ${VULKAN_INCLUDE_DIRS}
 
-    ${PLATFORM_CLIENT_INCLUDE_DIRS}
-  )
+      ${PLATFORM_CLIENT_INCLUDE_DIRS}
+    )
 
-  if(STEAMAPI_KIND STREQUAL SHARED OR DISCORD_DYNAMIC)
-    set_own_rpath(game-client)
-  endif()
+    if(STEAMAPI_KIND STREQUAL SHARED OR DISCORD_DYNAMIC)
+      set_own_rpath(${TARGET_NAME})
+    endif()
+
+    if(WAVPACK_OPEN_FILE_INPUT_EX)
+      target_compile_definitions(${TARGET_NAME} PRIVATE CONF_WAVPACK_OPEN_FILE_INPUT_EX)
+    endif()
+
+    if(WAVPACK_CLOSE_FILE)
+      target_compile_definitions(${TARGET_NAME} PRIVATE CONF_WAVPACK_CLOSE_FILE)
+    endif()
+
+    if(GLEW_BUNDLED)
+      target_compile_definitions(${TARGET_NAME} PRIVATE CONF_GLEW_HAS_CONTEXT_INIT)
+    endif()
+
+    if(VULKAN)
+      target_compile_definitions(${TARGET_NAME} PRIVATE CONF_BACKEND_VULKAN)
+    endif()
+
+    list(APPEND TARGETS_OWN ${TARGET_NAME})
+    list(APPEND TARGETS_LINK ${TARGET_NAME})
+    set(TARGETS_OWN ${TARGETS_OWN} PARENT_SCOPE)
+    set(TARGETS_LINK ${TARGETS_LINK} PARENT_SCOPE)
+  endfunction()
 
   set(PARAMS "${WAVPACK_INCLUDE_DIRS};${WAVPACK_INCLUDE_DIRS}")
   if(NOT(WAVPACK_OPEN_FILE_INPUT_EX_PARAMS STREQUAL PARAMS))
@@ -2931,24 +3110,11 @@ if(CLIENT)
   set(CMAKE_REQUIRED_INCLUDES ${ORIGINAL_CMAKE_REQUIRED_INCLUDES})
   set(CMAKE_REQUIRED_LIBRARIES ${ORIGINAL_CMAKE_REQUIRED_LIBRARIES})
 
-  if(WAVPACK_OPEN_FILE_INPUT_EX)
-    target_compile_definitions(game-client PRIVATE CONF_WAVPACK_OPEN_FILE_INPUT_EX)
-  endif()
-
-  if(WAVPACK_CLOSE_FILE)
-    target_compile_definitions(game-client PRIVATE CONF_WAVPACK_CLOSE_FILE)
-  endif()
-
-  if(GLEW_BUNDLED)
-    target_compile_definitions(game-client PRIVATE CONF_GLEW_HAS_CONTEXT_INIT)
-  endif()
-
-  if(VULKAN)
-    target_compile_definitions(game-client PRIVATE CONF_BACKEND_VULKAN)
-  endif()
-
-  list(APPEND TARGETS_OWN game-client)
-  list(APPEND TARGETS_LINK game-client)
+  add_aether_client_target(game-client Aether aether)
+  add_aether_client_target(game-client-vera Vera vera)
+  add_aether_client_target(game-client-via Via via)
+  add_aether_client_target(game-client-vex Vex vex)
+  add_custom_target(game-client-family DEPENDS game-client game-client-vera game-client-via game-client-vex)
 endif()
 
 
@@ -3255,6 +3421,8 @@ add_custom_command(OUTPUT ${PROJECT_BINARY_DIR}/src/generated/checksum.cpp
 
 if((GTEST_FOUND OR DOWNLOAD_GTEST) AND SERVER)
   set_src(TESTS GLOB src/test
+    aether_browser_utils_test.cpp
+    aether_music_player_test.cpp
     aio_test.cpp
     bezier_test.cpp
     blocklist_driver_test.cpp
@@ -3306,6 +3474,10 @@ if((GTEST_FOUND OR DOWNLOAD_GTEST) AND SERVER)
     windows_test.cpp
   )
   set(TESTS_EXTRA
+    src/game/client/components/aether/music_player_helpers.cpp
+    src/game/client/components/aether/music_player_helpers.h
+    src/game/client/components/aether/browser_utils_helpers.cpp
+    src/game/client/components/aether/browser_utils_helpers.h
     src/engine/client/blocklist_driver.cpp
     src/engine/client/blocklist_driver.h
     src/engine/client/serverbrowser.cpp

@@ -52,6 +52,12 @@ class CScoreboard : public CComponent
 		CButtonContainer m_FriendAction;
 		CButtonContainer m_MuteAction;
 		CButtonContainer m_EmoticonAction;
+		CButtonContainer m_CopySkinButton;
+		CButtonContainer m_CopyColorButton;
+		CButtonContainer m_BlockEnemyButton;
+		CButtonContainer m_BlockAllyButton;
+		CButtonContainer m_BlockHelperButton;
+		CButtonContainer m_BlockNeutralButton;
 
 		CButtonContainer m_SpectateButton;
 
@@ -93,6 +99,7 @@ public:
 	bool OnInput(const IInput::CEvent &Event) override;
 
 	bool IsActive() const;
+	void OpenPlayerPopup(int ClientId, bool IsSpectating);
 };
 
 #endif

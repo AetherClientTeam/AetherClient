@@ -24,6 +24,7 @@
 #include <game/client/components/tclient/bindchat.h>
 #include <game/client/components/tclient/bindwheel.h>
 #include <game/client/components/tclient/trails.h>
+#include <game/client/components/aether/client_variant.h>
 #include <game/client/gameclient.h>
 #include <game/client/render.h>
 #include <game/client/skin.h>
@@ -325,11 +326,11 @@ void CMenus::RenderSettingsTClient(CUIRect MainView)
 	int TabCount = NUMBER_OF_TCLIENT_TABS;
 	for(int Tab = 0; Tab < NUMBER_OF_TCLIENT_TABS; ++Tab)
 	{
-		if(IsFlagSet(g_Config.m_TcTClientSettingsTabs, Tab))
+		if(IsFlagSet(g_Config.m_TcTClientSettingsTabs, Tab) || (!AetherVariant::WarlistEnabled() && Tab == TCLIENT_TAB_WARLIST))
 		{
 			TabCount--;
 			if(s_CurCustomTab == Tab)
-				s_CurCustomTab++;
+				s_CurCustomTab = TCLIENT_TAB_SETTINGS;
 		}
 	}
 
@@ -346,7 +347,7 @@ void CMenus::RenderSettingsTClient(CUIRect MainView)
 
 	for(int Tab = 0; Tab < NUMBER_OF_TCLIENT_TABS; ++Tab)
 	{
-		if(IsFlagSet(g_Config.m_TcTClientSettingsTabs, Tab))
+		if(IsFlagSet(g_Config.m_TcTClientSettingsTabs, Tab) || (!AetherVariant::WarlistEnabled() && Tab == TCLIENT_TAB_WARLIST))
 			continue;
 
 		TabBar.VSplitLeft(TabWidth, &Button, &TabBar);
@@ -364,7 +365,7 @@ void CMenus::RenderSettingsTClient(CUIRect MainView)
 		RenderSettingsTClientChatBinds(MainView);
 	if(s_CurCustomTab == TCLIENT_TAB_BINDWHEEL)
 		RenderSettingsTClientBindWheel(MainView);
-	if(s_CurCustomTab == TCLIENT_TAB_WARLIST)
+	if(s_CurCustomTab == TCLIENT_TAB_WARLIST && AetherVariant::WarlistEnabled())
 		RenderSettingsTClientWarList(MainView);
 	if(s_CurCustomTab == TCLIENT_TAB_STATUSBAR)
 		RenderSettingsTClientStatusBar(MainView);
@@ -547,37 +548,14 @@ void CMenus::RenderSettingsTClientSettings(CUIRect MainView)
 	Column.HSplitTop(MarginExtraSmall, nullptr, &Column);
 	s_SectionBoxes.back().h = Column.y - s_SectionBoxes.back().y;
 
-	// ***** Input ***** //
-	Column.HSplitTop(MarginBetweenSections, nullptr, &Column);
-	s_SectionBoxes.push_back(Column);
-	Column.HSplitTop(HeadlineHeight, &Label, &Column);
-	Ui()->DoLabel(&Label, TCLocalize("Input"), HeadlineFontSize, TEXTALIGN_ML);
-	Column.HSplitTop(MarginSmall, nullptr, &Column);
-
-	DoButton_CheckBoxAutoVMarginAndSet(&g_Config.m_TcFastInput, TCLocalize("Fast Input (reduced visual delay)"), &g_Config.m_TcFastInput, &Column, LineSize);
-
-	Column.HSplitTop(LineSize, &Button, &Column);
-	DoSliderWithScaledValue(&g_Config.m_TcFastInputAmount, &g_Config.m_TcFastInputAmount, &Button, TCLocalize("Amount"), 1, 40, 1, &CUi::ms_LinearScrollbarScale, CUi::SCROLLBAR_OPTION_NOCLAMPVALUE, "ms");
-
-	Column.HSplitTop(MarginSmall, nullptr, &Column);
-	if(g_Config.m_TcFastInput)
-		DoButton_CheckBoxAutoVMarginAndSet(&g_Config.m_TcFastInputOthers, TCLocalize("Fast Input others"), &g_Config.m_TcFastInputOthers, &Column, LineSize);
-	else
-		Column.HSplitTop(LineSize, nullptr, &Column);
-
-	DoButton_CheckBoxAutoVMarginAndSet(&g_Config.m_ClSubTickAiming, TCLocalize("Sub-Tick aiming"), &g_Config.m_ClSubTickAiming, &Column, LineSize);
-
-	// A little extra spacing because these are multi line
-	Column.HSplitTop(MarginSmall, nullptr, &Column);
-
-	s_SectionBoxes.back().h = Column.y - s_SectionBoxes.back().y;
-
 	// ***** Anti Latency Tools ***** //
 	Column.HSplitTop(MarginBetweenSections, nullptr, &Column);
 	s_SectionBoxes.push_back(Column);
 	Column.HSplitTop(HeadlineHeight, &Label, &Column);
 	Ui()->DoLabel(&Label, TCLocalize("Anti Latency Tools"), HeadlineFontSize, TEXTALIGN_ML);
 	Column.HSplitTop(MarginSmall, nullptr, &Column);
+	Column.HSplitTop(LineSize, &Label, &Column);
+	Ui()->DoLabel(&Label, TCLocalize("Margin: lower feels faster, higher looks stabler. Freeze options reduce over-prediction while frozen."), FontSize * 0.72f, TEXTALIGN_ML);
 
 	Column.HSplitTop(LineSize, &Button, &Column);
 	Ui()->DoScrollbarOption(&g_Config.m_ClPredictionMargin, &g_Config.m_ClPredictionMargin, &Button, TCLocalize("Prediction Margin"), 10, 75, &CUi::ms_LinearScrollbarScale, CUi::SCROLLBAR_OPTION_NOCLAMPVALUE, "ms");
@@ -606,6 +584,8 @@ void CMenus::RenderSettingsTClientSettings(CUIRect MainView)
 	Column.HSplitTop(HeadlineHeight, &Label, &Column);
 	Ui()->DoLabel(&Label, TCLocalize("Anti Ping Smoothing"), HeadlineFontSize, TEXTALIGN_ML);
 	Column.HSplitTop(MarginSmall, nullptr, &Column);
+	Column.HSplitTop(LineSize, &Label, &Column);
+	Ui()->DoLabel(&Label, TCLocalize("Smoothing remembers recent jitter and predicts stable movement more confidently."), FontSize * 0.72f, TEXTALIGN_ML);
 
 	DoButton_CheckBoxAutoVMarginAndSet(&g_Config.m_TcAntiPingImproved, TCLocalize("Use new smoothing algorithm"), &g_Config.m_TcAntiPingImproved, &Column, LineSize);
 	DoButton_CheckBoxAutoVMarginAndSet(&g_Config.m_TcAntiPingStableDirection, TCLocalize("Optimistic prediction in stable direction"), &g_Config.m_TcAntiPingStableDirection, &Column, LineSize);
@@ -717,7 +697,8 @@ void CMenus::RenderSettingsTClientSettings(CUIRect MainView)
 	DoButton_CheckBoxAutoVMarginAndSet(&g_Config.m_TcPlayerIndicatorFreeze, TCLocalize("Show only freeze Players"), &g_Config.m_TcPlayerIndicatorFreeze, &Column, LineSize);
 	DoButton_CheckBoxAutoVMarginAndSet(&g_Config.m_TcIndicatorTeamOnly, TCLocalize("Only show after joining a team"), &g_Config.m_TcIndicatorTeamOnly, &Column, LineSize);
 	DoButton_CheckBoxAutoVMarginAndSet(&g_Config.m_TcIndicatorTees, TCLocalize("Render tiny tees instead of circles"), &g_Config.m_TcIndicatorTees, &Column, LineSize);
-	DoButton_CheckBoxAutoVMarginAndSet(&g_Config.m_TcWarListIndicator, TCLocalize("Use warlist groups for indicator"), &g_Config.m_TcWarListIndicator, &Column, LineSize);
+	if(AetherVariant::WarlistEnabled())
+		DoButton_CheckBoxAutoVMarginAndSet(&g_Config.m_TcWarListIndicator, TCLocalize("Use warlist groups for indicator"), &g_Config.m_TcWarListIndicator, &Column, LineSize);
 	Column.HSplitTop(LineSize, &Button, &Column);
 	Ui()->DoScrollbarOption(&g_Config.m_TcIndicatorRadius, &g_Config.m_TcIndicatorRadius, &Button, TCLocalize("Indicator size"), 1, 16);
 	Column.HSplitTop(LineSize, &Button, &Column);
@@ -738,7 +719,7 @@ void CMenus::RenderSettingsTClientSettings(CUIRect MainView)
 		Ui()->DoScrollbarOption(&g_Config.m_TcIndicatorOffset, &g_Config.m_TcIndicatorOffset, &Button, TCLocalize("Indicator offset"), 16, 200);
 		Column.HSplitTop(LineSize * 2, nullptr, &Column);
 	}
-	if(g_Config.m_TcWarListIndicator)
+	if(AetherVariant::WarlistEnabled() && g_Config.m_TcWarListIndicator)
 	{
 		DoButton_CheckBoxAutoVMarginAndSet(&g_Config.m_TcWarListIndicatorColors, TCLocalize("Use warlist colors instead of regular colors"), &g_Config.m_TcWarListIndicatorColors, &Column, LineSize);
 		char aBuf[128];
@@ -748,7 +729,7 @@ void CMenus::RenderSettingsTClientSettings(CUIRect MainView)
 		str_format(aBuf, sizeof(aBuf), "Show %s group", GameClient()->m_WarList.m_WarTypes.at(2)->m_aWarName);
 		DoButton_CheckBoxAutoVMarginAndSet(&g_Config.m_TcWarListIndicatorTeam, aBuf, &g_Config.m_TcWarListIndicatorTeam, &Column, LineSize);
 	}
-	if(!g_Config.m_TcWarListIndicatorColors || !g_Config.m_TcWarListIndicator)
+	if(!AetherVariant::WarlistEnabled() || !g_Config.m_TcWarListIndicatorColors || !g_Config.m_TcWarListIndicator)
 	{
 		static CButtonContainer s_IndicatorAliveColorId, s_IndicatorDeadColorId, s_IndicatorSavedColorId;
 		DoLine_ColorPicker(&s_IndicatorAliveColorId, ColorPickerLineSize, ColorPickerLabelSize, ColorPickerLineSpacing, &Column, TCLocalize("Indicator alive color"), &g_Config.m_TcIndicatorAlive, ColorRGBA(0.0f, 0.0f, 0.0f), false);

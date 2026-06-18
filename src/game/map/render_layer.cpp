@@ -304,6 +304,18 @@ void CRenderLayerTile::RenderTileLayer(const ColorRGBA &Color, const CRenderLaye
 	int ScreenRectX0 = std::floor(ScreenX0 / 32);
 	int ScreenRectY1 = std::ceil(ScreenY1 / 32);
 	int ScreenRectX1 = std::ceil(ScreenX1 / 32);
+	const bool FpsFogCullActive = g_Config.m_AeOptimizer && g_Config.m_AeOptimizerFpsFog && g_Config.m_AeOptimizerFpsFogCullTiles &&
+				      Params.m_RenderType != ERenderType::RENDERTYPE_FULL_DESIGN && Params.m_EntityOverlayVal < 100;
+	if(FpsFogCullActive)
+	{
+		const int VisibleRadius = g_Config.m_AeOptimizerFpsFogRadius;
+		const int CenterTileX = std::round(Params.m_Center.x / 32.0f);
+		const int CenterTileY = std::round(Params.m_Center.y / 32.0f);
+		ScreenRectX0 = std::max(ScreenRectX0, CenterTileX - VisibleRadius);
+		ScreenRectX1 = std::min(ScreenRectX1, CenterTileX + VisibleRadius + 1);
+		ScreenRectY0 = std::max(ScreenRectY0, CenterTileY - VisibleRadius);
+		ScreenRectY1 = std::min(ScreenRectY1, CenterTileY + VisibleRadius + 1);
+	}
 
 	if(IsVisibleInClipRegion(m_LayerClip))
 	{
@@ -343,7 +355,7 @@ void CRenderLayerTile::RenderTileLayer(const ColorRGBA &Color, const CRenderLaye
 		}
 	}
 
-	if(Params.m_RenderTileBorder && (ScreenRectX1 > (int)Visuals.m_Width || ScreenRectY1 > (int)Visuals.m_Height || ScreenRectX0 < 0 || ScreenRectY0 < 0))
+	if(Params.m_RenderTileBorder && !FpsFogCullActive && (ScreenRectX1 > (int)Visuals.m_Width || ScreenRectY1 > (int)Visuals.m_Height || ScreenRectX0 < 0 || ScreenRectY0 < 0))
 	{
 		RenderTileBorder(Color, ScreenRectX0, ScreenRectY0, ScreenRectX1, ScreenRectY1, &Visuals);
 	}

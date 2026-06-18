@@ -25,6 +25,7 @@ CControls::CControls()
 	std::fill(std::begin(m_aMousePosOnAction), std::end(m_aMousePosOnAction), vec2(0.0f, 0.0f));
 	std::fill(std::begin(m_aTargetPos), std::end(m_aTargetPos), vec2(0.0f, 0.0f));
 	std::fill(std::begin(m_aMouseInputType), std::end(m_aMouseInputType), EMouseInputType::ABSOLUTE);
+	std::fill(std::begin(m_aSnapTapLastDirection), std::end(m_aSnapTapLastDirection), 0);
 }
 
 void CControls::OnReset()
@@ -36,6 +37,7 @@ void CControls::OnReset()
 		AmmoCount = 0;
 
 	m_LastSendTime = 0;
+	m_WeaponsGot = false;
 }
 
 void CControls::ResetInput(int Dummy)
@@ -50,18 +52,21 @@ void CControls::ResetInput(int Dummy)
 
 	m_aInputDirectionLeft[Dummy] = 0;
 	m_aInputDirectionRight[Dummy] = 0;
+	m_aSnapTapLastDirection[Dummy] = 0;
 }
 
 void CControls::OnPlayerDeath()
 {
 	for(int &AmmoCount : m_aAmmoCount)
 		AmmoCount = 0;
+	m_WeaponsGot = false;
 }
 
 struct CInputState
 {
 	CControls *m_pControls;
 	int *m_apVariables[NUM_DUMMIES];
+	int m_Direction = 0;
 };
 
 void CControls::ConKeyInputState(IConsole::IResult *pResult, void *pUserData)
@@ -71,7 +76,11 @@ void CControls::ConKeyInputState(IConsole::IResult *pResult, void *pUserData)
 	if(pState->m_pControls->GameClient()->m_GameInfo.m_BugDDRaceInput && pState->m_pControls->GameClient()->m_Snap.m_SpecInfo.m_Active)
 		return;
 
-	*pState->m_apVariables[g_Config.m_ClDummy] = pResult->GetInteger(0);
+	int *pVariable = pState->m_apVariables[g_Config.m_ClDummy];
+	const int Pressed = pResult->GetInteger(0);
+	if(pState->m_Direction != 0 && Pressed && !*pVariable)
+		pState->m_pControls->m_aSnapTapLastDirection[g_Config.m_ClDummy] = pState->m_Direction;
+	*pVariable = Pressed;
 }
 
 void CControls::ConKeyInputCounter(IConsole::IResult *pResult, void *pUserData)
@@ -110,15 +119,39 @@ void CControls::ConKeyInputNextPrevWeapon(IConsole::IResult *pResult, void *pUse
 	pSet->m_pControls->m_aInputData[g_Config.m_ClDummy].m_WantedWeapon = 0;
 }
 
+void CControls::GoresMode()
+{
+	if(!GameClient()->m_Snap.m_pLocalCharacter)
+		return;
+	if(!g_Config.m_AeGoresMode)
+		return;
+
+	const CCharacterCore Core = GameClient()->m_PredictedPrevChar;
+
+	if(g_Config.m_AeGoresModeDisableIfWeapons)
+	{
+		if(Core.m_aWeapons[WEAPON_GRENADE].m_Got || Core.m_aWeapons[WEAPON_LASER].m_Got || Core.m_aWeapons[WEAPON_SHOTGUN].m_Got)
+			m_WeaponsGot = true;
+		if(!Core.m_aWeapons[WEAPON_GRENADE].m_Got && !Core.m_aWeapons[WEAPON_LASER].m_Got && !Core.m_aWeapons[WEAPON_SHOTGUN].m_Got && m_WeaponsGot)
+			m_WeaponsGot = false;
+
+		if(m_WeaponsGot)
+			return;
+	}
+
+	if(GameClient()->m_Snap.m_pLocalCharacter->m_Weapon == WEAPON_HAMMER)
+		m_aInputData[g_Config.m_ClDummy].m_WantedWeapon = WEAPON_GUN + 1;
+}
+
 void CControls::OnConsoleInit()
 {
 	// game commands
 	{
-		static CInputState s_State = {this, {&m_aInputDirectionLeft[0], &m_aInputDirectionLeft[1]}};
+		static CInputState s_State = {this, {&m_aInputDirectionLeft[0], &m_aInputDirectionLeft[1]}, -1};
 		Console()->Register("+left", "", CFGFLAG_CLIENT, ConKeyInputState, &s_State, "Move left");
 	}
 	{
-		static CInputState s_State = {this, {&m_aInputDirectionRight[0], &m_aInputDirectionRight[1]}};
+		static CInputState s_State = {this, {&m_aInputDirectionRight[0], &m_aInputDirectionRight[1]}, 1};
 		Console()->Register("+right", "", CFGFLAG_CLIENT, ConKeyInputState, &s_State, "Move right");
 	}
 	{
@@ -183,6 +216,8 @@ void CControls::OnMessage(int Msg, void *pRawMsg)
 
 int CControls::SnapInput(int *pData)
 {
+	GoresMode();
+
 	// update player state
 	if(GameClient()->m_Chat.IsActive())
 		m_aInputData[g_Config.m_ClDummy].m_PlayerFlags = PLAYERFLAG_CHATTING;
@@ -217,6 +252,9 @@ int CControls::SnapInput(int *pData)
 	if(g_Config.m_TcHideChatBubbles && Client()->RconAuthed())
 		for(auto &InputData : m_aInputData)
 			InputData.m_PlayerFlags &= ~PLAYERFLAG_CHATTING;
+
+	if(g_Config.m_AeSilentTyping)
+		m_aInputData[g_Config.m_ClDummy].m_PlayerFlags &= ~PLAYERFLAG_CHATTING;
 
 	if(g_Config.m_TcNameplatePingCircle)
 		for(auto &InputData : m_aInputData)
@@ -281,10 +319,7 @@ int CControls::SnapInput(int *pData)
 
 		// set direction
 		m_aInputData[g_Config.m_ClDummy].m_Direction = 0;
-		if(m_aInputDirectionLeft[g_Config.m_ClDummy] && !m_aInputDirectionRight[g_Config.m_ClDummy])
-			m_aInputData[g_Config.m_ClDummy].m_Direction = -1;
-		if(!m_aInputDirectionLeft[g_Config.m_ClDummy] && m_aInputDirectionRight[g_Config.m_ClDummy])
-			m_aInputData[g_Config.m_ClDummy].m_Direction = 1;
+		m_aInputData[g_Config.m_ClDummy].m_Direction = DirectionForInput(g_Config.m_ClDummy);
 
 		// dummy copy moves
 		if(g_Config.m_ClDummyCopyMoves)
@@ -516,10 +551,7 @@ bool CControls::CheckNewInput()
 		if(Dummy == g_Config.m_ClDummy)
 		{
 			TestInput.m_Direction = 0;
-			if(m_aInputDirectionLeft[Dummy] && !m_aInputDirectionRight[Dummy])
-				TestInput.m_Direction = -1;
-			if(!m_aInputDirectionLeft[Dummy] && m_aInputDirectionRight[Dummy])
-				TestInput.m_Direction = 1;
+			TestInput.m_Direction = DirectionForInput(Dummy);
 		}
 
 		if(m_aFastInput[Dummy].m_Direction != TestInput.m_Direction)
@@ -576,4 +608,22 @@ bool CControls::CheckNewInput()
 		return true;
 	else
 		return false;
+}
+
+int CControls::DirectionForInput(int Dummy) const
+{
+	const bool Left = m_aInputDirectionLeft[Dummy] != 0;
+	const bool Right = m_aInputDirectionRight[Dummy] != 0;
+	if(g_Config.m_AeSnapTap && Left && Right)
+	{
+		if(m_aSnapTapLastDirection[Dummy] == -1)
+			return -1;
+		if(m_aSnapTapLastDirection[Dummy] == 1)
+			return 1;
+	}
+	if(Left && !Right)
+		return -1;
+	if(!Left && Right)
+		return 1;
+	return 0;
 }

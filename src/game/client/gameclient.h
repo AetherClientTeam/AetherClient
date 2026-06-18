@@ -28,6 +28,27 @@
 
 // components
 #include "components/background.h"
+#include "components/aether/aim_training.h"
+#include "components/aether/auto_team_lock.h"
+#include "components/aether/badges.h"
+#include "components/aether/block_awareness.h"
+#include "components/aether/browser_utils.h"
+#include "components/aether/chat_bubbles.h"
+#include "components/aether/crosshair_layer.h"
+#include "components/aether/fail_sound.h"
+#include "components/aether/finish_prediction.h"
+#include "components/aether/gores_maps.h"
+#include "components/aether/input_visualizer.h"
+#include "components/aether/keystrokes.h"
+#include "components/aether/music_player.h"
+#include "components/aether/optimizer.h"
+#include "components/aether/psa.h"
+#include "components/aether/real_hitbox.h"
+#include "components/aether/rollback_demo.h"
+#include "components/aether/session_stats.h"
+#include "components/aether/stability_trainer.h"
+#include "components/aether/three_d_particles.h"
+#include "components/aether/vault_cfg.h"
 #include "components/binds.h"
 #include "components/broadcast.h"
 #include "components/camera.h"
@@ -179,6 +200,27 @@ public:
 	CCountryFlags m_CountryFlags;
 	CFlow m_Flow;
 	CHud m_Hud;
+	CAetherAimTraining m_AetherAimTraining;
+	CAetherAutoTeamLock m_AetherAutoTeamLock;
+	CAetherBadges m_AetherBadges;
+	CAetherBlockAwareness m_AetherBlockAwareness;
+	CAetherBrowserUtils m_AetherBrowserUtils;
+	CAetherChatBubbles m_AetherChatBubbles;
+	CAetherCrosshairLayer m_AetherCrosshairLayer;
+	CAetherFailSound m_AetherFailSound;
+	CAetherFinishPrediction m_AetherFinishPrediction;
+	CAetherGoresMaps m_AetherGoresMaps;
+	CAetherInputVisualizer m_AetherInputVisualizer;
+	CAetherKeystrokes m_AetherKeystrokes;
+	CAetherMusicPlayer m_AetherMusicPlayer;
+	CAetherOptimizer m_AetherOptimizer;
+	CAetherPsa m_AetherPsa;
+	CAetherRealHitbox m_AetherRealHitbox;
+	CAetherRollbackDemo m_AetherRollbackDemo;
+	CAetherSessionStats m_AetherSessionStats;
+	CAetherStabilityTrainer m_AetherStabilityTrainer;
+	CAetherThreeDParticles m_AetherThreeDParticles;
+	CAetherVaultCfg m_AetherVaultCfg;
 	CImportantAlert m_ImportantAlert;
 	CDebugHud m_DebugHud;
 	CControls m_Controls;
@@ -284,9 +326,40 @@ private:
 	int m_aCheckInfo[NUM_DUMMIES];
 
 	char m_aDDNetVersionStr[64];
+	struct SAetherPerfComponentTiming
+	{
+		char m_aName[64];
+		double m_TotalMs = 0.0;
+		double m_MaxMs = 0.0;
+		int m_Calls = 0;
+	};
+	bool m_AetherPerfSpikes = false;
+	bool m_AetherPerfPendingRecord = false;
+	bool m_AetherPerfRecording = false;
+	bool m_AetherPerfQuitAfterDump = false;
+	bool m_AetherPerfPendingQuitAfterDump = false;
+	int m_AetherPerfPendingSeconds = 0;
+	int64_t m_AetherPerfRecordEnd = 0;
+	int64_t m_AetherPerfLastSpikeLog = 0;
+	char m_aAetherPerfPendingDumpPath[512] = "";
+	char m_aAetherPerfAutoDumpPath[512] = "";
+	std::vector<float> m_vAetherPerfFrameMs;
+	std::vector<SAetherPerfComponentTiming> m_vAetherPerfComponents;
+	void AetherPerfQueueRecord(int Seconds, const char *pAutoDumpPath = nullptr, bool QuitAfterDump = false);
+	void AetherPerfStartRecord(int Seconds, const char *pAutoDumpPath = nullptr, bool QuitAfterDump = false);
+	bool AetherPerfDump(const char *pPath);
+	void AetherPerfAddFrame(float FrameMs);
+	void AetherPerfTrackComponent(size_t Index, const CComponent *pComponent, const char *pPhase, double Ms);
+	void AetherPerfMaybeStartPending();
+	void AetherPerfMaybeFinish();
+	const char *AetherPerfComponentBaseName(const CComponent *pComponent) const;
 	static void ConTeam(IConsole::IResult *pResult, void *pUserData);
 	static void ConKill(IConsole::IResult *pResult, void *pUserData);
 	static void ConReadyChange7(IConsole::IResult *pResult, void *pUserData);
+	static void ConAetherPerfSpikes(IConsole::IResult *pResult, void *pUserData);
+	static void ConAetherPerfRecord(IConsole::IResult *pResult, void *pUserData);
+	static void ConAetherPerfDump(IConsole::IResult *pResult, void *pUserData);
+	static void ConAetherPerfBenchmark(IConsole::IResult *pResult, void *pUserData);
 
 	static void ConchainLanguageUpdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
 	static void ConchainSpecialInfoupdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
@@ -569,6 +642,13 @@ public:
 		int64_t m_aSmoothLen[2];
 		vec2 m_aPredPos[200];
 		int m_aPredTick[200];
+		vec2 m_AetherFastRenderPos;
+		bool m_AetherFastRenderPosValid;
+		int m_AetherFastInteractionState;
+		float m_AetherFastSaveWindow;
+		int m_AetherFastLastFreezeTime;
+		vec2 m_AetherFastLastVel;
+		bool m_AetherFastLastVelValid;
 		bool m_SpecCharPresent;
 		vec2 m_SpecChar;
 
@@ -747,6 +827,10 @@ public:
 	const CTuningParams *GetTuning(int i) const { return &m_aTuningList[i]; }
 	ColorRGBA GetDDTeamColor(int DDTeam, float Lightness = 0.5f) const;
 	void FormatClientId(int ClientId, char (&aClientId)[16], EClientIdFormat Format) const;
+	bool AetherIsLocalClientId(int ClientId) const;
+	int AetherClosestClientId(vec2 Pos, float Radius) const;
+	bool AetherShouldPlayGameplayWorldSound(int SoundId, vec2 SoundPos) const;
+	bool AetherShouldPlayGameplayPredictedSound(int SoundId, int ActorClientId) const;
 
 	CGameWorld m_GameWorld;
 	CGameWorld m_PredictedWorld;

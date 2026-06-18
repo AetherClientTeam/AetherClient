@@ -38,16 +38,29 @@ class CPlayers : public CComponent
 		const CNetObj_Character *pPrevChar,
 		const CNetObj_Character *pPlayerChar,
 		int ClientId);
+	void RenderAetherOrbitAura(int ClientId);
 	bool IsPlayerInfoAvailable(int ClientId) const;
 
 	int m_WeaponEmoteQuadContainerIndex;
 	int m_aWeaponSpriteMuzzleQuadContainerIndex[NUM_WEAPONS];
+	float m_AetherOrbitAuraIdleTime = 0.0f;
+	float m_AetherOrbitAuraVisibility = 0.0f;
+	float m_aAetherJellyScaleX[MAX_CLIENTS] = {};
+	float m_aAetherJellyScaleY[MAX_CLIENTS] = {};
+	float m_aAetherJellyVelocityX[MAX_CLIENTS] = {};
+	float m_aAetherJellyVelocityY[MAX_CLIENTS] = {};
+	float m_aAetherJellyPrevVelY[MAX_CLIENTS] = {};
+	float m_aAetherJellyImpact[MAX_CLIENTS] = {};
+	float m_aAetherJellyLandingTime[MAX_CLIENTS] = {};
+	bool m_aAetherJellyGrounded[MAX_CLIENTS] = {};
 
 	void CreateNinjaTeeRenderInfo();
 	void CreateSpectatorTeeRenderInfo();
+	void CreateAetherBlockTeeRenderInfo();
 
 	std::shared_ptr<CManagedTeeRenderInfo> m_pNinjaTeeRenderInfo;
 	std::shared_ptr<CManagedTeeRenderInfo> m_pSpectatorTeeRenderInfo;
+	std::shared_ptr<CManagedTeeRenderInfo> m_pAetherBlockTeeRenderInfo;
 
 public:
 	float GetPlayerTargetAngle(
@@ -62,6 +75,8 @@ public:
 
 	const std::shared_ptr<CManagedTeeRenderInfo> &NinjaTeeRenderInfo() const { return m_pNinjaTeeRenderInfo; }
 	const std::shared_ptr<CManagedTeeRenderInfo> &SpectatorTeeRenderInfo() const { return m_pSpectatorTeeRenderInfo; }
+	const std::shared_ptr<CManagedTeeRenderInfo> &AetherBlockTeeRenderInfo() const { return m_pAetherBlockTeeRenderInfo; }
+	bool EnsureAetherBlockTeeRenderInfoReady();
 };
 
 #endif

@@ -7,6 +7,7 @@
 
 #include <engine/demo.h>
 #include <engine/graphics.h>
+#include <engine/shared/config.h>
 
 #include <generated/client_data.h>
 
@@ -41,6 +42,9 @@ void CParticles::OnReset()
 
 void CParticles::Add(int Group, CParticle *pPart, float TimePassed)
 {
+	if(g_Config.m_AeOptimizer && g_Config.m_AeOptimizerDisableParticles)
+		return;
+
 	if(Client()->State() == IClient::STATE_DEMOPLAYBACK)
 	{
 		const IDemoPlayer::CInfo *pInfo = DemoPlayer()->BaseInfo();
@@ -146,6 +150,12 @@ void CParticles::Update(float TimePassed)
 
 void CParticles::OnRender()
 {
+	if(g_Config.m_AeOptimizer && g_Config.m_AeOptimizerDisableParticles)
+	{
+		m_LastRenderTime = time();
+		return;
+	}
+
 	if(Client()->State() != IClient::STATE_ONLINE && Client()->State() != IClient::STATE_DEMOPLAYBACK)
 		return;
 

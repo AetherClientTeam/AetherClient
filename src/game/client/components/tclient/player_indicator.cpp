@@ -4,6 +4,7 @@
 #include <engine/shared/config.h>
 
 #include <game/client/animstate.h>
+#include <game/client/components/aether/client_variant.h>
 #include <game/client/gameclient.h>
 #include <game/client/render.h>
 
@@ -99,7 +100,7 @@ void CPlayerIndicator::OnRender()
 				}
 				bool HideIfNotWar = false;
 				ColorRGBA PrevCol = Col;
-				if(g_Config.m_TcWarListIndicator)
+				if(AetherVariant::WarlistEnabled() && g_Config.m_TcWarListIndicator)
 				{
 					HideIfNotWar = true;
 					if(g_Config.m_TcWarListIndicatorAll)

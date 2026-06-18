@@ -2,6 +2,8 @@
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include "menus.h"
 
+#include "aether/browser_utils_helpers.h"
+
 #include <base/log.h>
 #include <base/time.h>
 
@@ -22,6 +24,8 @@
 #include <game/client/ui.h>
 #include <game/client/ui_listbox.h>
 #include <game/localization.h>
+
+#include <string>
 
 static constexpr ColorRGBA HIGHLIGHTED_TEXT_COLOR = ColorRGBA(0.4f, 0.4f, 1.0f, 1.0f);
 
@@ -391,17 +395,19 @@ void CMenus::RenderServerbrowserServerList(CUIRect View, bool &WasListboxItemAct
 				Props.m_MaxWidth = Button.w;
 				Props.m_StopAtEnd = true;
 				Props.m_EnableWidthCheck = false;
+				const std::string AetherDisplayName = g_Config.m_AeBrowserUtils && g_Config.m_AeBrowserShortKoGNames ? AetherBrowserUtils::ShortKoGServerName(pItem->m_aName) : std::string(pItem->m_aName);
+				const char *pDisplayName = AetherDisplayName.c_str();
 				bool Printed = false;
 				if(g_Config.m_BrFilterString[0] && (pItem->m_QuickSearchHit & IServerBrowser::QUICK_SERVERNAME))
-					Printed = PrintHighlighted(pItem->m_aName, [&](const char *pFilteredStr, const int FilterLen) {
-						Ui()->DoLabelStreamed(*pUiElement->Rect(UI_ELEM_NAME_1), &Button, pItem->m_aName, FontSize, TEXTALIGN_ML, Props, (int)(pFilteredStr - pItem->m_aName));
+					Printed = PrintHighlighted(pDisplayName, [&](const char *pFilteredStr, const int FilterLen) {
+						Ui()->DoLabelStreamed(*pUiElement->Rect(UI_ELEM_NAME_1), &Button, pDisplayName, FontSize, TEXTALIGN_ML, Props, (int)(pFilteredStr - pDisplayName));
 						TextRender()->TextColor(HIGHLIGHTED_TEXT_COLOR);
 						Ui()->DoLabelStreamed(*pUiElement->Rect(UI_ELEM_NAME_2), &Button, pFilteredStr, FontSize, TEXTALIGN_ML, Props, FilterLen, &pUiElement->Rect(UI_ELEM_NAME_1)->m_Cursor);
 						TextRender()->TextColor(TextRender()->DefaultTextColor());
 						Ui()->DoLabelStreamed(*pUiElement->Rect(UI_ELEM_NAME_3), &Button, pFilteredStr + FilterLen, FontSize, TEXTALIGN_ML, Props, -1, &pUiElement->Rect(UI_ELEM_NAME_2)->m_Cursor);
 					});
 				if(!Printed)
-					Ui()->DoLabelStreamed(*pUiElement->Rect(UI_ELEM_NAME_1), &Button, pItem->m_aName, FontSize, TEXTALIGN_ML, Props);
+					Ui()->DoLabelStreamed(*pUiElement->Rect(UI_ELEM_NAME_1), &Button, pDisplayName, FontSize, TEXTALIGN_ML, Props);
 			}
 			else if(Id == COL_GAMETYPE)
 			{
@@ -447,17 +453,37 @@ void CMenus::RenderServerbrowserServerList(CUIRect View, bool &WasListboxItemAct
 			}
 			else if(Id == COL_FRIENDS)
 			{
+				const char *pAetherClientKey = nullptr;
+				for(int OnlineIndex = 0; OnlineIndex < GameClient()->m_AetherBadges.AetherOnlineCount(); ++OnlineIndex)
+				{
+					const auto *pOnline = GameClient()->m_AetherBadges.AetherOnlinePlayer(OnlineIndex);
+					if(pOnline && pOnline->m_aServerAddress[0] && str_comp(pOnline->m_aServerAddress, pItem->m_aAddress) == 0)
+					{
+						pAetherClientKey = pOnline->m_aClient;
+						break;
+					}
+				}
 				if(pItem->m_FriendState != IFriends::FRIEND_NO)
 				{
-					RenderBrowserIcons(*pUiElement->Rect(UI_ELEM_FRIEND_ICON), &Button, ColorRGBA(0.94f, 0.4f, 0.4f, 1.0f), TextRender()->DefaultTextOutlineColor(), FontIcon::HEART, TEXTALIGN_MC);
+					CUIRect HeartSlot = Button;
+					if(pAetherClientKey)
+						Button.VSplitLeft(Button.w * 0.48f, &HeartSlot, &Button);
+					RenderBrowserIcons(*pUiElement->Rect(UI_ELEM_FRIEND_ICON), &HeartSlot, ColorRGBA(0.94f, 0.4f, 0.4f, 1.0f), TextRender()->DefaultTextOutlineColor(), FontIcon::HEART, TEXTALIGN_MC);
 
 					if(pItem->m_FriendNum > 1)
 					{
 						str_format(aTemp, sizeof(aTemp), "%d", pItem->m_FriendNum);
 						TextRender()->TextColor(0.94f, 0.8f, 0.8f, 1.0f);
-						Ui()->DoLabel(&Button, aTemp, 9.0f, TEXTALIGN_MC);
+						Ui()->DoLabel(&HeartSlot, aTemp, 9.0f, TEXTALIGN_MC);
 						TextRender()->TextColor(TextRender()->DefaultTextColor());
 					}
+				}
+				if(pAetherClientKey)
+				{
+					CUIRect IconSlot = Button;
+					IconSlot.Margin(2.0f, &IconSlot);
+					const float IconSize = minimum(IconSlot.w, IconSlot.h);
+					GameClient()->m_AetherBadges.RenderClientBadgeKey(pAetherClientKey, IconSlot.x + (IconSlot.w - IconSize) * 0.5f, IconSlot.y + (IconSlot.h - IconSize) * 0.5f, IconSize, 1.0f);
 				}
 			}
 			else if(Id == COL_PLAYERS)
@@ -1773,6 +1799,100 @@ void CMenus::RenderServerbrowserFriends(CUIRect View)
 	}
 }
 
+void CMenus::RenderServerbrowserAether(CUIRect View)
+{
+	const float FontSize = 10.0f;
+	const float SpacingH = 3.0f;
+	GameClient()->m_AetherBadges.RequestAetherOnline(false);
+
+	CUIRect Header, List;
+	View.Margin(5.0f, &View);
+	View.HSplitTop(24.0f, &Header, &List);
+
+	CUIRect Title, Refresh;
+	Header.VSplitRight(92.0f, &Title, &Refresh);
+	Ui()->DoLabel(&Title, Localize("Aether players"), 13.0f, TEXTALIGN_ML);
+	static CButtonContainer s_AetherPlayersRefreshButton;
+	if(DoButton_Menu(&s_AetherPlayersRefreshButton, Localize("Refresh"), 0, &Refresh))
+		GameClient()->m_AetherBadges.RequestAetherOnline(true);
+
+	static CScrollRegion s_ScrollRegion;
+	vec2 ScrollOffset(0.0f, 0.0f);
+	CScrollRegionParams ScrollParams;
+	ScrollParams.m_ScrollbarWidth = 16.0f;
+	ScrollParams.m_ScrollbarMargin = 5.0f;
+	ScrollParams.m_ScrollUnit = 55.0f;
+	ScrollParams.m_Flags = CScrollRegionParams::FLAG_CONTENT_STATIC_WIDTH;
+	s_ScrollRegion.Begin(&List, &ScrollOffset, &ScrollParams);
+	List.y += ScrollOffset.y;
+
+	const int OnlineCount = GameClient()->m_AetherBadges.AetherOnlineCount();
+	for(int i = 0; i < OnlineCount; ++i)
+	{
+		const auto *pPlayer = GameClient()->m_AetherBadges.AetherOnlinePlayer(i);
+		if(!pPlayer || pPlayer->m_aName[0] == '\0')
+			continue;
+
+		CUIRect Space;
+		List.HSplitTop(SpacingH, &Space, &List);
+		s_ScrollRegion.AddRect(Space);
+
+		CUIRect Row;
+		List.HSplitTop(42.0f, &Row, &List);
+		s_ScrollRegion.AddRect(Row);
+		if(s_ScrollRegion.RectClipped(Row))
+			continue;
+
+		const bool CanConnect = pPlayer->m_aServerAddress[0] != '\0';
+		const bool Hovered = Ui()->HotItem() == pPlayer;
+		const int ButtonResult = Ui()->DoButtonLogic(pPlayer, 0, &Row, CanConnect ? BUTTONFLAG_LEFT : BUTTONFLAG_NONE);
+		Row.Draw(PlayerBackgroundColor(false, false, !CanConnect, false, Hovered), IGraphics::CORNER_ALL, 5.0f);
+		Row.Margin(6.0f, &Row);
+
+		CUIRect Icon, Text;
+		Row.VSplitLeft(28.0f, &Icon, &Text);
+		Icon.Margin(3.0f, &Icon);
+		if(!GameClient()->m_AetherBadges.RenderClientBadgeKey(pPlayer->m_aClient, Icon.x, Icon.y, minimum(Icon.w, Icon.h), 1.0f))
+		{
+			TextRender()->SetFontPreset(EFontPreset::ICON_FONT);
+			Ui()->DoLabel(&Icon, FontIcon::NETWORK_WIRED, 13.0f, TEXTALIGN_MC);
+			TextRender()->SetFontPreset(EFontPreset::DEFAULT_FONT);
+		}
+
+		CUIRect Name, Server;
+		Text.HSplitTop(16.0f, &Name, &Server);
+		Ui()->DoLabel(&Name, pPlayer->m_aName, FontSize + 1.0f, TEXTALIGN_ML);
+		char aInfo[192];
+		const char *pServer = pPlayer->m_aServer[0] ? pPlayer->m_aServer : pPlayer->m_aServerAddress;
+		if(CanConnect)
+			str_format(aInfo, sizeof(aInfo), "%s%s%s", pServer, pPlayer->m_aMap[0] ? " | " : "", pPlayer->m_aMap);
+		else
+			str_copy(aInfo, Localize("Not in server"), sizeof(aInfo));
+		TextRender()->TextColor(CanConnect ? TextRender()->DefaultTextColor() : ColorRGBA(0.7f, 0.72f, 0.78f, 1.0f));
+		Ui()->DoLabel(&Server, aInfo, FontSize - 1.0f, TEXTALIGN_ML);
+		TextRender()->TextColor(TextRender()->DefaultTextColor());
+
+		if(CanConnect)
+		{
+			GameClient()->m_Tooltips.DoToolTip(pPlayer, &Row, Localize("Double click to join this Aether player."));
+			if(ButtonResult == 1 && Ui()->DoDoubleClickLogic(pPlayer))
+			{
+				str_copy(g_Config.m_UiServerAddress, pPlayer->m_aServerAddress);
+				Connect(g_Config.m_UiServerAddress);
+			}
+		}
+	}
+
+	if(OnlineCount == 0)
+	{
+		CUIRect Empty;
+		List.HSplitTop(42.0f, &Empty, &List);
+		s_ScrollRegion.AddRect(Empty);
+		Ui()->DoLabel(&Empty, GameClient()->m_AetherBadges.AetherOnlineStatus(), FontSize, TEXTALIGN_ML);
+	}
+	s_ScrollRegion.End();
+}
+
 void CMenus::FriendlistOnUpdate()
 {
 	// TODO: friends are currently updated every frame; optimize and only update friends when necessary
@@ -1791,14 +1911,16 @@ enum
 	UI_TOOLBOX_PAGE_FILTERS = 0,
 	UI_TOOLBOX_PAGE_INFO,
 	UI_TOOLBOX_PAGE_FRIENDS,
+	UI_TOOLBOX_PAGE_AETHER,
 	NUM_UI_TOOLBOX_PAGES,
 };
 
 void CMenus::RenderServerbrowserTabBar(CUIRect TabBar)
 {
-	CUIRect FilterTabButton, InfoTabButton, FriendsTabButton;
-	TabBar.VSplitLeft(TabBar.w / 3.0f, &FilterTabButton, &TabBar);
-	TabBar.VSplitMid(&InfoTabButton, &FriendsTabButton);
+	CUIRect FilterTabButton, InfoTabButton, FriendsTabButton, AetherTabButton;
+	TabBar.VSplitLeft(TabBar.w / 4.0f, &FilterTabButton, &TabBar);
+	TabBar.VSplitLeft(TabBar.w / 3.0f, &InfoTabButton, &TabBar);
+	TabBar.VSplitMid(&FriendsTabButton, &AetherTabButton);
 
 	const ColorRGBA ColorActive = ColorRGBA(0.0f, 0.0f, 0.0f, 0.3f);
 	const ColorRGBA ColorInactive = ColorRGBA(0.0f, 0.0f, 0.0f, 0.15f);
@@ -1833,6 +1955,14 @@ void CMenus::RenderServerbrowserTabBar(CUIRect TabBar)
 	}
 	GameClient()->m_Tooltips.DoToolTip(&s_FriendsTabButton, &FriendsTabButton, Localize("Friends"));
 
+	static CButtonContainer s_AetherTabButton;
+	if(DoButton_MenuTab(&s_AetherTabButton, FontIcon::NETWORK_WIRED, g_Config.m_UiToolboxPage == UI_TOOLBOX_PAGE_AETHER, &AetherTabButton, IGraphics::CORNER_T, &m_aAnimatorsSmallPage[SMALL_TAB_BROWSER_AETHER], &ColorInactive, &ColorActive))
+	{
+		g_Config.m_UiToolboxPage = UI_TOOLBOX_PAGE_AETHER;
+		GameClient()->m_AetherBadges.RequestAetherOnline(true);
+	}
+	GameClient()->m_Tooltips.DoToolTip(&s_AetherTabButton, &AetherTabButton, Localize("Aether players"));
+
 	TextRender()->SetRenderFlags(0);
 	TextRender()->SetFontPreset(EFontPreset::DEFAULT_FONT);
 }
@@ -1852,6 +1982,9 @@ void CMenus::RenderServerbrowserToolBox(CUIRect ToolBox)
 	case UI_TOOLBOX_PAGE_FRIENDS:
 		RenderServerbrowserFriends(ToolBox);
 		return;
+	case UI_TOOLBOX_PAGE_AETHER:
+		RenderServerbrowserAether(ToolBox);
+		return;
 	default:
 		dbg_assert_failed("ui_toolbox_page invalid");
 	}
@@ -1860,6 +1993,7 @@ void CMenus::RenderServerbrowserToolBox(CUIRect ToolBox)
 void CMenus::RenderServerbrowser(CUIRect MainView)
 {
 	UpdateCommunityCache(false);
+	GameClient()->m_AetherBadges.RequestAetherOnline(false);
 
 	switch(g_Config.m_UiPage)
 	{

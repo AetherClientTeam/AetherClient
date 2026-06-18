@@ -99,6 +99,9 @@ target
 /build*
 /integration_test/*
 /source_date_epoch
+/portable/
+/tools-output/
+/_generated_badges/
 
 # IDE project files
 .cache

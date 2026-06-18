@@ -15,7 +15,9 @@
 #include <game/client/component.h>
 #include <game/client/lineinput.h>
 #include <game/client/render.h>
+#include <game/client/ui.h>
 
+#include <memory>
 #include <vector>
 
 class CTranslateResponse
@@ -41,6 +43,13 @@ class CChat : public CComponent
 	};
 
 	CLineInputBuffered<MAX_LINE_LENGTH> m_Input;
+	char m_aDraftAll[MAX_LINE_LENGTH];
+	char m_aDraftTeam[MAX_LINE_LENGTH];
+	char *DraftForMode(int Mode);
+	const char *DraftForMode(int Mode) const;
+	void SaveDraftForCurrentMode();
+	void ClearDraftForCurrentMode();
+	void RestoreDraftForCurrentMode();
 	class CLine
 	{
 	public:
@@ -71,7 +80,32 @@ class CChat : public CComponent
 		int m_TimesRepeated;
 
 		std::shared_ptr<CTranslateResponse> m_pTranslateResponse;
+		CUIRect m_LastRenderRect;
+		bool m_LastRenderRectValid;
 	};
+
+	class CChatContextPopup : public SPopupMenuId
+	{
+	public:
+		CChat *m_pChat = nullptr;
+		char m_aText[MAX_LINE_LENGTH + 80] = "";
+		char m_aLink[MAX_LINE_LENGTH] = "";
+		CButtonContainer m_CopyTextButton;
+		CButtonContainer m_CopyLinkButton;
+		CButtonContainer m_OpenLinkButton;
+		static CUi::EPopupMenuFunctionResult Render(void *pContext, CUIRect View, bool Active);
+	} m_ChatContextPopup;
+
+	class COpenLinkPopup : public SPopupMenuId
+	{
+	public:
+		CChat *m_pChat = nullptr;
+		char m_aLink[MAX_LINE_LENGTH] = "";
+		CButtonContainer m_OpenButton;
+		CButtonContainer m_CopyButton;
+		CButtonContainer m_CancelButton;
+		static CUi::EPopupMenuFunctionResult Render(void *pContext, CUIRect View, bool Active);
+	} m_OpenLinkPopup;
 
 	bool m_PrevScoreBoardShowed;
 	bool m_PrevShowChat;
@@ -150,9 +184,14 @@ class CChat : public CComponent
 	int m_PendingChatCounter;
 	int64_t m_LastChatSend;
 	int64_t m_aLastSoundPlayed[CHAT_NUM];
+	char m_aKeyboardSoundPrevDisplay[MAX_LINE_LENGTH];
+	char m_aKeyboardSoundLoadedFile[128];
+	int m_KeyboardSoundSample = -1;
+	int64_t m_LastKeyboardSoundTime = 0;
 	bool m_IsInputCensored;
 	char m_aCurrentInputText[MAX_LINE_LENGTH];
 	bool m_EditingNewLine;
+	bool m_ChatCursorInitialized;
 
 	bool m_ServerSupportsCommandInfo;
 
@@ -169,6 +208,12 @@ class CChat : public CComponent
 
 	bool LineShouldHighlight(const char *pLine, const char *pName);
 	void StoreSave(const char *pText);
+	void UpdateKeyboardSoundSample();
+	void MaybePlayKeyboardSound(const char *pNewDisplayed, const char *pOldDisplayed);
+	void BuildLineContextText(const CLine &Line, char *pOut, int OutSize) const;
+	void OpenLineContext(const CLine &Line, float X, float Y);
+	void OpenLinkWarning(const char *pLink);
+	void SetChatUiMousePos(vec2 Pos);
 
 	friend class CBindChat;
 	friend class CTranslate;
@@ -181,6 +226,8 @@ public:
 	static constexpr float MESSAGE_TEE_PADDING_RIGHT = 0.5f;
 
 	bool IsActive() const { return m_Mode != MODE_NONE; }
+	const char *ActiveInput() const { return m_Input.GetString(); }
+	int ActiveMode() const { return m_Mode; }
 	void AddLine(int ClientId, int Team, const char *pLine);
 	void EnableMode(int Team);
 	void DisableMode();
@@ -196,6 +243,7 @@ public:
 	void Reset();
 	void OnRelease() override;
 	void OnMessage(int MsgType, void *pRawMsg) override;
+	bool OnCursorMove(float x, float y, IInput::ECursorType CursorType) override;
 	bool OnInput(const IInput::CEvent &Event) override;
 	void OnInit() override;
 

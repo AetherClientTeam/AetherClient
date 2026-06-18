@@ -23,6 +23,12 @@ namespace FontIcon
 	inline const char *const CHEVRON_LEFT = "\uF053";
 	inline const char *const CHEVRON_RIGHT = "\uF054";
 	inline const char *const CHEVRON_UP = "\uF077";
+	inline const char *const CHESS_BISHOP = "\uF43A";
+	inline const char *const CHESS_KING = "\uF43F";
+	inline const char *const CHESS_KNIGHT = "\uF441";
+	inline const char *const CHESS_PAWN = "\uF443";
+	inline const char *const CHESS_QUEEN = "\uF445";
+	inline const char *const CHESS_ROOK = "\uF447";
 	inline const char *const CIRCLE = "\uF111";
 	inline const char *const CIRCLE_CHEVRON_DOWN = "\uF13A";
 	inline const char *const CIRCLE_PLAY = "\uF144";

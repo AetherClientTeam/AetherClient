@@ -112,6 +112,7 @@ public:
 	int LoadWV(const char *pFilename, int StorageType = IStorage::TYPE_ALL) override REQUIRES(!m_SoundLock);
 	int LoadOpusFromMem(const void *pData, unsigned DataSize, bool ForceLoad, const char *pContextName) override REQUIRES(!m_SoundLock);
 	int LoadWVFromMem(const void *pData, unsigned DataSize, bool ForceLoad, const char *pContextName) override REQUIRES(!m_SoundLock);
+	int LoadS16PcmInterleavedFromMem(const short *pInterleaved, int NumFrames, int Channels, int SampleRate, bool ForceLoad, const char *pContextName) override REQUIRES(!m_SoundLock);
 	void UnloadSample(int SampleId) override REQUIRES(!m_SoundLock);
 
 	float GetSampleTotalTime(int SampleId) override REQUIRES(!m_SoundLock); // in s

@@ -338,6 +338,7 @@ void CMenus::RenderGame(CUIRect MainView)
 			}
 		}
 	}
+
 }
 
 void CMenus::PopupConfirmDisconnect()

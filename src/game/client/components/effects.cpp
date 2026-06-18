@@ -45,7 +45,7 @@ void CEffects::AirJump(vec2 Pos, float Alpha, float Volume)
 	p.m_Pos = Pos + vec2(6.0f, 16.0f);
 	GameClient()->m_Particles.Add(CParticles::GROUP_GENERAL, &p);
 
-	if(g_Config.m_SndGame)
+	if(g_Config.m_SndGame && GameClient()->AetherShouldPlayGameplayWorldSound(SOUND_PLAYER_AIRJUMP, Pos))
 		GameClient()->m_Sounds.PlayAt(CSounds::CHN_WORLD, SOUND_PLAYER_AIRJUMP, Volume, Pos);
 }
 
@@ -405,7 +405,7 @@ void CEffects::HammerHit(vec2 Pos, float Alpha, float Volume)
 	p.m_Color.a = Alpha;
 	p.m_StartAlpha = Alpha;
 	GameClient()->m_Particles.Add(CParticles::GROUP_EXPLOSIONS, &p);
-	if(g_Config.m_SndGame)
+	if(g_Config.m_SndGame && GameClient()->AetherShouldPlayGameplayWorldSound(SOUND_HAMMER_HIT, Pos))
 		GameClient()->m_Sounds.PlayAt(CSounds::CHN_WORLD, SOUND_HAMMER_HIT, Volume, Pos);
 }
 

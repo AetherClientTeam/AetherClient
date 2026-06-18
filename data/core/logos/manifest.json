@@ -1,0 +1,177 @@
+{
+  "source": "aether-family-v2.html",
+  "generatedAt": "2026-06-15T21:02:06.723Z",
+  "items": [
+    {
+      "name": "aether",
+      "source": "aether-family-v2.html",
+      "svg": "aether.svg",
+      "png": [
+        "aether_256.png",
+        "aether_512.png",
+        "aether_1024.png"
+      ]
+    },
+    {
+      "name": "aether_icon_large",
+      "source": "aether-family-v2.html",
+      "svg": "aether_icon_large.svg",
+      "png": [
+        "aether_icon_large_256.png",
+        "aether_icon_large_512.png",
+        "aether_icon_large_1024.png"
+      ]
+    },
+    {
+      "name": "aether_icon_medium",
+      "source": "aether-family-v2.html",
+      "svg": "aether_icon_medium.svg",
+      "png": [
+        "aether_icon_medium_256.png",
+        "aether_icon_medium_512.png",
+        "aether_icon_medium_1024.png"
+      ]
+    },
+    {
+      "name": "aether_icon_small",
+      "source": "aether-family-v2.html",
+      "svg": "aether_icon_small.svg",
+      "png": [
+        "aether_icon_small_256.png",
+        "aether_icon_small_512.png",
+        "aether_icon_small_1024.png"
+      ]
+    },
+    {
+      "name": "vera",
+      "source": "aether-family-v2.html",
+      "svg": "vera.svg",
+      "png": [
+        "vera_256.png",
+        "vera_512.png",
+        "vera_1024.png"
+      ]
+    },
+    {
+      "name": "vera_icon_large",
+      "source": "aether-family-v2.html",
+      "svg": "vera_icon_large.svg",
+      "png": [
+        "vera_icon_large_256.png",
+        "vera_icon_large_512.png",
+        "vera_icon_large_1024.png"
+      ]
+    },
+    {
+      "name": "vera_icon_medium",
+      "source": "aether-family-v2.html",
+      "svg": "vera_icon_medium.svg",
+      "png": [
+        "vera_icon_medium_256.png",
+        "vera_icon_medium_512.png",
+        "vera_icon_medium_1024.png"
+      ]
+    },
+    {
+      "name": "vera_icon_small",
+      "source": "aether-family-v2.html",
+      "svg": "vera_icon_small.svg",
+      "png": [
+        "vera_icon_small_256.png",
+        "vera_icon_small_512.png",
+        "vera_icon_small_1024.png"
+      ]
+    },
+    {
+      "name": "via",
+      "source": "aether-family-v2.html",
+      "svg": "via.svg",
+      "png": [
+        "via_256.png",
+        "via_512.png",
+        "via_1024.png"
+      ]
+    },
+    {
+      "name": "via_icon_large",
+      "source": "aether-family-v2.html",
+      "svg": "via_icon_large.svg",
+      "png": [
+        "via_icon_large_256.png",
+        "via_icon_large_512.png",
+        "via_icon_large_1024.png"
+      ]
+    },
+    {
+      "name": "via_icon_medium",
+      "source": "aether-family-v2.html",
+      "svg": "via_icon_medium.svg",
+      "png": [
+        "via_icon_medium_256.png",
+        "via_icon_medium_512.png",
+        "via_icon_medium_1024.png"
+      ]
+    },
+    {
+      "name": "via_icon_small",
+      "source": "aether-family-v2.html",
+      "svg": "via_icon_small.svg",
+      "png": [
+        "via_icon_small_256.png",
+        "via_icon_small_512.png",
+        "via_icon_small_1024.png"
+      ]
+    },
+    {
+      "name": "vex",
+      "source": "aether-family-v2.html",
+      "svg": "vex.svg",
+      "png": [
+        "vex_256.png",
+        "vex_512.png",
+        "vex_1024.png"
+      ]
+    },
+    {
+      "name": "vex_icon_large",
+      "source": "aether-family-v2.html",
+      "svg": "vex_icon_large.svg",
+      "png": [
+        "vex_icon_large_256.png",
+        "vex_icon_large_512.png",
+        "vex_icon_large_1024.png"
+      ]
+    },
+    {
+      "name": "vex_icon_medium",
+      "source": "aether-family-v2.html",
+      "svg": "vex_icon_medium.svg",
+      "png": [
+        "vex_icon_medium_256.png",
+        "vex_icon_medium_512.png",
+        "vex_icon_medium_1024.png"
+      ]
+    },
+    {
+      "name": "vex_icon_small",
+      "source": "aether-family-v2.html",
+      "svg": "vex_icon_small.svg",
+      "png": [
+        "vex_icon_small_256.png",
+        "vex_icon_small_512.png",
+        "vex_icon_small_1024.png"
+      ]
+    },
+    {
+      "name": "aether_lockup",
+      "source": "aether-family-v2.html .card:first .lockup",
+      "svg": "aether_lockup.svg",
+      "png": [
+        "aether_lockup_256.png",
+        "aether_lockup_512.png",
+        "aether_lockup_1024.png"
+      ]
+    }
+  ],
+  "updatedAt": "2026-06-15T21:11:34Z"
+}

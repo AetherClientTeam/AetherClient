@@ -21,6 +21,7 @@
 #include <game/client/components/flow.h>
 #include <game/client/components/skins.h>
 #include <game/client/components/sounds.h>
+#include <game/client/components/aether/block_awareness.h>
 #include <game/client/gameclient.h>
 #include <game/gamecore.h>
 #include <game/mapitems.h>
@@ -28,6 +29,30 @@
 // TClient
 #include <game/client/components/tclient/rainbow.h>
 #include <game/client/prediction/entities/character.h>
+
+namespace
+{
+ColorRGBA AetherPlayerConfigColor(int ColorConfig, float Alpha = 1.0f)
+{
+	ColorRGBA Color = color_cast<ColorRGBA>(ColorHSLA(ColorConfig));
+	Color.a *= Alpha;
+	return Color;
+}
+
+void AetherPlayerDrawBeamQuad(IGraphics *pGraphics, vec2 From, vec2 Pos, vec2 Dir, float Width, ColorRGBA Color)
+{
+	const vec2 Normal = vec2(Dir.y, -Dir.x) * Width;
+	pGraphics->SetColor(Color);
+	IGraphics::CFreeformItem Freeform(From - Normal, From + Normal, Pos - Normal, Pos + Normal);
+	pGraphics->QuadsDrawFreeform(&Freeform, 1);
+}
+
+void AetherPlayerDrawSpark(IGraphics *pGraphics, vec2 Center, vec2 Dir, float Size, ColorRGBA GlowColor, ColorRGBA CoreColor)
+{
+	AetherPlayerDrawBeamQuad(pGraphics, Center - Dir * Size, Center + Dir * Size, Dir, Size * 0.78f, GlowColor);
+	AetherPlayerDrawBeamQuad(pGraphics, Center - Dir * (Size * 0.45f), Center + Dir * (Size * 0.45f), Dir, Size * 0.34f, CoreColor);
+}
+}
 
 static float CalculateHandAngle(vec2 Dir, float AngleOffset)
 {
@@ -595,6 +620,8 @@ void CPlayers::RenderPlayer(
 
 	// set size
 	RenderInfo.m_Size = 64.0f;
+	if(ClientId >= 0)
+		RenderInfo.m_Size *= GameClient()->m_AetherBlockAwareness.PlayerScale(ClientId);
 
 	if(ClientId >= 0)
 		Intra = GameClient()->m_aClients[ClientId].m_IsPredicted ? Client()->PredIntraGameTick(g_Config.m_ClDummy) : Client()->IntraGameTick(g_Config.m_ClDummy);
@@ -627,6 +654,60 @@ void CPlayers::RenderPlayer(
 	else
 		Position = mix(vec2(Prev.m_X, Prev.m_Y), vec2(Player.m_X, Player.m_Y), Intra);
 	vec2 Vel = mix(vec2(Prev.m_VelX / 256.0f, Prev.m_VelY / 256.0f), vec2(Player.m_VelX / 256.0f, Player.m_VelY / 256.0f), Intra);
+
+	if(ClientId >= 0)
+	{
+		const bool JellyEnabled = g_Config.m_AeJellyTee && (Local || g_Config.m_AeJellyTeeOthers);
+		const float Strength = std::clamp(g_Config.m_AeJellyTeeStrength / 1000.0f, 0.0f, 1.0f);
+		const float Horizontal = std::clamp(absolute(Vel.x) / 22.0f, 0.0f, 1.0f);
+		const float Vertical = std::clamp(Vel.y / 22.0f, -1.0f, 1.0f);
+		const float Falling = std::max(0.0f, Vertical);
+		const float Rising = std::max(0.0f, -Vertical);
+		const float FrameTime = std::clamp(Client()->RenderFrameTime(), 0.0f, 0.05f);
+		const float HalfSize = CCharacterCore::PhysicalSize() * 0.5f;
+		const bool Grounded = GameClient()->Collision()->CheckPoint(Position.x + HalfSize * 0.65f, Position.y + HalfSize + 4.0f) ||
+				      GameClient()->Collision()->CheckPoint(Position.x - HalfSize * 0.65f, Position.y + HalfSize + 4.0f);
+		const bool Landing = Grounded && !m_aAetherJellyGrounded[ClientId] && m_aAetherJellyPrevVelY[ClientId] > 4.0f;
+		if(Landing)
+		{
+			m_aAetherJellyImpact[ClientId] = std::clamp(m_aAetherJellyPrevVelY[ClientId] / 26.0f, 0.0f, 1.0f);
+			m_aAetherJellyLandingTime[ClientId] = 0.0f;
+		}
+		else
+			m_aAetherJellyLandingTime[ClientId] += FrameTime;
+		const float LandingT = std::clamp(m_aAetherJellyLandingTime[ClientId] / 0.22f, 0.0f, 1.0f);
+		const float Impact = m_aAetherJellyImpact[ClientId] * (1.0f - LandingT) * (1.0f - LandingT);
+		if(LandingT >= 1.0f)
+			m_aAetherJellyImpact[ClientId] = 0.0f;
+		const float Activity = std::max(std::max(Horizontal, Rising), std::max(Falling * 0.55f, Impact));
+		const float Wobble = JellyEnabled && Activity > 0.04f && Impact < 0.05f ? std::sin(Client()->LocalTime() * 10.0f + ClientId * 0.61f) * Strength * 0.018f * Horizontal : 0.0f;
+		const float TargetX = JellyEnabled ? 1.0f + Strength * (Horizontal * 0.18f + Impact * 0.50f - Rising * 0.05f) + Wobble : 1.0f;
+		const float TargetY = JellyEnabled ? 1.0f + Strength * (Rising * 0.12f + Falling * 0.05f - Horizontal * 0.10f - Impact * 0.38f) - Wobble * 0.55f : 1.0f;
+		const float Duration = std::max(g_Config.m_AeJellyTeeDuration / 1000.0f, 0.02f);
+		const float Follow = 1.0f - std::pow(0.001f, FrameTime / std::max(0.04f, Duration * (Impact > 0.02f ? 0.42f : 0.72f)));
+		if(m_aAetherJellyScaleX[ClientId] <= 0.0f || m_aAetherJellyScaleY[ClientId] <= 0.0f)
+		{
+			m_aAetherJellyScaleX[ClientId] = 1.0f;
+			m_aAetherJellyScaleY[ClientId] = 1.0f;
+		}
+		m_aAetherJellyScaleX[ClientId] = mix(m_aAetherJellyScaleX[ClientId], TargetX, Follow);
+		m_aAetherJellyScaleY[ClientId] = mix(m_aAetherJellyScaleY[ClientId], TargetY, Follow);
+		m_aAetherJellyScaleX[ClientId] = std::clamp(m_aAetherJellyScaleX[ClientId], 0.64f, 1.55f);
+		m_aAetherJellyScaleY[ClientId] = std::clamp(m_aAetherJellyScaleY[ClientId], 0.62f, 1.58f);
+		if((!JellyEnabled || Activity <= 0.01f) &&
+			std::abs(m_aAetherJellyScaleX[ClientId] - 1.0f) < 0.004f &&
+			std::abs(m_aAetherJellyScaleY[ClientId] - 1.0f) < 0.004f)
+		{
+			m_aAetherJellyScaleX[ClientId] = 1.0f;
+			m_aAetherJellyScaleY[ClientId] = 1.0f;
+			m_aAetherJellyVelocityX[ClientId] = 0.0f;
+			m_aAetherJellyVelocityY[ClientId] = 0.0f;
+		}
+		RenderInfo.m_AetherScaleX = m_aAetherJellyScaleX[ClientId];
+		RenderInfo.m_AetherScaleY = m_aAetherJellyScaleY[ClientId];
+		m_aAetherJellyPrevVelY[ClientId] = Vel.y;
+		m_aAetherJellyGrounded[ClientId] = Grounded;
+	}
 
 	// TClient
 	if(g_Config.m_TcSwapGhosts && g_Config.m_TcShowOthersGhosts && !Local && Client()->State() != IClient::STATE_DEMOPLAYBACK && ClientId >= 0)
@@ -972,6 +1053,9 @@ void CPlayers::RenderPlayer(
 	}
 
 	// render the "shadow" tee
+	const bool AetherBlockEnemy = ClientId >= 0 && g_Config.m_AeBlockAwareness && GameClient()->m_AetherBlockAwareness.GroupForClient(ClientId) == CAetherBlockAwareness::EGroup::ENEMY;
+	const int RenderEmote = AetherBlockEnemy && g_Config.m_AeBlockForceEnemyEyes ? EMOTE_PAIN : Player.m_Emote;
+	const bool HideEnemyOverheadEmotes = AetherBlockEnemy && g_Config.m_AeBlockHideEnemyEmotes;
 	if(g_Config.m_ClUnpredictedShadow == 3 || (Local && g_Config.m_ClUnpredictedShadow == 1) || (!Local && g_Config.m_ClUnpredictedShadow == 2))
 	{
 		vec2 ShadowPosition = Position;
@@ -981,10 +1065,10 @@ void CPlayers::RenderPlayer(
 				vec2(GameClient()->m_Snap.m_aCharacters[ClientId].m_Cur.m_X, GameClient()->m_Snap.m_aCharacters[ClientId].m_Cur.m_Y),
 				Client()->IntraGameTick(g_Config.m_ClDummy));
 
-		RenderTools()->RenderTee(&State, &RenderInfo, Player.m_Emote, Direction, ShadowPosition, g_Config.m_ClUnpredictedShadowAlpha / 100.f); // render ghost
+		RenderTools()->RenderTee(&State, &RenderInfo, RenderEmote, Direction, ShadowPosition, g_Config.m_ClUnpredictedShadowAlpha / 100.f); // render ghost
 	}
 
-	RenderTools()->RenderTee(&State, &RenderInfo, Player.m_Emote, Direction, Position, Alpha);
+	RenderTools()->RenderTee(&State, &RenderInfo, RenderEmote, Direction, Position, Alpha);
 
 	float TeeAnimScale, TeeBaseSize;
 	CRenderTools::GetRenderTeeAnimScaleAndBaseSize(&RenderInfo, TeeAnimScale, TeeBaseSize);
@@ -1014,7 +1098,7 @@ void CPlayers::RenderPlayer(
 		Graphics()->QuadsSetRotation(0);
 	}
 
-	if(g_Config.m_ClAfkEmote && GameClient()->m_aClients[ClientId].m_Afk && ClientId != GameClient()->m_aLocalIds[!g_Config.m_ClDummy])
+	if(!HideEnemyOverheadEmotes && g_Config.m_ClAfkEmote && GameClient()->m_aClients[ClientId].m_Afk && ClientId != GameClient()->m_aLocalIds[!g_Config.m_ClDummy])
 	{
 		int CurEmoticon = (SPRITE_ZZZ - SPRITE_OOP);
 		Graphics()->TextureSet(GameClient()->m_EmoticonsSkin.m_aSpriteEmoticons[CurEmoticon]);
@@ -1026,7 +1110,7 @@ void CPlayers::RenderPlayer(
 		Graphics()->QuadsSetRotation(0);
 	}
 
-	if(g_Config.m_ClShowEmotes && !GameClient()->m_aClients[ClientId].m_EmoticonIgnore && GameClient()->m_aClients[ClientId].m_EmoticonStartTick != -1)
+	if(!HideEnemyOverheadEmotes && g_Config.m_ClShowEmotes && !GameClient()->m_aClients[ClientId].m_EmoticonIgnore && GameClient()->m_aClients[ClientId].m_EmoticonStartTick != -1)
 	{
 		float SinceStart = (Client()->GameTick(g_Config.m_ClDummy) - GameClient()->m_aClients[ClientId].m_EmoticonStartTick) + (Client()->IntraGameTickSincePrev(g_Config.m_ClDummy) - GameClient()->m_aClients[ClientId].m_EmoticonStartFraction);
 		float FromEnd = (2 * Client()->GameTickSpeed()) - SinceStart;
@@ -1408,7 +1492,10 @@ void CPlayers::RenderPlayerGhost(
 		}
 	}
 
-	RenderTools()->RenderTee(&State, &RenderInfo, Player.m_Emote, Direction, Position, Alpha);
+	const bool AetherBlockEnemy = ClientId >= 0 && g_Config.m_AeBlockAwareness && GameClient()->m_AetherBlockAwareness.GroupForClient(ClientId) == CAetherBlockAwareness::EGroup::ENEMY;
+	const int RenderEmote = AetherBlockEnemy && g_Config.m_AeBlockForceEnemyEyes ? EMOTE_PAIN : Player.m_Emote;
+	const bool HideEnemyOverheadEmotes = AetherBlockEnemy && g_Config.m_AeBlockHideEnemyEmotes;
+	RenderTools()->RenderTee(&State, &RenderInfo, RenderEmote, Direction, Position, Alpha);
 
 	float TeeAnimScale, TeeBaseSize;
 	CRenderTools::GetRenderTeeAnimScaleAndBaseSize(&RenderInfo, TeeAnimScale, TeeBaseSize);
@@ -1434,7 +1521,7 @@ void CPlayers::RenderPlayerGhost(
 	if(ClientId < 0)
 		return;
 
-	if(g_Config.m_ClAfkEmote && GameClient()->m_aClients[ClientId].m_Afk && !(Client()->DummyConnected() && ClientId == GameClient()->m_aLocalIds[!g_Config.m_ClDummy]))
+	if(!HideEnemyOverheadEmotes && g_Config.m_ClAfkEmote && GameClient()->m_aClients[ClientId].m_Afk && !(Client()->DummyConnected() && ClientId == GameClient()->m_aLocalIds[!g_Config.m_ClDummy]))
 	{
 		int CurEmoticon = (SPRITE_ZZZ - SPRITE_OOP);
 		Graphics()->TextureSet(GameClient()->m_EmoticonsSkin.m_aSpriteEmoticons[CurEmoticon]);
@@ -1446,7 +1533,7 @@ void CPlayers::RenderPlayerGhost(
 		Graphics()->QuadsSetRotation(0);
 	}
 
-	if(g_Config.m_ClShowEmotes && !GameClient()->m_aClients[ClientId].m_EmoticonIgnore && GameClient()->m_aClients[ClientId].m_EmoticonStartTick != -1)
+	if(!HideEnemyOverheadEmotes && g_Config.m_ClShowEmotes && !GameClient()->m_aClients[ClientId].m_EmoticonIgnore && GameClient()->m_aClients[ClientId].m_EmoticonStartTick != -1)
 	{
 		float SinceStart = (Client()->GameTick(g_Config.m_ClDummy) - GameClient()->m_aClients[ClientId].m_EmoticonStartTick) + (Client()->IntraGameTickSincePrev(g_Config.m_ClDummy) - GameClient()->m_aClients[ClientId].m_EmoticonStartFraction);
 		float FromEnd = (2 * Client()->GameTickSpeed()) - SinceStart;
@@ -1488,6 +1575,135 @@ inline bool CPlayers::IsPlayerInfoAvailable(int ClientId) const
 	       GameClient()->m_Snap.m_apPlayerInfos[ClientId] != nullptr;
 }
 
+void CPlayers::RenderAetherOrbitAura(int ClientId)
+{
+	if(!g_Config.m_AeOrbitAura || g_Config.m_AeFocusMode || (g_Config.m_AeOptimizer && g_Config.m_AeOptimizerDisableParticles) ||
+		ClientId < 0 || ClientId >= MAX_CLIENTS || !IsPlayerInfoAvailable(ClientId))
+	{
+		m_AetherOrbitAuraIdleTime = 0.0f;
+		m_AetherOrbitAuraVisibility = 0.0f;
+		return;
+	}
+	if(GameClient()->m_aClients[ClientId].m_Team == TEAM_SPECTATORS)
+	{
+		m_AetherOrbitAuraIdleTime = 0.0f;
+		m_AetherOrbitAuraVisibility = 0.0f;
+		return;
+	}
+
+	const CNetObj_Character &Char = GameClient()->m_aClients[ClientId].m_RenderCur;
+	const bool Idle = std::abs(Char.m_VelX) <= 1 && std::abs(Char.m_VelY) <= 1;
+	const float FrameTime = std::clamp(Client()->RenderFrameTime(), 0.0f, 0.05f);
+	if(Idle)
+		m_AetherOrbitAuraIdleTime += FrameTime;
+	else
+		m_AetherOrbitAuraIdleTime = 0.0f;
+
+	const bool WantsVisible = !g_Config.m_AeOrbitAuraIdleOnly || m_AetherOrbitAuraIdleTime * 1000.0f >= g_Config.m_AeOrbitAuraIdleDelay;
+	const float FadeSeconds = std::max(g_Config.m_AeOrbitAuraFadeMs / 1000.0f, 0.001f);
+	const float Step = g_Config.m_AeOrbitAuraFadeMs <= 0 ? 1.0f : FrameTime / FadeSeconds;
+	m_AetherOrbitAuraVisibility = std::clamp(m_AetherOrbitAuraVisibility + (WantsVisible ? Step : -Step), 0.0f, 1.0f);
+	const float Visibility = m_AetherOrbitAuraVisibility * m_AetherOrbitAuraVisibility * (3.0f - 2.0f * m_AetherOrbitAuraVisibility);
+	if(Visibility <= 0.01f)
+	{
+		return;
+	}
+
+	const vec2 Center = GameClient()->m_aClients[ClientId].m_RenderPos + vec2(0.0f, -2.0f);
+	const float Radius = (float)g_Config.m_AeOrbitAuraRadius;
+	const float Alpha = std::clamp(g_Config.m_AeOrbitAuraAlpha / 100.0f, 0.05f, 1.0f) * Visibility;
+	const float Speed = std::clamp(g_Config.m_AeOrbitAuraSpeed / 100.0f, 0.1f, 2.5f);
+	const float SizeScale = std::clamp(g_Config.m_AeOrbitAuraSize / 100.0f, 0.4f, 2.2f);
+	const float Time = Client()->LocalTime() * Speed;
+	const ColorRGBA MainColor = AetherPlayerConfigColor(g_Config.m_AeOrbitAuraColor);
+	const ColorRGBA AccentColor = AetherPlayerConfigColor(g_Config.m_AeOrbitAuraAccentColor);
+	const int Style = std::clamp(g_Config.m_AeOrbitAuraStyle, 0, 2);
+	const int ParticleCount = std::clamp(g_Config.m_AeOrbitAuraParticles, 6, 96);
+
+	Graphics()->TextureClear();
+	Graphics()->QuadsBegin();
+	if(Style == 2)
+	{
+		const int FlameCount = std::clamp(ParticleCount / 2, 8, 34);
+		for(int i = 0; i < FlameCount; ++i)
+		{
+			const float Seed = i * 1.618f;
+			const float Rise = std::fmod(Time * (0.24f + (i % 5) * 0.018f) + i / (float)FlameCount, 1.0f);
+			const float Angle = Seed + std::sin(Time * 0.8f + Seed) * 0.22f;
+			const float Side = std::sin(Angle) * Radius * (0.44f + 0.18f * Rise);
+			const float Y = Radius * 0.28f - Rise * Radius * 1.12f;
+			const float Fade = std::sin(Rise * pi);
+			const float Sway = std::sin(Time * 3.0f + Seed) * Radius * 0.08f * Fade;
+			const vec2 Pos = Center + vec2(Side + Sway, Y);
+			const float SparkSize = (2.4f + 3.2f * (1.0f - Rise)) * SizeScale;
+			const ColorRGBA Glow = MainColor.WithAlpha(0.10f * Alpha * Fade);
+			const ColorRGBA Core = AccentColor.WithAlpha(0.28f * Alpha * Fade);
+			AetherPlayerDrawSpark(Graphics(), Pos, vec2(0.0f, -1.0f), SparkSize, Glow, Core);
+		}
+		const int Segments = 36;
+		for(int i = 0; i < Segments; ++i)
+		{
+			const float T0 = i / (float)Segments;
+			const float T1 = (i + 1) / (float)Segments;
+			for(int Layer = 0; Layer < 2; ++Layer)
+			{
+				const float Lift = Layer == 0 ? 0.20f : -0.08f;
+				const float A0 = T0 * 2.0f * pi + Time * (Layer == 0 ? 0.38f : -0.32f);
+				const float A1 = T1 * 2.0f * pi + Time * (Layer == 0 ? 0.38f : -0.32f);
+				const float Wave0 = 1.0f + 0.055f * std::sin(Time * 2.1f + i * 0.5f + Layer);
+				const float Wave1 = 1.0f + 0.055f * std::sin(Time * 2.1f + (i + 1) * 0.5f + Layer);
+				const vec2 P0 = Center + vec2(std::cos(A0) * Radius * 0.62f * Wave0, std::sin(A0) * Radius * 0.46f * Wave0 - Radius * Lift);
+				const vec2 P1 = Center + vec2(std::cos(A1) * Radius * 0.62f * Wave1, std::sin(A1) * Radius * 0.46f * Wave1 - Radius * Lift);
+				const vec2 Dir = normalize(P1 - P0);
+				const float Pulse = 0.62f + 0.38f * std::sin(Time * 2.8f + i * 0.22f + Layer);
+				AetherPlayerDrawBeamQuad(Graphics(), P0, P1, Dir, (1.0f + Layer * 0.45f) * SizeScale, MainColor.WithAlpha(0.085f * Alpha * Pulse));
+				AetherPlayerDrawBeamQuad(Graphics(), P0, P1, Dir, 0.34f * SizeScale, AccentColor.WithAlpha(0.19f * Alpha * Pulse));
+			}
+		}
+	}
+	else if(Style == 1)
+	{
+		const int Segments = 48;
+		for(int i = 0; i < Segments; ++i)
+		{
+			const float T0 = i / (float)Segments;
+			const float T1 = (i + 1) / (float)Segments;
+			const float A0 = T0 * 2.0f * pi + Time * 0.72f;
+			const float A1 = T1 * 2.0f * pi + Time * 0.72f;
+			const float Wave0 = 1.0f + 0.045f * std::sin(Time * 3.2f + i * 0.55f);
+			const float Wave1 = 1.0f + 0.045f * std::sin(Time * 3.2f + (i + 1) * 0.55f);
+			const vec2 P0 = Center + vec2(std::cos(A0), std::sin(A0) * 0.78f) * Radius * Wave0;
+			const vec2 P1 = Center + vec2(std::cos(A1), std::sin(A1) * 0.78f) * Radius * Wave1;
+			const vec2 Dir = normalize(P1 - P0);
+			const float Pulse = 0.55f + 0.45f * std::sin(Time * 2.0f + i * 0.31f);
+			AetherPlayerDrawBeamQuad(Graphics(), P0, P1, Dir, 1.6f * SizeScale, MainColor.WithAlpha(0.14f * Alpha * Pulse));
+			AetherPlayerDrawBeamQuad(Graphics(), P0, P1, Dir, 0.7f * SizeScale, AccentColor.WithAlpha(0.42f * Alpha * Pulse));
+		}
+	}
+	if(Style != 2)
+	{
+		for(int i = 0; i < ParticleCount; ++i)
+		{
+			const float T = i / (float)ParticleCount;
+			const float Phase = T * 2.0f * pi + Time * (0.9f + (i % 5) * 0.04f);
+			float LocalRadius = Radius;
+			vec2 Pos;
+			vec2 Dir;
+			float Pulse = 0.65f + 0.35f * std::sin(Time * 3.8f + i * 1.7f);
+
+			LocalRadius += std::sin(Time * 2.0f + i * 0.73f) * (Style == 0 ? 5.0f : 4.0f);
+			Pos = Center + vec2(std::cos(Phase), std::sin(Phase) * 0.78f) * LocalRadius;
+			Dir = normalize(vec2(-std::sin(Phase), std::cos(Phase) * 0.78f));
+
+			const float Size = (Style == 0 ? 1.45f : 2.2f) * SizeScale * Pulse;
+			const ColorRGBA Glow = MainColor.WithAlpha((Style == 0 ? 0.12f : 0.18f) * Alpha * Pulse);
+			const ColorRGBA Core = AccentColor.WithAlpha((Style == 0 ? 0.36f : 0.52f) * Alpha * Pulse);
+			AetherPlayerDrawSpark(Graphics(), Pos, Dir, Size, Glow, Core);
+		}
+	}
+	Graphics()->QuadsEnd();
+}
+
 void CPlayers::OnRender()
 {
 	if(Client()->State() != IClient::STATE_ONLINE && Client()->State() != IClient::STATE_DEMOPLAYBACK)
@@ -1514,7 +1730,7 @@ void CPlayers::OnRender()
 
 			Frozen = GameClient()->m_aClients[i].m_Predicted.m_FreezeEnd != 0;
 			// TClient
-			if(g_Config.m_TcFastInput)
+			if(g_Config.m_AeFastInput || g_Config.m_TcFastInput)
 				Frozen = GameClient()->m_aClients[i].m_RegularPredicted.m_FreezeEnd != 0;
 		}
 		else
@@ -1562,6 +1778,21 @@ void CPlayers::OnRender()
 					aRenderInfo[i].m_ColorBody = ColorRGBA(aRenderInfo[i].m_ColorBody.r * Darken, aRenderInfo[i].m_ColorBody.g * Darken, aRenderInfo[i].m_ColorBody.b * Darken, 1.0);
 				}
 			}
+			if(g_Config.m_AeNinjaTeePreview)
+				ApplyAetherNinjaTeeColors(aRenderInfo[i], g_Config.m_AeNinjaTeeBodyColor, g_Config.m_AeNinjaTeeFeetColor);
+		}
+
+		if(GameClient()->m_AetherBlockAwareness.ShouldColorPlayer(i))
+		{
+			if(GameClient()->m_AetherBlockAwareness.ShouldUseDefaultColorSkin(i) && EnsureAetherBlockTeeRenderInfoReady())
+			{
+				const float Size = aRenderInfo[i].m_Size;
+				const bool GotAirJump = aRenderInfo[i].m_GotAirJump;
+				aRenderInfo[i] = AetherBlockTeeRenderInfo()->TeeRenderInfo();
+				aRenderInfo[i].m_Size = Size;
+				aRenderInfo[i].m_GotAirJump = GotAirJump;
+			}
+			GameClient()->m_AetherBlockAwareness.ApplyRenderInfo(i, aRenderInfo[i]);
 		}
 	}
 
@@ -1578,11 +1809,22 @@ void CPlayers::OnRender()
 	ScreenY0 -= BorderBuffer;
 	ScreenY1 += BorderBuffer;
 
+	auto AetherFpsFogHidesClient = [&](int ClientId) {
+		if(!(g_Config.m_AeOptimizer && g_Config.m_AeOptimizerFpsFog))
+			return false;
+		if(ClientId < 0 || ClientId >= MAX_CLIENTS)
+			return false;
+		if(ClientId == GameClient()->m_aLocalIds[0] || ClientId == GameClient()->m_aLocalIds[1])
+			return false;
+		const float Radius = g_Config.m_AeOptimizerFpsFogRadius * 32.0f;
+		return distance(GameClient()->m_aClients[ClientId].m_RenderPos, GameClient()->m_Camera.m_Center) > Radius;
+	};
+
 	// render everyone else's hook, then our own
 	const int LocalClientId = GameClient()->m_Snap.m_LocalClientId;
 	for(int ClientId = 0; ClientId < MAX_CLIENTS; ClientId++)
 	{
-		if(ClientId == LocalClientId || !IsPlayerInfoAvailable(ClientId))
+		if(ClientId == LocalClientId || !IsPlayerInfoAvailable(ClientId) || AetherFpsFogHidesClient(ClientId))
 		{
 			continue;
 		}
@@ -1620,6 +1862,10 @@ void CPlayers::OnRender()
 		{
 			continue;
 		}
+		if(AetherFpsFogHidesClient(ClientId))
+		{
+			continue;
+		}
 
 		RenderHookCollLine(&GameClient()->m_aClients[ClientId].m_RenderPrev, &GameClient()->m_aClients[ClientId].m_RenderCur, ClientId);
 
@@ -1653,6 +1899,8 @@ void CPlayers::OnRender()
 	{
 		const CGameClient::CClientData *pClientData = &GameClient()->m_aClients[RenderLastId];
 		RenderHookCollLine(&pClientData->m_RenderPrev, &pClientData->m_RenderCur, RenderLastId);
+		if(RenderLastId == LocalClientId)
+			RenderAetherOrbitAura(RenderLastId);
 		RenderPlayer(&pClientData->m_RenderPrev, &pClientData->m_RenderCur, &aRenderInfo[RenderLastId], RenderLastId);
 	}
 }
@@ -1675,6 +1923,27 @@ void CPlayers::CreateSpectatorTeeRenderInfo()
 	SpectatorSkinDescriptor.m_Flags |= CSkinDescriptor::FLAG_SIX;
 	str_copy(SpectatorSkinDescriptor.m_aSkinName, "x_spec");
 	m_pSpectatorTeeRenderInfo = GameClient()->CreateManagedTeeRenderInfo(SpectatorTeeRenderInfo, SpectatorSkinDescriptor);
+}
+
+void CPlayers::CreateAetherBlockTeeRenderInfo()
+{
+	CTeeRenderInfo BlockTeeRenderInfo;
+	BlockTeeRenderInfo.m_Size = 64.0f;
+	CSkinDescriptor BlockSkinDescriptor;
+	BlockSkinDescriptor.m_Flags |= CSkinDescriptor::FLAG_SIX;
+	str_copy(BlockSkinDescriptor.m_aSkinName, "default");
+	m_pAetherBlockTeeRenderInfo = GameClient()->CreateManagedTeeRenderInfo(BlockTeeRenderInfo, BlockSkinDescriptor);
+}
+
+bool CPlayers::EnsureAetherBlockTeeRenderInfoReady()
+{
+	if(!m_pAetherBlockTeeRenderInfo)
+		CreateAetherBlockTeeRenderInfo();
+	if(!m_pAetherBlockTeeRenderInfo)
+		return false;
+	if(!m_pAetherBlockTeeRenderInfo->TeeRenderInfo().Valid())
+		GameClient()->RefreshSkin(m_pAetherBlockTeeRenderInfo);
+	return m_pAetherBlockTeeRenderInfo->TeeRenderInfo().Valid();
 }
 
 void CPlayers::OnInit()
@@ -1751,4 +2020,5 @@ void CPlayers::OnInit()
 
 	CreateNinjaTeeRenderInfo();
 	CreateSpectatorTeeRenderInfo();
+	CreateAetherBlockTeeRenderInfo();
 }

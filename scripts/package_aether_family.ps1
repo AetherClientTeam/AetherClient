@@ -1,0 +1,128 @@
+param(
+	[string]$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path,
+	[string]$BuildRoot = "build-vs2026",
+	[string]$ReleaseDir = "Release",
+	[string]$OutRoot = "portable",
+	[string]$Version = "1.0.0",
+	[string]$Name = "",
+	[switch]$SkipBuild
+)
+
+$ErrorActionPreference = "Stop"
+
+$RepoRoot = (Resolve-Path $RepoRoot).Path
+$BuildPath = Join-Path $RepoRoot $BuildRoot
+$ReleasePath = Join-Path $RepoRoot $ReleaseDir
+$OutRootPath = Join-Path $RepoRoot $OutRoot
+if([string]::IsNullOrWhiteSpace($Name))
+{
+	$Name = "AetherClient-v$Version"
+}
+$PortablePath = Join-Path $OutRootPath $Name
+$ZipPath = "$PortablePath.zip"
+$ExeNames = @("Aether.exe", "Vera.exe", "Via.exe", "Vex.exe")
+$BadgeNames = @("founder.png", "tester.png", "chess_winner.png")
+$LogoNames = @(
+	"aether_icon_small_256.png", "vera_icon_small_256.png", "via_icon_small_256.png", "vex_icon_small_256.png",
+	"aether_lockup_1024.png", "vera_lockup_1024.png", "via_lockup_1024.png", "vex_lockup_1024.png"
+)
+
+if(!$SkipBuild)
+{
+	cmake --build $BuildPath --config Release --target game-client-family
+}
+
+$DataPath = Join-Path $BuildPath "data"
+if(!(Test-Path $DataPath))
+{
+	throw "Build data folder not found: $DataPath"
+}
+
+foreach($Exe in $ExeNames)
+{
+	$ExePath = Join-Path $BuildPath $Exe
+	if(!(Test-Path $ExePath))
+	{
+		throw "Family executable missing: $ExePath"
+	}
+}
+
+New-Item -ItemType Directory -Force -Path $ReleasePath | Out-Null
+foreach($Exe in $ExeNames)
+{
+	Copy-Item -LiteralPath (Join-Path $BuildPath $Exe) -Destination (Join-Path $ReleasePath $Exe) -Force
+}
+Copy-Item -LiteralPath $DataPath -Destination $ReleasePath -Recurse -Force
+Copy-Item -LiteralPath (Join-Path $RepoRoot "storage.cfg") -Destination (Join-Path $ReleasePath "storage.cfg") -Force
+Copy-Item -LiteralPath (Join-Path $RepoRoot "license.txt") -Destination (Join-Path $ReleasePath "license.txt") -Force
+Copy-Item -LiteralPath (Join-Path $RepoRoot "NOTICE-AETHER.txt") -Destination (Join-Path $ReleasePath "NOTICE-AETHER.txt") -Force
+
+if(Test-Path $PortablePath)
+{
+	Remove-Item -LiteralPath $PortablePath -Recurse -Force
+}
+New-Item -ItemType Directory -Force -Path $PortablePath | Out-Null
+foreach($Exe in $ExeNames)
+{
+	Copy-Item -LiteralPath (Join-Path $BuildPath $Exe) -Destination (Join-Path $PortablePath $Exe) -Force
+}
+Get-ChildItem -LiteralPath $BuildPath -Filter "*.dll" | ForEach-Object {
+	Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $PortablePath $_.Name) -Force
+}
+Copy-Item -LiteralPath $DataPath -Destination $PortablePath -Recurse -Force
+Copy-Item -LiteralPath (Join-Path $RepoRoot "storage.cfg") -Destination (Join-Path $PortablePath "storage.cfg") -Force
+Copy-Item -LiteralPath (Join-Path $RepoRoot "license.txt") -Destination (Join-Path $PortablePath "license.txt") -Force
+Copy-Item -LiteralPath (Join-Path $RepoRoot "NOTICE-AETHER.txt") -Destination (Join-Path $PortablePath "NOTICE-AETHER.txt") -Force
+
+foreach($Root in @($ReleasePath, $PortablePath))
+{
+	foreach($Exe in $ExeNames)
+	{
+		$Path = Join-Path $Root $Exe
+		if(!(Test-Path $Path))
+		{
+			throw "Packaged executable missing: $Path"
+		}
+	}
+	foreach($Badge in $BadgeNames)
+	{
+		$Path = Join-Path $Root ("data\core\badges\" + $Badge)
+		if(!(Test-Path $Path))
+		{
+			throw "Packaged badge missing: $Path"
+		}
+	}
+	foreach($Logo in $LogoNames)
+	{
+		$Path = Join-Path $Root ("data\core\logos\" + $Logo)
+		if(!(Test-Path $Path))
+		{
+			throw "Packaged logo missing: $Path"
+		}
+	}
+	if(!(Test-Path (Join-Path $Root "storage.cfg")))
+	{
+		throw "Packaged storage.cfg missing in $Root"
+	}
+	if(!(Test-Path (Join-Path $Root "license.txt")) -or !(Test-Path (Join-Path $Root "NOTICE-AETHER.txt")))
+	{
+		throw "Packaged license/notice missing in $Root"
+	}
+	if(!(Test-Path (Join-Path $Root "data\shader")))
+	{
+		throw "Packaged shader folder missing in $Root"
+	}
+}
+
+if(Test-Path $ZipPath)
+{
+	Remove-Item -LiteralPath $ZipPath -Force
+}
+Compress-Archive -Path (Join-Path $PortablePath "*") -DestinationPath $ZipPath -Force
+
+[pscustomobject]@{
+	PortablePath = $PortablePath
+	ZipPath = $ZipPath
+	ReleasePath = $ReleasePath
+	Executables = $ExeNames
+}
