@@ -81,13 +81,13 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 
 	auto DoModernCard = [&](CButtonContainer *pId, const char *pTitle, const char *pSubtitle, const char *pHotkey, CUIRect Rect, ColorRGBA Accent, bool Highlight = false) {
 		const bool Hot = Ui()->HotItem() == pId;
-		ColorRGBA Border = Hot ? Accent : ColorRGBA(1.0f, 1.0f, 1.0f, Highlight ? 0.16f : 0.08f);
+		ColorRGBA Border = Hot ? Accent : ColorRGBA(1.0f, 1.0f, 1.0f, 0.08f);
 		Border.a *= Ui()->ButtonColorMul(pId);
 		Rect.Draw(Border, IGraphics::CORNER_ALL, Rounding);
 
 		CUIRect Inner = Rect;
 		Inner.Margin(1.5f, &Inner);
-		ColorRGBA CardColor = Highlight ? ColorRGBA(0.08f, 0.20f, 0.30f, 0.78f) : ColorRGBA(0.01f, 0.02f, 0.04f, 0.62f);
+		ColorRGBA CardColor = Hot && Highlight ? ColorRGBA(0.08f, 0.20f, 0.30f, 0.78f) : ColorRGBA(0.01f, 0.02f, 0.04f, 0.62f);
 		CardColor.a *= Ui()->ButtonColorMul(pId);
 		Inner.Draw(CardColor, IGraphics::CORNER_ALL, Rounding - 1.5f);
 
@@ -173,10 +173,59 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 	GridArea.HSplitBottom(48.0f, &GridArea, &Secondary);
 	GridArea.HSplitBottom(12.0f, &GridArea, nullptr);
 
-	CUIRect HeaderTitle, HeaderSubtitle;
-	PanelHeader.HSplitTop(25.0f, &HeaderTitle, &HeaderSubtitle);
-	Ui()->DoLabel(&HeaderTitle, "Aether Home", 19.0f, TEXTALIGN_ML);
-	Ui()->DoLabel(&HeaderSubtitle, "Clean, fast, ready to play.", 10.5f, TEXTALIGN_ML);
+	CUIRect HeaderTitle;
+	PanelHeader.HSplitTop(30.0f, &HeaderTitle, nullptr);
+#if defined(CONF_AUTOUPDATE)
+	CUIRect UpdateArea;
+	HeaderTitle.VSplitRight(std::min(360.0f, HeaderTitle.w * 0.55f), &HeaderTitle, &UpdateArea);
+	UpdateArea.VSplitLeft(14.0f, nullptr, &UpdateArea);
+#endif
+	Ui()->DoLabel(&HeaderTitle, "Aether Client", 19.0f, TEXTALIGN_ML);
+
+#if defined(CONF_AUTOUPDATE)
+	{
+		CUIRect UpdateStatus, UpdateButton;
+		UpdateArea.VSplitRight(126.0f, &UpdateStatus, &UpdateButton);
+		UpdateStatus.VSplitRight(8.0f, &UpdateStatus, nullptr);
+
+		const IUpdater::EUpdaterState UpdateState = Updater()->GetCurrentState();
+		char aStatus[128];
+		Updater()->GetCurrentFile(aStatus, sizeof(aStatus));
+		const int Percent = Updater()->GetCurrentPercent();
+
+		const char *pButtonLabel = Localize("Update");
+		if(UpdateState == IUpdater::GETTING_MANIFEST || UpdateState == IUpdater::DOWNLOADING)
+			pButtonLabel = Localize("Updating...");
+		else if(UpdateState == IUpdater::NEED_RESTART)
+			pButtonLabel = Localize("Apply");
+		else if(UpdateState == IUpdater::FAIL)
+			pButtonLabel = Localize("Retry");
+
+		static CButtonContainer s_AetherHeaderUpdateButton;
+		if(GameClient()->m_Menus.DoButton_Menu(&s_AetherHeaderUpdateButton, pButtonLabel, 0, &UpdateButton, BUTTONFLAG_LEFT, 0, IGraphics::CORNER_ALL, 8.0f, 0.0f, ColorRGBA(0.0f, 0.0f, 0.0f, 0.18f)))
+		{
+			if(UpdateState == IUpdater::NEED_RESTART)
+				Updater()->ApplyUpdateAndRestart();
+			else if(UpdateState != IUpdater::GETTING_MANIFEST && UpdateState != IUpdater::DOWNLOADING)
+				Updater()->InitiateUpdate();
+		}
+
+		char aBuf[96];
+		if(UpdateState == IUpdater::DOWNLOADING)
+			str_format(aBuf, sizeof(aBuf), "%s %d%%", aStatus[0] ? aStatus : Localize("Downloading update"), Percent);
+		else if(UpdateState == IUpdater::GETTING_MANIFEST)
+			str_format(aBuf, sizeof(aBuf), "%s", aStatus[0] ? aStatus : Localize("Checking latest release"));
+		else if(UpdateState == IUpdater::NEED_RESTART)
+			str_format(aBuf, sizeof(aBuf), "%s", Localize("Update ready"));
+		else if(UpdateState == IUpdater::FAIL)
+			str_format(aBuf, sizeof(aBuf), "%s", aStatus[0] ? aStatus : Localize("Update failed"));
+		else
+			str_format(aBuf, sizeof(aBuf), "%s", Localize("Ready"));
+		SLabelProperties UpdateLabelProps;
+		UpdateLabelProps.SetColor(UpdateState == IUpdater::FAIL ? ColorRGBA(1.0f, 0.45f, 0.45f, 1.0f) : ColorRGBA(0.75f, 0.88f, 1.0f, 1.0f));
+		Ui()->DoLabel(&UpdateStatus, aBuf, 11.0f, TEXTALIGN_MR, UpdateLabelProps);
+	}
+#endif
 
 	CUIRect Bento = GridArea;
 
@@ -305,78 +354,12 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 		}
 	}
 
-	// render version
-	CUIRect CurVersion, ConsoleButton;
-	MainView.HSplitBottom(45.0f, nullptr, &CurVersion);
-	CurVersion.VSplitRight(40.0f, &CurVersion, nullptr);
-	CurVersion.HSplitTop(20.0f, &ConsoleButton, &CurVersion);
-	CurVersion.HSplitTop(5.0f, nullptr, &CurVersion);
-	ConsoleButton.VSplitRight(40.0f, nullptr, &ConsoleButton);
-	Ui()->DoLabel(&CurVersion, GAME_RELEASE_VERSION, 14.0f, TEXTALIGN_MR);
-
 	CUIRect TClientVersion;
 	MainView.HSplitTop(15.0f, &TClientVersion, &MainView);
 	TClientVersion.VSplitRight(40.0f, &TClientVersion, nullptr);
 	char aTBuf[64];
-	str_format(aTBuf, sizeof(aTBuf), CLIENT_NAME " %s", CLIENT_RELEASE_VERSION);
+	str_format(aTBuf, sizeof(aTBuf), "v%s", CLIENT_RELEASE_VERSION);
 	Ui()->DoLabel(&TClientVersion, aTBuf, 14.0f, TEXTALIGN_MR);
-	static CButtonContainer s_ConsoleButton;
-	TextRender()->SetFontPreset(EFontPreset::ICON_FONT);
-	TextRender()->SetRenderFlags(ETextRenderFlags::TEXT_RENDER_FLAG_ONLY_ADVANCE_WIDTH | ETextRenderFlags::TEXT_RENDER_FLAG_NO_X_BEARING | ETextRenderFlags::TEXT_RENDER_FLAG_NO_Y_BEARING | ETextRenderFlags::TEXT_RENDER_FLAG_NO_PIXEL_ALIGNMENT | ETextRenderFlags::TEXT_RENDER_FLAG_NO_OVERSIZE);
-	if(GameClient()->m_Menus.DoButton_Menu(&s_ConsoleButton, FontIcon::TERMINAL, 0, &ConsoleButton, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 5.0f, 0.0f, ColorRGBA(0.0f, 0.0f, 0.0f, 0.1f)))
-	{
-		GameClient()->m_GameConsole.Toggle(CGameConsole::CONSOLETYPE_LOCAL);
-	}
-	TextRender()->SetRenderFlags(0);
-	TextRender()->SetFontPreset(EFontPreset::DEFAULT_FONT);
-
-	CUIRect VersionUpdate;
-	MainView.HSplitBottom(20.0f, nullptr, &VersionUpdate);
-	VersionUpdate.VMargin(VMargin, &VersionUpdate);
-#if defined(CONF_AUTOUPDATE)
-	{
-		CUIRect UpdateButton;
-		VersionUpdate.VSplitRight(132.0f, &VersionUpdate, &UpdateButton);
-		VersionUpdate.VSplitRight(10.0f, &VersionUpdate, nullptr);
-
-		const IUpdater::EUpdaterState UpdateState = Updater()->GetCurrentState();
-		char aStatus[128];
-		Updater()->GetCurrentFile(aStatus, sizeof(aStatus));
-		const int Percent = Updater()->GetCurrentPercent();
-
-		const char *pButtonLabel = Localize("Check updates");
-		if(UpdateState == IUpdater::GETTING_MANIFEST || UpdateState == IUpdater::DOWNLOADING)
-			pButtonLabel = Localize("Updating...");
-		else if(UpdateState == IUpdater::NEED_RESTART)
-			pButtonLabel = Localize("Apply update");
-		else if(UpdateState == IUpdater::FAIL)
-			pButtonLabel = Localize("Retry update");
-
-		static CButtonContainer s_AetherUpdateButton;
-		if(GameClient()->m_Menus.DoButton_Menu(&s_AetherUpdateButton, pButtonLabel, 0, &UpdateButton, BUTTONFLAG_LEFT, 0, IGraphics::CORNER_ALL, 5.0f, 0.0f, ColorRGBA(0.0f, 0.0f, 0.0f, 0.25f)))
-		{
-			if(UpdateState == IUpdater::NEED_RESTART)
-				Updater()->ApplyUpdateAndRestart();
-			else if(UpdateState != IUpdater::GETTING_MANIFEST && UpdateState != IUpdater::DOWNLOADING)
-				Updater()->InitiateUpdate();
-		}
-
-		char aBuf[64];
-		if(UpdateState == IUpdater::DOWNLOADING)
-			str_format(aBuf, sizeof(aBuf), "%s %d%%", aStatus[0] ? aStatus : Localize("Downloading update"), Percent);
-		else if(UpdateState == IUpdater::GETTING_MANIFEST)
-			str_format(aBuf, sizeof(aBuf), "%s", aStatus[0] ? aStatus : Localize("Checking latest release"));
-		else if(UpdateState == IUpdater::NEED_RESTART)
-			str_format(aBuf, sizeof(aBuf), "%s", Localize("Update ready"));
-		else if(UpdateState == IUpdater::FAIL)
-			str_format(aBuf, sizeof(aBuf), "%s", aStatus[0] ? aStatus : Localize("Update failed"));
-		else
-			str_format(aBuf, sizeof(aBuf), "%s", Localize("AetherClient v1.0.0"));
-		SLabelProperties UpdateLabelProps;
-		UpdateLabelProps.SetColor(UpdateState == IUpdater::FAIL ? ColorRGBA(1.0f, 0.45f, 0.45f, 1.0f) : ColorRGBA(0.75f, 0.88f, 1.0f, 1.0f));
-		Ui()->DoLabel(&VersionUpdate, aBuf, 14.0f, TEXTALIGN_ML, UpdateLabelProps);
-	}
-#endif
 
 	if(NewPage != -1)
 	{

@@ -40,7 +40,7 @@ extern const char *GIT_SHORTREV_HASH;
 #define AETHERCLIENT_VERSION CLIENT_RELEASE_VERSION
 #endif
 #ifndef AETHERCLIENT_UPDATE_RELEASE_API_URL
-#define AETHERCLIENT_UPDATE_RELEASE_API_URL "https://api.github.com/repos/AetherClient/AetherClient/releases"
+#define AETHERCLIENT_UPDATE_RELEASE_API_URL "https://api.github.com/repos/AetherClientTeam/AetherClient/releases"
 #endif
 
 #endif
