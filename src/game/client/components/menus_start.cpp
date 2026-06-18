@@ -35,10 +35,9 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 	GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_START);
 
 #if defined(CONF_AUTOUPDATE)
-	static bool s_AetherAutoUpdateCheckStarted = false;
-	if(!s_AetherAutoUpdateCheckStarted)
+	if(!m_AutoUpdateCheckStarted)
 	{
-		s_AetherAutoUpdateCheckStarted = true;
+		m_AutoUpdateCheckStarted = true;
 		Updater()->CheckForUpdate();
 	}
 #endif
@@ -385,4 +384,9 @@ bool CMenusStart::CheckHotKey(int Key) const
 	return !Input()->ShiftIsPressed() && !Input()->ModifierIsPressed() && !Input()->AltIsPressed() && // no modifier
 	       Input()->KeyPress(Key) &&
 	       !GameClient()->m_GameConsole.IsActive();
+}
+
+void CMenusStart::ResetAutoUpdateCheck()
+{
+	m_AutoUpdateCheckStarted = false;
 }

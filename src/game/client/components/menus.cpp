@@ -1088,6 +1088,9 @@ void CMenus::Render()
 	{
 		Screen.Margin(10.0f, &Screen);
 	}
+	const bool StartMenuVisible = ClientState == IClient::STATE_OFFLINE && m_ShowStart && m_Popup == POPUP_NONE;
+	if(!StartMenuVisible)
+		m_MenusStart.ResetAutoUpdateCheck();
 
 	switch(ClientState)
 	{

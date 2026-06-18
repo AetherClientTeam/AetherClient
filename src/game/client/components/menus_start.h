@@ -10,9 +10,11 @@ class CMenusStart : public CComponentInterfaces
 {
 public:
 	void RenderStartMenu(CUIRect MainView);
+	void ResetAutoUpdateCheck();
 
 private:
 	bool CheckHotKey(int Key) const;
+	bool m_AutoUpdateCheckStarted = false;
 };
 
 #endif
