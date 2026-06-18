@@ -372,7 +372,7 @@ bool CUpdater::ParseReleaseTask()
 	if(CompareVersionStrings(m_aLatestVersion, AETHERCLIENT_VERSION) <= 0)
 	{
 		dbg_msg("updater", "Current version %s is up to date with %s", AETHERCLIENT_VERSION, m_aLatestVersion);
-		SetStatus("No new release found");
+		SetStatus("Latest");
 		SetCurrentState(IUpdater::CLEAN);
 		return false;
 	}
@@ -437,6 +437,12 @@ bool CUpdater::WriteApplyScript(char *pScriptPath, int ScriptPathSize, char *pIn
 		"    $items = @(Get-ChildItem -LiteralPath $extractDir -Force)\n"
 		"    if($items.Count -eq 1 -and $items[0].PSIsContainer) {\n"
 		"        $copyRoot = $items[0].FullName\n"
+		"    }\n"
+		"    $requiredFiles = @('Aether.exe', 'Vera.exe', 'Via.exe', 'Vex.exe')\n"
+		"    foreach($requiredFile in $requiredFiles) {\n"
+		"        if(-not (Test-Path -LiteralPath (Join-Path $copyRoot $requiredFile))) {\n"
+		"            throw ('Update archive is missing required file: ' + $requiredFile)\n"
+		"        }\n"
 		"    }\n"
 		"    foreach($item in Get-ChildItem -LiteralPath $copyRoot -Force) {\n"
 		"        Copy-Item -Path $item.FullName -Destination $InstallDir -Recurse -Force\n"

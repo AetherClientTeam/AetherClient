@@ -220,7 +220,7 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 		else if(UpdateState == IUpdater::FAIL)
 			str_format(aBuf, sizeof(aBuf), "%s", aStatus[0] ? aStatus : Localize("Update failed"));
 		else
-			str_format(aBuf, sizeof(aBuf), "%s", Localize("Ready"));
+			str_format(aBuf, sizeof(aBuf), "%s", aStatus[0] ? aStatus : Localize("Ready"));
 		SLabelProperties UpdateLabelProps;
 		UpdateLabelProps.SetColor(UpdateState == IUpdater::FAIL ? ColorRGBA(1.0f, 0.45f, 0.45f, 1.0f) : ColorRGBA(0.75f, 0.88f, 1.0f, 1.0f));
 		Ui()->DoLabel(&UpdateStatus, aBuf, 11.0f, TEXTALIGN_MR, UpdateLabelProps);

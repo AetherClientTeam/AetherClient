@@ -29,6 +29,7 @@ $LogoNames = @(
 
 if(!$SkipBuild)
 {
+	cmake -S $RepoRoot -B $BuildPath -DAUTOUPDATE=ON
 	cmake --build $BuildPath --config Release --target game-client-family
 }
 
@@ -44,6 +45,12 @@ foreach($Exe in $ExeNames)
 	if(!(Test-Path $ExePath))
 	{
 		throw "Family executable missing: $ExePath"
+	}
+	$ExeBytes = [System.IO.File]::ReadAllBytes($ExePath)
+	$ExeText = [System.Text.Encoding]::ASCII.GetString($ExeBytes)
+	if(!$ExeText.Contains("AetherClientTeam/AetherClient") -or !$ExeText.Contains("Updating..."))
+	{
+		throw "AUTOUPDATE appears disabled or misconfigured in: $ExePath"
 	}
 }
 
