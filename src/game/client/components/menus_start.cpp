@@ -197,7 +197,7 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 		if(UpdateState == IUpdater::GETTING_MANIFEST || UpdateState == IUpdater::DOWNLOADING)
 			pButtonLabel = Localize("Updating...");
 		else if(UpdateState == IUpdater::NEED_RESTART)
-			pButtonLabel = Localize("Apply");
+			pButtonLabel = Localize("Update");
 		else if(UpdateState == IUpdater::FAIL)
 			pButtonLabel = Localize("Retry");
 
@@ -212,17 +212,18 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 
 		char aBuf[96];
 		if(UpdateState == IUpdater::DOWNLOADING)
-			str_format(aBuf, sizeof(aBuf), "%s %d%%", aStatus[0] ? aStatus : Localize("Downloading update"), Percent);
+			str_format(aBuf, sizeof(aBuf), "%s %d%%", Localize("New Update"), Percent);
 		else if(UpdateState == IUpdater::GETTING_MANIFEST)
 			str_format(aBuf, sizeof(aBuf), "%s", aStatus[0] ? aStatus : Localize("Checking latest release"));
 		else if(UpdateState == IUpdater::NEED_RESTART)
-			str_format(aBuf, sizeof(aBuf), "%s", Localize("Update ready"));
+			str_format(aBuf, sizeof(aBuf), "%s", Localize("New Update"));
 		else if(UpdateState == IUpdater::FAIL)
 			str_format(aBuf, sizeof(aBuf), "%s", aStatus[0] ? aStatus : Localize("Update failed"));
 		else
 			str_format(aBuf, sizeof(aBuf), "%s", aStatus[0] ? aStatus : Localize("Ready"));
 		SLabelProperties UpdateLabelProps;
-		UpdateLabelProps.SetColor(UpdateState == IUpdater::FAIL ? ColorRGBA(1.0f, 0.45f, 0.45f, 1.0f) : ColorRGBA(0.75f, 0.88f, 1.0f, 1.0f));
+		const bool ShowUpdateAlert = UpdateState == IUpdater::DOWNLOADING || UpdateState == IUpdater::NEED_RESTART || UpdateState == IUpdater::FAIL;
+		UpdateLabelProps.SetColor(ShowUpdateAlert ? ColorRGBA(1.0f, 0.45f, 0.45f, 1.0f) : ColorRGBA(0.75f, 0.88f, 1.0f, 1.0f));
 		Ui()->DoLabel(&UpdateStatus, aBuf, 11.0f, TEXTALIGN_MR, UpdateLabelProps);
 	}
 #endif

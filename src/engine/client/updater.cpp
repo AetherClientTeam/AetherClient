@@ -343,6 +343,7 @@ bool CUpdater::ParseReleaseTask()
 {
 	if(!m_pCurrentTask || m_pCurrentTask->State() != EHttpState::DONE)
 	{
+		m_AutoApplyAfterDownload = false;
 		SetStatus("Release check interrupted");
 		SetCurrentState(IUpdater::FAIL);
 		return false;
@@ -351,6 +352,7 @@ bool CUpdater::ParseReleaseTask()
 	json_value *pJson = m_pCurrentTask->ResultJson();
 	if(!pJson)
 	{
+		m_AutoApplyAfterDownload = false;
 		SetStatus("Failed to parse release info");
 		SetCurrentState(IUpdater::FAIL);
 		return false;
@@ -362,6 +364,7 @@ bool CUpdater::ParseReleaseTask()
 	if(!Parsed)
 	{
 		dbg_msg("updater", "Failed to parse latest release or find suitable asset");
+		m_AutoApplyAfterDownload = false;
 		SetStatus("Release archive not found");
 		SetCurrentState(IUpdater::FAIL);
 		return false;
@@ -372,6 +375,7 @@ bool CUpdater::ParseReleaseTask()
 	if(CompareVersionStrings(m_aLatestVersion, AETHERCLIENT_VERSION) <= 0)
 	{
 		dbg_msg("updater", "Current version %s is up to date with %s", AETHERCLIENT_VERSION, m_aLatestVersion);
+		m_AutoApplyAfterDownload = false;
 		SetStatus("Latest");
 		SetCurrentState(IUpdater::CLEAN);
 		return false;
@@ -526,6 +530,7 @@ void CUpdater::InitiateUpdate()
 	if(State == IUpdater::GETTING_MANIFEST || State == IUpdater::DOWNLOADING)
 		return;
 
+	m_AutoApplyAfterDownload = true;
 	StartReleaseFetch();
 }
 
@@ -535,7 +540,10 @@ void CUpdater::ApplyUpdateAndRestart()
 		return;
 
 	if(!LaunchApplyScriptAndQuit())
+	{
+		m_AutoApplyAfterDownload = false;
 		SetCurrentState(IUpdater::FAIL);
+	}
 }
 
 void CUpdater::Update()
@@ -553,6 +561,7 @@ void CUpdater::Update()
 	if(m_pCurrentTask->State() != EHttpState::DONE || m_pCurrentTask->StatusCode() >= 400)
 	{
 		ResetTask();
+		m_AutoApplyAfterDownload = false;
 		SetStatus("Update download failed");
 		SetCurrentState(IUpdater::FAIL);
 		return;
@@ -571,7 +580,12 @@ void CUpdater::Update()
 	{
 		ResetTask();
 		SetPercent(100);
-		SetStatus(m_aArchiveName[0] != '\0' ? m_aArchiveName : "update");
+		SetStatus("New Update");
 		SetCurrentState(IUpdater::NEED_RESTART);
+		if(m_AutoApplyAfterDownload)
+		{
+			m_AutoApplyAfterDownload = false;
+			ApplyUpdateAndRestart();
+		}
 	}
 }
