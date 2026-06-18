@@ -34,6 +34,15 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 {
 	GameClient()->m_MenuBackground.ChangePosition(CMenuBackground::POS_START);
 
+#if defined(CONF_AUTOUPDATE)
+	static bool s_AetherAutoUpdateCheckStarted = false;
+	if(!s_AetherAutoUpdateCheckStarted)
+	{
+		s_AetherAutoUpdateCheckStarted = true;
+		Updater()->CheckForUpdate();
+	}
+#endif
+
 	auto LoadCoreTexture = [&](const char *pPath) {
 		IGraphics::CTextureHandle Texture = Graphics()->LoadTexture(pPath, IStorage::TYPE_ALL);
 		if(Texture.IsValid() || !str_startswith(pPath, "core/"))
@@ -194,7 +203,9 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 		const int Percent = Updater()->GetCurrentPercent();
 
 		const char *pButtonLabel = Localize("Update");
-		if(UpdateState == IUpdater::GETTING_MANIFEST || UpdateState == IUpdater::DOWNLOADING)
+		if(UpdateState == IUpdater::GETTING_MANIFEST)
+			pButtonLabel = Localize("Checking...");
+		else if(UpdateState == IUpdater::DOWNLOADING)
 			pButtonLabel = Localize("Updating...");
 		else if(UpdateState == IUpdater::NEED_RESTART)
 			pButtonLabel = Localize("Update");
@@ -215,14 +226,14 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 			str_format(aBuf, sizeof(aBuf), "%s %d%%", Localize("New Update"), Percent);
 		else if(UpdateState == IUpdater::GETTING_MANIFEST)
 			str_format(aBuf, sizeof(aBuf), "%s", aStatus[0] ? aStatus : Localize("Checking latest release"));
-		else if(UpdateState == IUpdater::NEED_RESTART)
+		else if(UpdateState == IUpdater::UPDATE_AVAILABLE || UpdateState == IUpdater::NEED_RESTART)
 			str_format(aBuf, sizeof(aBuf), "%s", Localize("New Update"));
 		else if(UpdateState == IUpdater::FAIL)
 			str_format(aBuf, sizeof(aBuf), "%s", aStatus[0] ? aStatus : Localize("Update failed"));
 		else
-			str_format(aBuf, sizeof(aBuf), "%s", aStatus[0] ? aStatus : Localize("Ready"));
+			str_format(aBuf, sizeof(aBuf), "%s", aStatus[0] ? aStatus : Localize("Checking latest release"));
 		SLabelProperties UpdateLabelProps;
-		const bool ShowUpdateAlert = UpdateState == IUpdater::DOWNLOADING || UpdateState == IUpdater::NEED_RESTART || UpdateState == IUpdater::FAIL;
+		const bool ShowUpdateAlert = UpdateState == IUpdater::UPDATE_AVAILABLE || UpdateState == IUpdater::DOWNLOADING || UpdateState == IUpdater::NEED_RESTART || UpdateState == IUpdater::FAIL;
 		UpdateLabelProps.SetColor(ShowUpdateAlert ? ColorRGBA(1.0f, 0.45f, 0.45f, 1.0f) : ColorRGBA(0.75f, 0.88f, 1.0f, 1.0f));
 		Ui()->DoLabel(&UpdateStatus, aBuf, 11.0f, TEXTALIGN_MR, UpdateLabelProps);
 	}

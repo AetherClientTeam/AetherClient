@@ -343,6 +343,7 @@ bool CUpdater::ParseReleaseTask()
 {
 	if(!m_pCurrentTask || m_pCurrentTask->State() != EHttpState::DONE)
 	{
+		m_CheckOnlyFetch = false;
 		m_AutoApplyAfterDownload = false;
 		SetStatus("Release check interrupted");
 		SetCurrentState(IUpdater::FAIL);
@@ -352,6 +353,7 @@ bool CUpdater::ParseReleaseTask()
 	json_value *pJson = m_pCurrentTask->ResultJson();
 	if(!pJson)
 	{
+		m_CheckOnlyFetch = false;
 		m_AutoApplyAfterDownload = false;
 		SetStatus("Failed to parse release info");
 		SetCurrentState(IUpdater::FAIL);
@@ -364,6 +366,7 @@ bool CUpdater::ParseReleaseTask()
 	if(!Parsed)
 	{
 		dbg_msg("updater", "Failed to parse latest release or find suitable asset");
+		m_CheckOnlyFetch = false;
 		m_AutoApplyAfterDownload = false;
 		SetStatus("Release archive not found");
 		SetCurrentState(IUpdater::FAIL);
@@ -375,6 +378,7 @@ bool CUpdater::ParseReleaseTask()
 	if(CompareVersionStrings(m_aLatestVersion, AETHERCLIENT_VERSION) <= 0)
 	{
 		dbg_msg("updater", "Current version %s is up to date with %s", AETHERCLIENT_VERSION, m_aLatestVersion);
+		m_CheckOnlyFetch = false;
 		m_AutoApplyAfterDownload = false;
 		SetStatus("Latest");
 		SetCurrentState(IUpdater::CLEAN);
@@ -382,6 +386,15 @@ bool CUpdater::ParseReleaseTask()
 	}
 
 	dbg_msg("updater", "New version found: %s", m_aLatestVersion);
+	if(m_CheckOnlyFetch)
+	{
+		m_CheckOnlyFetch = false;
+		m_AutoApplyAfterDownload = false;
+		SetPercent(0);
+		SetStatus("New Update");
+		SetCurrentState(IUpdater::UPDATE_AVAILABLE);
+		return false;
+	}
 	return true;
 }
 
@@ -530,7 +543,25 @@ void CUpdater::InitiateUpdate()
 	if(State == IUpdater::GETTING_MANIFEST || State == IUpdater::DOWNLOADING)
 		return;
 
+	m_CheckOnlyFetch = false;
 	m_AutoApplyAfterDownload = true;
+	if(State == IUpdater::UPDATE_AVAILABLE && m_aArchiveUrl[0] != '\0')
+	{
+		StartArchiveDownload();
+		return;
+	}
+
+	StartReleaseFetch();
+}
+
+void CUpdater::CheckForUpdate()
+{
+	const EUpdaterState State = GetCurrentState();
+	if(State == IUpdater::GETTING_MANIFEST || State == IUpdater::DOWNLOADING || State == IUpdater::UPDATE_AVAILABLE || State == IUpdater::NEED_RESTART)
+		return;
+
+	m_CheckOnlyFetch = true;
+	m_AutoApplyAfterDownload = false;
 	StartReleaseFetch();
 }
 
@@ -561,6 +592,7 @@ void CUpdater::Update()
 	if(m_pCurrentTask->State() != EHttpState::DONE || m_pCurrentTask->StatusCode() >= 400)
 	{
 		ResetTask();
+		m_CheckOnlyFetch = false;
 		m_AutoApplyAfterDownload = false;
 		SetStatus("Update download failed");
 		SetCurrentState(IUpdater::FAIL);

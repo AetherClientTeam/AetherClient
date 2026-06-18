@@ -10,6 +10,7 @@ public:
 	enum EUpdaterState
 	{
 		CLEAN,
+		UPDATE_AVAILABLE,
 		GETTING_MANIFEST,
 		GOT_MANIFEST,
 		PARSING_UPDATE,
@@ -20,6 +21,7 @@ public:
 	};
 
 	virtual void Update() = 0;
+	virtual void CheckForUpdate() = 0;
 	virtual void InitiateUpdate() = 0;
 	virtual void ApplyUpdateAndRestart() = 0;
 

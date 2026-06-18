@@ -32,6 +32,7 @@ class CUpdater : public IUpdater
 
 	std::shared_ptr<CHttpRequest> m_pCurrentTask;
 	ETaskKind m_TaskKind = ETaskKind::NONE;
+	bool m_CheckOnlyFetch = false;
 	bool m_AutoApplyAfterDownload = false;
 
 	char m_aLatestVersion[64];
@@ -57,6 +58,7 @@ public:
 	void GetCurrentFile(char *pBuf, int BufSize) override REQUIRES(!m_Lock);
 	int GetCurrentPercent() override REQUIRES(!m_Lock);
 
+	void CheckForUpdate() override REQUIRES(!m_Lock);
 	void InitiateUpdate() override REQUIRES(!m_Lock);
 	void ApplyUpdateAndRestart() override REQUIRES(!m_Lock);
 	void Init(CHttp *pHttp);
