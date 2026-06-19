@@ -116,6 +116,8 @@ void CAetherPsa::OnUpdate()
 
 void CAetherPsa::OnRender()
 {
+	if(g_Config.m_AeFocusMode && g_Config.m_AeFocusModeHideAllUi)
+		return;
 	if(!g_Config.m_AePsa)
 		return;
 	if(Client()->State() != IClient::STATE_ONLINE && Client()->State() != IClient::STATE_DEMOPLAYBACK)

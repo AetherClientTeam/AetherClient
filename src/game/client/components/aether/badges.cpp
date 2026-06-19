@@ -2637,6 +2637,8 @@ void CAetherBadges::RenderChessInvitePopup()
 
 void CAetherBadges::OnRender()
 {
+	if(g_Config.m_AeFocusMode && g_Config.m_AeFocusModeHideAllUi)
+		return;
 	RenderPings();
 	RenderPingWheel();
 	RenderChessInvitePopup();

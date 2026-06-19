@@ -838,7 +838,7 @@ void CScoreboard::RenderScoreboard(CUIRect Scoreboard, int Team, int CountStart,
 					TextRender()->TextEx(&Cursor, aBadgeText[0] == ' ' ? aBadgeText + 1 : aBadgeText);
 					TextRender()->TextEx(&Cursor, " ");
 				}
-				if(pInfo->m_ClientId >= 0 && ClientData.m_Friend)
+				if(pInfo->m_ClientId >= 0 && ClientData.m_Friend && g_Config.m_ClNamePlatesFriendMark)
 				{
 					TextRender()->SetFontPreset(EFontPreset::ICON_FONT);
 					TextRender()->TextColor(ColorRGBA(0.95f, 0.25f, 0.25f, TextColor.a));
@@ -874,8 +874,12 @@ void CScoreboard::RenderScoreboard(CUIRect Scoreboard, int Team, int CountStart,
 			{
 				char aAetherClan[64];
 				const char *pClanName = ClientData.m_aClan;
+				bool AetherClan = false;
 				if(GameClient()->m_AetherBadges.ScoreboardClanForClient(pInfo->m_ClientId, AetherScoreboardIsKogServer(Client()), aAetherClan, sizeof(aAetherClan)))
+				{
 					pClanName = aAetherClan;
+					AetherClan = true;
+				}
 
 				if(GameClient()->m_aLocalIds[g_Config.m_ClDummy] >= 0 && str_comp(pClanName, GameClient()->m_aClients[GameClient()->m_aLocalIds[g_Config.m_ClDummy]].m_aClan) == 0)
 				{
@@ -892,9 +896,16 @@ void CScoreboard::RenderScoreboard(CUIRect Scoreboard, int Team, int CountStart,
 				else if(AetherVariant::WarlistEnabled() && pInfo->m_ClientId >= 0 && g_Config.m_TcWarList && g_Config.m_TcWarListScoreboard && GameClient()->m_WarList.GetAnyWar(pInfo->m_ClientId))
 					TextRender()->TextColor(GameClient()->m_WarList.GetClanColor(pInfo->m_ClientId));
 
+				float ClanFontSize = FontSize;
+				if(AetherClan)
+				{
+					const float TextWidth = TextRender()->TextWidth(ClanFontSize, pClanName);
+					if(TextWidth > ClanLength && TextWidth > 0.0f)
+						ClanFontSize = std::clamp(ClanFontSize * ClanLength / TextWidth, FontSize * 0.70f, FontSize);
+				}
 				CTextCursor Cursor;
-				Cursor.SetPosition(vec2(ClanOffset + (ClanLength - minimum(TextRender()->TextWidth(FontSize, pClanName), ClanLength)) / 2.0f, Row.y + (Row.h - FontSize) / 2.0f));
-				Cursor.m_FontSize = FontSize;
+				Cursor.SetPosition(vec2(ClanOffset + (ClanLength - minimum(TextRender()->TextWidth(ClanFontSize, pClanName), ClanLength)) / 2.0f, Row.y + (Row.h - ClanFontSize) / 2.0f));
+				Cursor.m_FontSize = ClanFontSize;
 				Cursor.m_Flags |= TEXTFLAG_ELLIPSIS_AT_END;
 				Cursor.m_LineWidth = ClanLength;
 				TextRender()->TextEx(&Cursor, pClanName);
@@ -967,6 +978,8 @@ void CScoreboard::RenderRecordingNotification(float x)
 
 void CScoreboard::OnRender()
 {
+	if(g_Config.m_AeFocusMode && g_Config.m_AeFocusModeHideAllUi)
+		return;
 	if(Client()->State() != IClient::STATE_ONLINE && Client()->State() != IClient::STATE_DEMOPLAYBACK)
 		return;
 
@@ -1346,9 +1359,6 @@ CUi::EPopupMenuFunctionResult CScoreboard::CScoreboardPopupContext::Render(void 
 				(str_comp(pType, "enemy") == 0 && HadEnemy) ||
 				(str_comp(pType, "team") == 0 && HadAlly) ||
 				(str_comp(pType, "helper") == 0 && HadHelper);
-			g_Config.m_AeBlockAwareness = 1;
-			g_Config.m_AeBlockColorPlayers = 1;
-			g_Config.m_AeBlockColorNames = 1;
 			RemoveBlockEntries();
 			pScoreboard->GameClient()->m_WarList.AddWarEntry(Client.m_aName, "", "", pType);
 			pScoreboard->GameClient()->m_WarList.UpdateWarPlayers();

@@ -118,6 +118,8 @@ MACRO_CONFIG_INT(AeBlockAllyNameOpacity, ae_block_ally_name_opacity, 100, 0, 100
 MACRO_CONFIG_INT(AeBlockNeutralNameOpacity, ae_block_neutral_name_opacity, 100, 0, 100, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Neutral nameplate opacity percent")
 
 MACRO_CONFIG_INT(AeFocusMode, ae_focus_mode, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Hide nonessential HUD overlays for focused play")
+MACRO_CONFIG_INT(AeFocusModeHideAllUi, ae_focus_mode_hide_all_ui, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Hide all UI while Focus Mode is active")
+MACRO_CONFIG_INT(AeFocusModeHideNameplates, ae_focus_mode_hide_nameplates, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Hide nameplates while Focus Mode is active")
 MACRO_CONFIG_INT(AeLoadingThemeBackground, ae_loading_theme_background, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Show the menu theme background on loading screens")
 MACRO_CONFIG_INT(AeBadges, ae_badges, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Enable Aether client badges")
 MACRO_CONFIG_INT(AeBadgesNameplates, ae_badges_nameplates, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Show Aether badges in nameplates")
@@ -182,6 +184,8 @@ MACRO_CONFIG_INT(AeSoundLocalHammer, ae_sound_local_hammer, 1, 0, 1, CFGFLAG_CLI
 MACRO_CONFIG_INT(AeSoundWeaponSwitch, ae_sound_weapon_switch, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Play local weapon switch sounds")
 MACRO_CONFIG_INT(AeSoundOthersWeaponSwitch, ae_sound_others_weapon_switch, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Play weapon switch sounds from other players")
 MACRO_CONFIG_INT(AeSoundAirJump, ae_sound_air_jump, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Play double jump sounds")
+MACRO_CONFIG_INT(AeSoundLocalKillRespawn, ae_sound_local_kill_respawn, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Play local kill and respawn sounds")
+MACRO_CONFIG_INT(AeSoundOthersKillRespawn, ae_sound_others_kill_respawn, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Play kill and respawn sounds from other players")
 MACRO_CONFIG_INT(AeKeyboardSound, ae_keyboard_sound, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Play a short sound while typing in chat")
 MACRO_CONFIG_STR(AeKeyboardSoundFile, ae_keyboard_sound_file, 128, "", CFGFLAG_CLIENT | CFGFLAG_SAVE, "File in assets/keyboard/ for chat typing sound")
 MACRO_CONFIG_INT(AeKeyboardSoundVol, ae_keyboard_sound_vol, 70, 0, 100, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Volume for chat typing sound")

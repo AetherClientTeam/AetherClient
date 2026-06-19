@@ -63,9 +63,10 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 	Graphics()->QuadsBegin();
 	Graphics()->SetColor(1, 1, 1, 1);
 	Graphics()->QuadsSetSubset(0, 0, 1, 1);
-	const float LogoW = s_AetherStartLogoTexture.IsValid() ? std::min(460.0f, MainView.w * 0.56f) : 360.0f;
+	const float LogoW = s_AetherStartLogoTexture.IsValid() ? std::min(460.0f, MainView.w * 0.50f) : std::min(360.0f, MainView.w * 0.46f);
 	const float LogoH = s_AetherStartLogoTexture.IsValid() ? LogoW * 0.25f : 103.0f;
-	IGraphics::CQuadItem QuadItem(MainView.w / 2.0f - LogoW / 2.0f, s_AetherStartLogoTexture.IsValid() ? 34.0f : 60.0f, LogoW, LogoH);
+	const float LogoY = s_AetherStartLogoTexture.IsValid() ? std::clamp(MainView.h * 0.055f, 18.0f, 34.0f) : std::clamp(MainView.h * 0.095f, 32.0f, 60.0f);
+	IGraphics::CQuadItem QuadItem(MainView.w / 2.0f - LogoW / 2.0f, LogoY, LogoW, LogoH);
 	Graphics()->QuadsDrawTL(&QuadItem, 1);
 	Graphics()->QuadsEnd();
 
@@ -85,6 +86,15 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 		Graphics()->QuadsDrawTL(&Quad, 1);
 		Graphics()->QuadsEnd();
 		Graphics()->WrapNormal();
+	};
+	auto DrawTextureSquare = [&](IGraphics::CTextureHandle Texture, const CUIRect &Rect, float Alpha = 1.0f) {
+		CUIRect Draw = Rect;
+		const float Side = minimum(Draw.w, Draw.h);
+		Draw.x += (Draw.w - Side) * 0.5f;
+		Draw.y += (Draw.h - Side) * 0.5f;
+		Draw.w = Side;
+		Draw.h = Side;
+		DrawTexture(Texture, Draw, Alpha);
 	};
 
 	auto DoModernCard = [&](CButtonContainer *pId, const char *pTitle, const char *pSubtitle, const char *pHotkey, CUIRect Rect, ColorRGBA Accent, bool Highlight = false) {
@@ -107,9 +117,12 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 		Hotkey.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, 0.08f), IGraphics::CORNER_ALL, 8.0f);
 		Ui()->DoLabel(&Hotkey, pHotkey, 11.0f, TEXTALIGN_MC);
 
-		Text.HSplitTop(Rect.h > 92.0f ? 42.0f : 31.0f, &Title, &Subtitle);
-		Ui()->DoLabel(&Title, pTitle, Rect.h > 92.0f ? 25.0f : 22.0f, TEXTALIGN_MC);
-		Ui()->DoLabel(&Subtitle, pSubtitle, 11.0f, TEXTALIGN_TC, {.m_MaxWidth = Text.w});
+		const bool ShowSubtitle = Rect.h >= 68.0f && Text.w >= 150.0f;
+		Text.HSplitTop(ShowSubtitle ? (Rect.h > 92.0f ? 42.0f : 31.0f) : Text.h, &Title, &Subtitle);
+		const float TitleSize = std::clamp(Rect.h * 0.30f, 16.0f, Rect.h > 92.0f ? 25.0f : 22.0f);
+		Ui()->DoLabel(&Title, pTitle, TitleSize, TEXTALIGN_MC, {.m_MaxWidth = Text.w});
+		if(ShowSubtitle)
+			Ui()->DoLabel(&Subtitle, pSubtitle, 11.0f, TEXTALIGN_TC, {.m_MaxWidth = Text.w});
 		return Ui()->DoButtonLogic(pId, 0, &Rect, BUTTONFLAG_LEFT);
 	};
 
@@ -147,9 +160,10 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 	};
 
 	CUIRect Content = MainView;
-	Content.Margin(34.0f, &Content);
-	Content.HSplitTop(158.0f, nullptr, &Content);
-	Content.HSplitBottom(54.0f, &Content, nullptr);
+	const float OuterMargin = std::clamp(MainView.w * 0.03f, 14.0f, 34.0f);
+	Content.Margin(OuterMargin, &Content);
+	Content.HSplitTop(std::clamp(MainView.h * 0.24f, 86.0f, 158.0f), nullptr, &Content);
+	Content.HSplitBottom(std::clamp(MainView.h * 0.07f, 28.0f, 54.0f), &Content, nullptr);
 
 	CUIRect EcosystemPanel;
 	CUIRect Cluster = Content;
@@ -188,7 +202,7 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 	HeaderTitle.VSplitRight(std::min(360.0f, HeaderTitle.w * 0.55f), &HeaderTitle, &UpdateArea);
 	UpdateArea.VSplitLeft(14.0f, nullptr, &UpdateArea);
 #endif
-	Ui()->DoLabel(&HeaderTitle, "Aether Client", 19.0f, TEXTALIGN_ML);
+	Ui()->DoLabel(&HeaderTitle, "Aether Client", 19.0f, TEXTALIGN_ML, {.m_MaxWidth = HeaderTitle.w});
 
 #if defined(CONF_AUTOUPDATE)
 	{
@@ -201,15 +215,15 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 		Updater()->GetCurrentFile(aStatus, sizeof(aStatus));
 		const int Percent = Updater()->GetCurrentPercent();
 
-		const char *pButtonLabel = Localize("Update");
+		const char *pButtonLabel = "Update";
 		if(UpdateState == IUpdater::GETTING_MANIFEST)
-			pButtonLabel = Localize("Checking...");
+			pButtonLabel = "Checking...";
 		else if(UpdateState == IUpdater::DOWNLOADING)
-			pButtonLabel = Localize("Updating...");
+			pButtonLabel = "Updating...";
 		else if(UpdateState == IUpdater::NEED_RESTART)
-			pButtonLabel = Localize("Update");
+			pButtonLabel = "Update";
 		else if(UpdateState == IUpdater::FAIL)
-			pButtonLabel = Localize("Retry");
+			pButtonLabel = "Retry";
 
 		static CButtonContainer s_AetherHeaderUpdateButton;
 		if(GameClient()->m_Menus.DoButton_Menu(&s_AetherHeaderUpdateButton, pButtonLabel, 0, &UpdateButton, BUTTONFLAG_LEFT, 0, IGraphics::CORNER_ALL, 8.0f, 0.0f, ColorRGBA(0.0f, 0.0f, 0.0f, 0.18f)))
@@ -222,15 +236,15 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 
 		char aBuf[96];
 		if(UpdateState == IUpdater::DOWNLOADING)
-			str_format(aBuf, sizeof(aBuf), "%s %d%%", Localize("New Update"), Percent);
+			str_format(aBuf, sizeof(aBuf), "%s %d%%", "New Update", Percent);
 		else if(UpdateState == IUpdater::GETTING_MANIFEST)
-			str_format(aBuf, sizeof(aBuf), "%s", aStatus[0] ? aStatus : Localize("Checking latest release"));
+			str_format(aBuf, sizeof(aBuf), "%s", aStatus[0] ? aStatus : "Checking latest release");
 		else if(UpdateState == IUpdater::UPDATE_AVAILABLE || UpdateState == IUpdater::NEED_RESTART)
-			str_format(aBuf, sizeof(aBuf), "%s", Localize("New Update"));
+			str_format(aBuf, sizeof(aBuf), "%s", "New Update");
 		else if(UpdateState == IUpdater::FAIL)
-			str_format(aBuf, sizeof(aBuf), "%s", aStatus[0] ? aStatus : Localize("Update failed"));
+			str_format(aBuf, sizeof(aBuf), "%s", aStatus[0] ? aStatus : "Update failed");
 		else
-			str_format(aBuf, sizeof(aBuf), "%s", aStatus[0] ? aStatus : Localize("Checking latest release"));
+			str_format(aBuf, sizeof(aBuf), "%s", aStatus[0] ? aStatus : "Checking latest release");
 		SLabelProperties UpdateLabelProps;
 		const bool ShowUpdateAlert = UpdateState == IUpdater::UPDATE_AVAILABLE || UpdateState == IUpdater::DOWNLOADING || UpdateState == IUpdater::NEED_RESTART || UpdateState == IUpdater::FAIL;
 		UpdateLabelProps.SetColor(ShowUpdateAlert ? ColorRGBA(1.0f, 0.45f, 0.45f, 1.0f) : ColorRGBA(0.75f, 0.88f, 1.0f, 1.0f));
@@ -321,7 +335,7 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 			CUIRect Icon, Text, Title, Description, Tag;
 			Card.Margin(8.0f, &Card);
 			Card.VSplitLeft(40.0f, &Icon, &Text);
-			DrawTexture(s_aEcosystemTextures[i], Icon, Active ? 1.0f : 0.36f);
+			DrawTextureSquare(s_aEcosystemTextures[i], Icon, Active ? 1.0f : 0.36f);
 			Text.VSplitLeft(8.0f, nullptr, &Text);
 			Text.HSplitTop(20.0f, &Title, &Description);
 			Ui()->DoLabel(&Title, apEcosystemNames[i], 14.0f, TEXTALIGN_ML);
@@ -357,7 +371,7 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 			CUIRect Icon, Text;
 			Card.Margin(7.0f, &Card);
 			Card.VSplitLeft(34.0f, &Icon, &Text);
-			DrawTexture(s_aEcosystemTextures[i], Icon, Active ? 1.0f : 0.45f);
+			DrawTextureSquare(s_aEcosystemTextures[i], Icon, Active ? 1.0f : 0.45f);
 			Text.VSplitLeft(7.0f, nullptr, &Text);
 			Ui()->DoLabel(&Text, apEcosystemNames[i], 12.0f, TEXTALIGN_ML);
 			if(!Active && Ui()->DoButtonLogic(&s_aCompactClientSwitchButtons[i], 0, &Card, BUTTONFLAG_LEFT))

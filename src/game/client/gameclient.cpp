@@ -4845,7 +4845,7 @@ void CGameClient::HandlePredictedEvents(const int Tick)
 			}
 			else if(EventsIterator->m_EventId == NETEVENTTYPE_HAMMERHIT)
 			{
-				m_Effects.HammerHit(EventsIterator->m_Pos, Alpha, Volume);
+				m_Effects.HammerHit(EventsIterator->m_Pos, Alpha, Volume, AetherShouldPlayGameplayPredictedSound(SOUND_HAMMER_HIT, EventsIterator->m_Id));
 			}
 			else if(EventsIterator->m_EventId == NETEVENTTYPE_DAMAGEIND)
 			{
@@ -5215,7 +5215,7 @@ bool CGameClient::AetherShouldPlayGameplayWorldSound(int SoundId, vec2 SoundPos)
 
 	if(SoundId == SOUND_HAMMER_FIRE || SoundId == SOUND_HAMMER_HIT)
 	{
-		const int Closest = AetherClosestClientId(SoundPos, 96.0f);
+		const int Closest = AetherClosestClientId(SoundPos, 128.0f);
 		return AetherIsLocalClientId(Closest) ? g_Config.m_AeSoundLocalHammer != 0 : g_Config.m_AeSoundOthersHammer != 0;
 	}
 
@@ -5227,6 +5227,12 @@ bool CGameClient::AetherShouldPlayGameplayWorldSound(int SoundId, vec2 SoundPos)
 
 	if(SoundId == SOUND_PLAYER_AIRJUMP)
 		return g_Config.m_AeSoundAirJump != 0;
+
+	if(SoundId == SOUND_PLAYER_SPAWN || SoundId == SOUND_PLAYER_DIE || SoundId == SOUND_PLAYER_PAIN_LONG)
+	{
+		const int Closest = AetherClosestClientId(SoundPos, 160.0f);
+		return AetherIsLocalClientId(Closest) ? g_Config.m_AeSoundLocalKillRespawn != 0 : g_Config.m_AeSoundOthersKillRespawn != 0;
+	}
 
 	return true;
 }
@@ -5245,6 +5251,8 @@ bool CGameClient::AetherShouldPlayGameplayPredictedSound(int SoundId, int ActorC
 		return ActorIsLocal ? g_Config.m_AeSoundLocalHook != 0 : g_Config.m_AeSoundOthersHook != 0;
 	if(SoundId == SOUND_PLAYER_AIRJUMP)
 		return g_Config.m_AeSoundAirJump != 0;
+	if(SoundId == SOUND_PLAYER_SPAWN || SoundId == SOUND_PLAYER_DIE || SoundId == SOUND_PLAYER_PAIN_LONG)
+		return ActorIsLocal ? g_Config.m_AeSoundLocalKillRespawn != 0 : g_Config.m_AeSoundOthersKillRespawn != 0;
 	return true;
 }
 

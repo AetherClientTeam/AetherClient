@@ -204,7 +204,7 @@ if(NOT "${CMAKE_CURRENT_BINARY_DIR}" STREQUAL "${CMAKE_CURRENT_SOURCE_DIR}")
   file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/src/game/version.h)
 endif()
 
-set(SERVER_EXECUTABLE DDNet-Server CACHE STRING "Name of the built server executable")
+set(SERVER_EXECUTABLE Aether-Server CACHE STRING "Name of the built server executable")
 set(CLIENT_EXECUTABLE Aether CACHE STRING "Name of the build client executable")
 
 ########################################################################
@@ -2994,10 +2994,14 @@ if(CLIENT)
   endif()
 
   function(add_aether_client_target TARGET_NAME OUTPUT_NAME VARIANT_KEY)
+    set(VARIANT_CLIENT_ICON ${CLIENT_ICON})
+    if(TARGET_OS STREQUAL "windows")
+      set(VARIANT_CLIENT_ICON "other/icons/${OUTPUT_NAME}.rc")
+    endif()
     if(TARGET_OS STREQUAL "android")
       add_library(${TARGET_NAME} SHARED
         ${CLIENT_SRC}
-        ${CLIENT_ICON}
+        ${VARIANT_CLIENT_ICON}
         ${CLIENT_VERSIONINFO}
         ${CLIENT_MANIFEST}
         ${DEPS_CLIENT}
@@ -3009,7 +3013,7 @@ if(CLIENT)
     else()
       add_executable(${TARGET_NAME} WIN32
         ${CLIENT_SRC}
-        ${CLIENT_ICON}
+        ${VARIANT_CLIENT_ICON}
         ${CLIENT_VERSIONINFO}
         ${CLIENT_MANIFEST}
         ${DEPS_CLIENT}
@@ -3223,7 +3227,7 @@ if(SERVER)
     set(VERSION_EXECUTABLE "${SERVER_EXECUTABLE}")
     set(VERSION_COMPANY "${CLIENT_EXECUTABLE} Team")
     configure_file("other/versioninfo/versioninfo.rc.in" "server.versioninfo.rc")
-    set(SERVER_ICON "other/icons/DDNet-Server.rc")
+    set(SERVER_ICON "other/icons/Aether-Server.rc")
     set(SERVER_VERSIONINFO "${CMAKE_CURRENT_BINARY_DIR}/server.versioninfo.rc")
   else()
     set(SERVER_ICON)

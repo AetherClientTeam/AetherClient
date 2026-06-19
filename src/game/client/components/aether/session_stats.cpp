@@ -156,6 +156,8 @@ void CAetherSessionStats::OnRender()
 {
 	if(!g_Config.m_AeSessionStats && !m_EditorOpen)
 		return;
+	if(g_Config.m_AeFocusMode && g_Config.m_AeFocusModeHideAllUi && !m_EditorOpen)
+		return;
 	if(Client()->State() != IClient::STATE_ONLINE && Client()->State() != IClient::STATE_DEMOPLAYBACK)
 		return;
 	if(m_SessionStart == 0)

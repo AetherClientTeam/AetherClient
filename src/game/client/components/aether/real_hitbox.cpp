@@ -15,6 +15,8 @@
 
 void CAetherRealHitbox::OnRender()
 {
+	if(g_Config.m_AeFocusMode && g_Config.m_AeFocusModeHideAllUi)
+		return;
 	if(!g_Config.m_AeShowRealHitbox)
 		return;
 	if(Client()->State() != IClient::STATE_ONLINE && Client()->State() != IClient::STATE_DEMOPLAYBACK)

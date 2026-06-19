@@ -89,6 +89,66 @@ using namespace std::chrono_literals;
 static constexpr ColorRGBA CLIENT_NETWORK_PRINT_COLOR = ColorRGBA(0.7f, 1, 0.7f, 1.0f);
 static constexpr ColorRGBA CLIENT_NETWORK_PRINT_ERROR_COLOR = ColorRGBA(1.0f, 0.25f, 0.25f, 1.0f);
 
+struct SRemoveFolderRecursiveContext
+{
+	char m_aPath[IO_MAX_PATH_LENGTH];
+};
+
+static int RemoveFolderRecursiveCallback(const char *pName, int IsDir, int DirType, void *pUser)
+{
+	if(str_comp(pName, ".") == 0 || str_comp(pName, "..") == 0)
+		return 0;
+
+	SRemoveFolderRecursiveContext *pContext = static_cast<SRemoveFolderRecursiveContext *>(pUser);
+	char aChildPath[IO_MAX_PATH_LENGTH];
+	str_format(aChildPath, sizeof(aChildPath), "%s/%s", pContext->m_aPath, pName);
+
+	if(IsDir)
+	{
+		SRemoveFolderRecursiveContext ChildContext;
+		str_copy(ChildContext.m_aPath, aChildPath);
+		fs_listdir(aChildPath, RemoveFolderRecursiveCallback, DirType, &ChildContext);
+		fs_removedir(aChildPath);
+	}
+	else
+	{
+		fs_remove(aChildPath);
+	}
+	return 0;
+}
+
+static void RemoveFolderRecursive(const char *pPath)
+{
+	if(!fs_is_dir(pPath))
+		return;
+
+	SRemoveFolderRecursiveContext Context;
+	str_copy(Context.m_aPath, pPath);
+	fs_listdir(pPath, RemoveFolderRecursiveCallback, 0, &Context);
+	fs_removedir(pPath);
+}
+
+static void CleanupLegacyAetherDataFolder(IStorage *pStorage)
+{
+	if(!pStorage)
+		return;
+
+	char aInstallDir[IO_MAX_PATH_LENGTH];
+	pStorage->GetBinaryPathAbsolute(PLAT_CLIENT_EXEC, aInstallDir, sizeof(aInstallDir));
+	if(fs_parent_dir(aInstallDir) != 0)
+		return;
+
+	char aCorePath[IO_MAX_PATH_LENGTH];
+	char aLegacyAetherPath[IO_MAX_PATH_LENGTH];
+	str_format(aCorePath, sizeof(aCorePath), "%s/data/core", aInstallDir);
+	str_format(aLegacyAetherPath, sizeof(aLegacyAetherPath), "%s/data/aether", aInstallDir);
+
+	if(!fs_is_dir(aCorePath) || !fs_is_dir(aLegacyAetherPath))
+		return;
+
+	RemoveFolderRecursive(aLegacyAetherPath);
+}
+
 CClient::CClient() :
 	m_DemoPlayer(&m_SnapshotDelta, true, [&]() { UpdateDemoIntraTimers(); }),
 	m_InputtimeMarginGraph(128, 2, true),
@@ -3186,6 +3246,7 @@ void CClient::Run()
 	m_ServerBrowser.OnInit();
 	// loads the existing ddnet info file if it exists
 	LoadDDNetInfo();
+	CleanupLegacyAetherDataFolder(Storage());
 
 	LoadDebugFont();
 

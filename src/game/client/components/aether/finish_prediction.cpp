@@ -675,6 +675,8 @@ void CAetherFinishPrediction::OnRender()
 {
 	if(!g_Config.m_AeFinishPrediction && !m_EditorOpen)
 		return;
+	if(g_Config.m_AeFocusMode && g_Config.m_AeFocusModeHideAllUi && !m_EditorOpen)
+		return;
 	if(Client()->State() != IClient::STATE_ONLINE && Client()->State() != IClient::STATE_DEMOPLAYBACK)
 		return;
 	const float ScreenWidth = 300.0f * Graphics()->ScreenAspect();

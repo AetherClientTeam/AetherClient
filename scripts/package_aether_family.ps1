@@ -3,7 +3,7 @@ param(
 	[string]$BuildRoot = "build-vs2026",
 	[string]$ReleaseDir = "Release",
 	[string]$OutRoot = "portable",
-	[string]$Version = "1.0.0",
+	[string]$Version = "1.0.1",
 	[string]$Name = "",
 	[switch]$SkipBuild
 )
@@ -21,16 +21,26 @@ if([string]::IsNullOrWhiteSpace($Name))
 $PortablePath = Join-Path $OutRootPath $Name
 $ZipPath = "$PortablePath.zip"
 $ExeNames = @("Aether.exe", "Vera.exe", "Via.exe", "Vex.exe")
+$ServerExe = "Aether-Server.exe"
 $BadgeNames = @("founder.png", "tester.png", "chess_winner.png")
 $LogoNames = @(
 	"aether_icon_small_256.png", "vera_icon_small_256.png", "via_icon_small_256.png", "vex_icon_small_256.png",
 	"aether_lockup_1024.png", "vera_lockup_1024.png", "via_lockup_1024.png", "vex_lockup_1024.png"
 )
 
+function Remove-LegacyAetherData($Root)
+{
+	$LegacyAetherPath = Join-Path $Root "data\aether"
+	if(Test-Path $LegacyAetherPath)
+	{
+		Remove-Item -LiteralPath $LegacyAetherPath -Recurse -Force
+	}
+}
+
 if(!$SkipBuild)
 {
-	cmake -S $RepoRoot -B $BuildPath -DAUTOUPDATE=ON
-	cmake --build $BuildPath --config Release --target game-client-family
+	cmake -S $RepoRoot -B $BuildPath -DAUTOUPDATE=ON -DSERVER_EXECUTABLE=Aether-Server
+	cmake --build $BuildPath --config Release --target game-client-family game-server
 }
 
 $DataPath = Join-Path $BuildPath "data"
@@ -53,13 +63,20 @@ foreach($Exe in $ExeNames)
 		throw "AUTOUPDATE appears disabled or misconfigured in: $ExePath"
 	}
 }
+$ServerPath = Join-Path $BuildPath $ServerExe
+if(!(Test-Path $ServerPath))
+{
+	throw "Server executable missing: $ServerPath"
+}
 
 New-Item -ItemType Directory -Force -Path $ReleasePath | Out-Null
 foreach($Exe in $ExeNames)
 {
 	Copy-Item -LiteralPath (Join-Path $BuildPath $Exe) -Destination (Join-Path $ReleasePath $Exe) -Force
 }
+Copy-Item -LiteralPath $ServerPath -Destination (Join-Path $ReleasePath $ServerExe) -Force
 Copy-Item -LiteralPath $DataPath -Destination $ReleasePath -Recurse -Force
+Remove-LegacyAetherData $ReleasePath
 Copy-Item -LiteralPath (Join-Path $RepoRoot "storage.cfg") -Destination (Join-Path $ReleasePath "storage.cfg") -Force
 Copy-Item -LiteralPath (Join-Path $RepoRoot "license.txt") -Destination (Join-Path $ReleasePath "license.txt") -Force
 Copy-Item -LiteralPath (Join-Path $RepoRoot "NOTICE-AETHER.txt") -Destination (Join-Path $ReleasePath "NOTICE-AETHER.txt") -Force
@@ -73,10 +90,12 @@ foreach($Exe in $ExeNames)
 {
 	Copy-Item -LiteralPath (Join-Path $BuildPath $Exe) -Destination (Join-Path $PortablePath $Exe) -Force
 }
+Copy-Item -LiteralPath $ServerPath -Destination (Join-Path $PortablePath $ServerExe) -Force
 Get-ChildItem -LiteralPath $BuildPath -Filter "*.dll" | ForEach-Object {
 	Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $PortablePath $_.Name) -Force
 }
 Copy-Item -LiteralPath $DataPath -Destination $PortablePath -Recurse -Force
+Remove-LegacyAetherData $PortablePath
 Copy-Item -LiteralPath (Join-Path $RepoRoot "storage.cfg") -Destination (Join-Path $PortablePath "storage.cfg") -Force
 Copy-Item -LiteralPath (Join-Path $RepoRoot "license.txt") -Destination (Join-Path $PortablePath "license.txt") -Force
 Copy-Item -LiteralPath (Join-Path $RepoRoot "NOTICE-AETHER.txt") -Destination (Join-Path $PortablePath "NOTICE-AETHER.txt") -Force
@@ -90,6 +109,10 @@ foreach($Root in @($ReleasePath, $PortablePath))
 		{
 			throw "Packaged executable missing: $Path"
 		}
+	}
+	if(!(Test-Path (Join-Path $Root $ServerExe)))
+	{
+		throw "Packaged server executable missing in $Root"
 	}
 	foreach($Badge in $BadgeNames)
 	{
@@ -119,6 +142,10 @@ foreach($Root in @($ReleasePath, $PortablePath))
 	{
 		throw "Packaged shader folder missing in $Root"
 	}
+	if(Test-Path (Join-Path $Root "data\aether"))
+	{
+		throw "Legacy data\aether folder must not be packaged in $Root"
+	}
 }
 
 if(Test-Path $ZipPath)
@@ -132,4 +159,5 @@ Compress-Archive -Path (Join-Path $PortablePath "*") -DestinationPath $ZipPath -
 	ZipPath = $ZipPath
 	ReleasePath = $ReleasePath
 	Executables = $ExeNames
+	ServerExecutable = $ServerExe
 }

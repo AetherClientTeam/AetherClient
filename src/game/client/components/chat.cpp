@@ -1651,7 +1651,7 @@ void CChat::OnRender()
 		--m_PendingChatCounter;
 	}
 
-	if(g_Config.m_AeFocusMode && !IsActive())
+	if(g_Config.m_AeFocusMode && (g_Config.m_AeFocusModeHideAllUi || !IsActive()))
 		return;
 
 	const float Height = 300.0f;

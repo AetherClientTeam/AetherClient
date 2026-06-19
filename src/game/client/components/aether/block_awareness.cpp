@@ -258,6 +258,8 @@ void CAetherBlockAwareness::DrawPopupButton(const CUIRect &Rect, const char *pTe
 
 void CAetherBlockAwareness::OnRender()
 {
+	if(g_Config.m_AeFocusMode && g_Config.m_AeFocusModeHideAllUi)
+		return;
 	if(g_Config.m_AeBlockAwareness)
 	{
 		RenderLocalFreezeOverlay();

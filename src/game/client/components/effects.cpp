@@ -211,7 +211,7 @@ void CEffects::PlayerSpawn(vec2 Pos, float Alpha, float Volume)
 		p.m_StartAlpha = Alpha;
 		GameClient()->m_Particles.Add(CParticles::GROUP_GENERAL, &p);
 	}
-	if(g_Config.m_SndGame)
+	if(g_Config.m_SndGame && GameClient()->AetherShouldPlayGameplayWorldSound(SOUND_PLAYER_SPAWN, Pos))
 		GameClient()->m_Sounds.PlayAt(CSounds::CHN_WORLD, SOUND_PLAYER_SPAWN, Volume, Pos);
 }
 
@@ -391,7 +391,7 @@ void CEffects::Explosion(vec2 Pos, float Alpha)
 	}
 }
 
-void CEffects::HammerHit(vec2 Pos, float Alpha, float Volume)
+void CEffects::HammerHit(vec2 Pos, float Alpha, float Volume, bool PlaySound)
 {
 	// add the explosion
 	CParticle p;
@@ -405,7 +405,7 @@ void CEffects::HammerHit(vec2 Pos, float Alpha, float Volume)
 	p.m_Color.a = Alpha;
 	p.m_StartAlpha = Alpha;
 	GameClient()->m_Particles.Add(CParticles::GROUP_EXPLOSIONS, &p);
-	if(g_Config.m_SndGame && GameClient()->AetherShouldPlayGameplayWorldSound(SOUND_HAMMER_HIT, Pos))
+	if(PlaySound && g_Config.m_SndGame && GameClient()->AetherShouldPlayGameplayWorldSound(SOUND_HAMMER_HIT, Pos))
 		GameClient()->m_Sounds.PlayAt(CSounds::CHN_WORLD, SOUND_HAMMER_HIT, Volume, Pos);
 }
 

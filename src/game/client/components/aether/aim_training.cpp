@@ -28,7 +28,15 @@ vec2 CAetherAimTraining::CenterWorld() const
 vec2 CAetherAimTraining::CurrentAimWorld() const
 {
 	if(Client()->State() == IClient::STATE_ONLINE && GameClient()->m_Snap.m_pLocalCharacter)
-		return GameClient()->m_Controls.m_aTargetPos[g_Config.m_ClDummy];
+	{
+		const int Dummy = g_Config.m_ClDummy;
+		const vec2 MousePos = GameClient()->m_Controls.m_aMousePos[Dummy];
+		vec2 DyncamOffsetDelta = GameClient()->m_Camera.m_DyncamTargetCameraOffset - GameClient()->m_Camera.m_aDyncamCurrentCameraOffset[Dummy];
+		const float Zoom = GameClient()->m_Camera.m_Zoom;
+		return GameClient()->m_LocalCharacterPos + MousePos - DyncamOffsetDelta + DyncamOffsetDelta / Zoom;
+	}
+	if(Client()->State() == IClient::STATE_ONLINE && GameClient()->m_Snap.m_SpecInfo.m_Active && GameClient()->m_Snap.m_SpecInfo.m_UsePosition)
+		return GameClient()->m_Snap.m_SpecInfo.m_Position + GameClient()->m_Controls.m_aMousePos[g_Config.m_ClDummy];
 	return GameClient()->m_Camera.m_Center;
 }
 
@@ -192,6 +200,8 @@ void CAetherAimTraining::RenderTarget(const STarget &Target, vec2 Center, int64_
 
 void CAetherAimTraining::OnRender()
 {
+	if(g_Config.m_AeFocusMode && g_Config.m_AeFocusModeHideAllUi)
+		return;
 	if(!IsOverlayActive())
 		return;
 

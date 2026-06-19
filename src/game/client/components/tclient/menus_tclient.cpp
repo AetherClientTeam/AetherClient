@@ -45,6 +45,7 @@ enum
 	TCLIENT_TAB_WARLIST,
 	TCLIENT_TAB_BINDCHAT,
 	TCLIENT_TAB_STATUSBAR,
+	TCLIENT_TAB_CONFIGS,
 	TCLIENT_TAB_INFO,
 	NUMBER_OF_TCLIENT_TABS
 };
@@ -343,6 +344,7 @@ void CMenus::RenderSettingsTClient(CUIRect MainView)
 		TCLocalize("War List"),
 		TCLocalize("Chat Binds"),
 		TCLocalize("Status Bar"),
+		TCLocalize("Configs"),
 		TCLocalize("Info")};
 
 	for(int Tab = 0; Tab < NUMBER_OF_TCLIENT_TABS; ++Tab)
@@ -369,6 +371,8 @@ void CMenus::RenderSettingsTClient(CUIRect MainView)
 		RenderSettingsTClientWarList(MainView);
 	if(s_CurCustomTab == TCLIENT_TAB_STATUSBAR)
 		RenderSettingsTClientStatusBar(MainView);
+	if(s_CurCustomTab == TCLIENT_TAB_CONFIGS)
+		RenderSettingsTClientConfigs(MainView);
 	if(s_CurCustomTab == TCLIENT_TAB_INFO)
 		RenderSettingsTClientInfo(MainView);
 }
@@ -2166,6 +2170,7 @@ void CMenus::RenderSettingsTClientInfo(CUIRect MainView)
 		TCLocalize("War List"),
 		TCLocalize("Chat Binds"),
 		TCLocalize("Status Bar"),
+		TCLocalize("Configs"),
 		TCLocalize("Info")};
 	static int s_aShowTabs[NUMBER_OF_TCLIENT_TABS] = {};
 	for(int i = 0; i < NUMBER_OF_TCLIENT_TABS - 1; ++i)

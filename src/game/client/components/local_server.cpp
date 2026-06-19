@@ -14,6 +14,12 @@
 #include <base/process.h>
 #endif
 
+#if defined(CONF_PLATFORM_WINDOWS)
+static constexpr const char *AETHER_LEGACY_SERVER_EXEC = "DDNet-Server.exe";
+#else
+static constexpr const char *AETHER_LEGACY_SERVER_EXEC = "DDNet-Server";
+#endif
+
 bool CLocalServer::RunServer(const std::vector<const char *> &vpArguments)
 {
 	secure_random_password(m_aRconPassword, sizeof(m_aRconPassword), 16);
@@ -38,6 +44,15 @@ bool CLocalServer::RunServer(const std::vector<const char *> &vpArguments)
 #else
 	char aBuf[IO_MAX_PATH_LENGTH];
 	Storage()->GetBinaryPath(PLAT_SERVER_EXEC, aBuf, sizeof(aBuf));
+	if(str_find(aBuf, "/") != nullptr && !fs_is_file(aBuf))
+	{
+		char aFallback[IO_MAX_PATH_LENGTH];
+		Storage()->GetBinaryPath(AETHER_LEGACY_SERVER_EXEC, aFallback, sizeof(aFallback));
+		if(fs_is_file(aFallback))
+		{
+			str_copy(aBuf, aFallback);
+		}
+	}
 #if defined(CONF_PLATFORM_MACOS)
 	if(!fs_is_file(aBuf))
 	{

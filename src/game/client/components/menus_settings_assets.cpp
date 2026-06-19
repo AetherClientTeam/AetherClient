@@ -414,6 +414,7 @@ static int InitSearchList(std::vector<const TName *> &vpSearchList, std::vector<
 void CMenus::RenderSettingsCustom(CUIRect MainView)
 {
 	CUIRect TabBar, CustomList, QuickSearch, DirectoryButton, ReloadButton;
+	static bool s_EntityGamePreview = true;
 
 	MainView.HSplitTop(20.0f, &TabBar, &MainView);
 	const float TabWidth = TabBar.w / (float)NUMBER_OF_ASSETS_TABS;
@@ -644,7 +645,60 @@ void CMenus::RenderSettingsCustom(CUIRect MainView)
 		ItemRect.HSplitTop(15, &ItemRect, &TextureRect);
 		TextureRect.HSplitTop(10, nullptr, &TextureRect);
 		Ui()->DoLabel(&ItemRect, pItem->m_aName, ItemRect.h - 2, TEXTALIGN_MC);
-		if(pItem->m_RenderTexture.IsValid())
+		if(s_CurCustomTab == ASSETS_TAB_ENTITIES && s_EntityGamePreview)
+		{
+			const auto *pEntitiesItem = static_cast<const SCustomEntities *>(pItem);
+			IGraphics::CTextureHandle Tex;
+			for(int m = 0; m < MAP_IMAGE_MOD_TYPE_COUNT && !Tex.IsValid(); m++)
+				Tex = pEntitiesItem->m_aImages[m].m_Texture;
+			if(!Tex.IsValid())
+				Tex = pItem->m_RenderTexture;
+
+			if(Tex.IsValid())
+			{
+				static constexpr int Cols = 7;
+				static constexpr int Rows = 7;
+				static constexpr unsigned char s_aaLayout[Rows][Cols] = {
+					{TILE_SOLID, TILE_SOLID, TILE_SOLID, TILE_SOLID, TILE_SOLID, TILE_SOLID, TILE_SOLID},
+					{TILE_SOLID, 0, 0, 0, 0, 0, TILE_NOHOOK},
+					{TILE_SOLID, TILE_FREEZE, 0, 0, 0, 0, TILE_NOHOOK},
+					{TILE_SOLID, 0, TILE_DEATH, 0, TILE_UNFREEZE, 0, TILE_NOHOOK},
+					{TILE_SOLID, 0, 0, 0, 0, TILE_DFREEZE, TILE_NOHOOK},
+					{TILE_SOLID, 0, 0, 0, 0, 0, TILE_NOHOOK},
+					{TILE_NOHOOK, TILE_NOHOOK, TILE_NOHOOK, TILE_NOHOOK, TILE_NOHOOK, TILE_NOHOOK, TILE_NOHOOK},
+				};
+
+				const float TileSize = TextureWidth / (float)Cols;
+				const float OffX = TextureRect.x + (TextureRect.w - TextureWidth) / 2.0f;
+				const float OffY = TextureRect.y + (TextureRect.h - Rows * TileSize) / 2.0f;
+				const float Inset = 1.5f / 1024.0f;
+				const float TileUv = 1.0f / 16.0f;
+
+				Graphics()->WrapClamp();
+				Graphics()->TextureSet(Tex);
+				Graphics()->QuadsBegin();
+				Graphics()->SetColor(1, 1, 1, 1);
+				for(int r = 0; r < Rows; r++)
+				{
+					for(int c = 0; c < Cols; c++)
+					{
+						const unsigned char Tile = s_aaLayout[r][c];
+						if(Tile == 0)
+							continue;
+						const int Tx = Tile % 16;
+						const int Ty = Tile / 16;
+						const float U0 = Tx * TileUv + Inset;
+						const float V0 = Ty * TileUv + Inset;
+						Graphics()->QuadsSetSubset(U0, V0, U0 + TileUv - Inset * 2.0f, V0 + TileUv - Inset * 2.0f);
+						IGraphics::CQuadItem Quad(OffX + c * TileSize, OffY + r * TileSize, TileSize, TileSize);
+						Graphics()->QuadsDrawTL(&Quad, 1);
+					}
+				}
+				Graphics()->QuadsEnd();
+				Graphics()->WrapNormal();
+			}
+		}
+		else if(pItem->m_RenderTexture.IsValid())
 		{
 			Graphics()->WrapClamp();
 			Graphics()->TextureSet(pItem->m_RenderTexture);
@@ -707,6 +761,19 @@ void CMenus::RenderSettingsCustom(CUIRect MainView)
 	if(Ui()->DoEditBox_Search(&s_aFilterInputs[s_CurCustomTab], &QuickSearch, 14.0f, !Ui()->IsPopupOpen() && !GameClient()->m_GameConsole.IsActive()))
 	{
 		gs_aInitCustomList[s_CurCustomTab] = true;
+	}
+
+	if(s_CurCustomTab == ASSETS_TAB_ENTITIES)
+	{
+		CUIRect ToggleRect;
+		DirectoryButton.VSplitLeft(5.0f, nullptr, &DirectoryButton);
+		DirectoryButton.VSplitLeft(140.0f, &ToggleRect, &DirectoryButton);
+		DirectoryButton.VSplitLeft(5.0f, nullptr, &DirectoryButton);
+		ToggleRect.HSplitTop(5.0f, nullptr, &ToggleRect);
+		static CButtonContainer s_EntityPreviewToggleId;
+		if(DoButton_Menu(&s_EntityPreviewToggleId, Localize("Better Preview"), s_EntityGamePreview, &ToggleRect))
+			s_EntityGamePreview = !s_EntityGamePreview;
+		GameClient()->m_Tooltips.DoToolTip(&s_EntityPreviewToggleId, &ToggleRect, Localize("Toggle between game scene preview and raw texture"));
 	}
 
 	DirectoryButton.HSplitTop(5.0f, nullptr, &DirectoryButton);

@@ -1208,6 +1208,8 @@ void CNamePlates::ResetNamePlates()
 
 void CNamePlates::OnRender()
 {
+	if(g_Config.m_AeFocusMode && g_Config.m_AeFocusModeHideNameplates)
+		return;
 	if(Client()->State() != IClient::STATE_ONLINE && Client()->State() != IClient::STATE_DEMOPLAYBACK)
 		return;
 
