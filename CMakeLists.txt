@@ -1050,6 +1050,7 @@ set(EXPECTED_DATA
   core/ddrace_configs/show_others_on.cfg
   core/ddrace_configs/super_off.cfg
   core/ddrace_configs/super_on.cfg
+  core/icons/menu_gear.png
   core/logos/aether_1024.png
   core/logos/aether_256.png
   core/logos/aether_512.png

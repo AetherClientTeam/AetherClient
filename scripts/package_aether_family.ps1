@@ -3,7 +3,7 @@ param(
 	[string]$BuildRoot = "build-vs2026",
 	[string]$ReleaseDir = "Release",
 	[string]$OutRoot = "portable",
-	[string]$Version = "1.0.1",
+	[string]$Version = "1.0.2",
 	[string]$Name = "",
 	[switch]$SkipBuild
 )
@@ -39,7 +39,7 @@ function Remove-LegacyAetherData($Root)
 
 if(!$SkipBuild)
 {
-	cmake -S $RepoRoot -B $BuildPath -DAUTOUPDATE=ON -DSERVER_EXECUTABLE=Aether-Server
+	cmake -S $RepoRoot -B $BuildPath -DAUTOUPDATE=ON -DDISCORD=ON -DSERVER_EXECUTABLE=Aether-Server
 	cmake --build $BuildPath --config Release --target game-client-family game-server
 }
 
@@ -68,6 +68,11 @@ if(!(Test-Path $ServerPath))
 {
 	throw "Server executable missing: $ServerPath"
 }
+$DiscordDllPath = Join-Path $BuildPath "discord_game_sdk.dll"
+if(!(Test-Path $DiscordDllPath))
+{
+	throw "Discord SDK DLL missing: $DiscordDllPath"
+}
 
 New-Item -ItemType Directory -Force -Path $ReleasePath | Out-Null
 foreach($Exe in $ExeNames)
@@ -75,6 +80,9 @@ foreach($Exe in $ExeNames)
 	Copy-Item -LiteralPath (Join-Path $BuildPath $Exe) -Destination (Join-Path $ReleasePath $Exe) -Force
 }
 Copy-Item -LiteralPath $ServerPath -Destination (Join-Path $ReleasePath $ServerExe) -Force
+Get-ChildItem -LiteralPath $BuildPath -Filter "*.dll" | ForEach-Object {
+	Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $ReleasePath $_.Name) -Force
+}
 Copy-Item -LiteralPath $DataPath -Destination $ReleasePath -Recurse -Force
 Remove-LegacyAetherData $ReleasePath
 Copy-Item -LiteralPath (Join-Path $RepoRoot "storage.cfg") -Destination (Join-Path $ReleasePath "storage.cfg") -Force
@@ -113,6 +121,10 @@ foreach($Root in @($ReleasePath, $PortablePath))
 	if(!(Test-Path (Join-Path $Root $ServerExe)))
 	{
 		throw "Packaged server executable missing in $Root"
+	}
+	if(!(Test-Path (Join-Path $Root "discord_game_sdk.dll")))
+	{
+		throw "Packaged Discord SDK DLL missing in $Root"
 	}
 	foreach($Badge in $BadgeNames)
 	{

@@ -5,9 +5,43 @@
 #include <engine/discord.h>
 
 #if defined(CONF_DISCORD)
+#if defined(_WIN32)
+#define AETHER_DISCORD_RENAMED_ISTORAGE
+#define IStorage DiscordWindowsIStorage
+#endif
 #include <discord_game_sdk.h>
+#if defined(AETHER_DISCORD_RENAMED_ISTORAGE)
+#undef IStorage
+#undef AETHER_DISCORD_RENAMED_ISTORAGE
+#endif
 
 typedef enum EDiscordResult(DISCORD_API *FDiscordCreate)(DiscordVersion, struct DiscordCreateParams *, struct IDiscordCore **);
+
+#ifndef AETHER_CLIENT_VARIANT
+#define AETHER_CLIENT_VARIANT "aether"
+#endif
+
+const char *AetherDiscordVariantName()
+{
+	if(str_comp(AETHER_CLIENT_VARIANT, "vera") == 0)
+		return "Vera";
+	if(str_comp(AETHER_CLIENT_VARIANT, "via") == 0)
+		return "Via";
+	if(str_comp(AETHER_CLIENT_VARIANT, "vex") == 0)
+		return "Vex";
+	return "Aether";
+}
+
+const char *AetherDiscordLargeImage()
+{
+	if(str_comp(AETHER_CLIENT_VARIANT, "vera") == 0)
+		return "vera_1024";
+	if(str_comp(AETHER_CLIENT_VARIANT, "via") == 0)
+		return "via_1024";
+	if(str_comp(AETHER_CLIENT_VARIANT, "vex") == 0)
+		return "vex_1024";
+	return "aether_1024";
+}
 
 #if defined(CONF_DISCORD_DYNAMIC)
 #include <dlfcn.h>
@@ -33,12 +67,12 @@ class CDiscord : public IDiscord
 	bool m_UpdateActivity = false;
 	int64_t m_LastActivityUpdate = 0;
 
-	IDiscordCore *m_pCore;
+	IDiscordCore *m_pCore = nullptr;
 	IDiscordActivityEvents m_ActivityEvents;
-	IDiscordActivityManager *m_pActivityManager;
+	IDiscordActivityManager *m_pActivityManager = nullptr;
 
-	FDiscordCreate m_pfnDiscordCreate;
-	bool m_Enabled;
+	FDiscordCreate m_pfnDiscordCreate = nullptr;
+	bool m_Enabled = false;
 
 public:
 	bool Init(FDiscordCreate pfnDiscordCreate)
@@ -66,8 +100,7 @@ public:
 		DiscordCreateParams Params;
 		DiscordCreateParamsSetDefault(&Params);
 
-		// Params.client_id = 752165779117441075; // DDNet
-		Params.client_id = 1325361453988970527; // TClient
+		Params.client_id = 1517583519919112433; // Aether Client
 		Params.flags = EDiscordCreateFlags::DiscordCreateFlags_NoRequireDiscord;
 		Params.event_data = this;
 		Params.activity_events = &m_ActivityEvents;
@@ -118,10 +151,11 @@ public:
 	{
 		mem_zero(&m_Activity, sizeof(DiscordActivity));
 
-		str_copy(m_Activity.assets.large_image, "tclient_logo", sizeof(m_Activity.assets.large_image));
-		str_copy(m_Activity.assets.large_text, "TClient logo", sizeof(m_Activity.assets.large_text));
+		str_copy(m_Activity.assets.large_image, AetherDiscordLargeImage(), sizeof(m_Activity.assets.large_image));
+		str_format(m_Activity.assets.large_text, sizeof(m_Activity.assets.large_text), "Aether Client - %s", AetherDiscordVariantName());
 		m_Activity.timestamps.start = time_timestamp();
-		str_copy(m_Activity.details, "Offline", sizeof(m_Activity.details));
+		str_copy(m_Activity.details, "In menus", sizeof(m_Activity.details));
+		str_format(m_Activity.state, sizeof(m_Activity.state), "Client: %s", AetherDiscordVariantName());
 		m_Activity.instance = false;
 
 		m_UpdateActivity = true;
@@ -129,29 +163,17 @@ public:
 
 	void SetGameInfo(const CServerInfo &ServerInfo, bool Registered) override
 	{
+		(void)Registered;
 		mem_zero(&m_Activity, sizeof(DiscordActivity));
 
-		str_copy(m_Activity.assets.large_image, "tclient_logo", sizeof(m_Activity.assets.large_image));
-		str_copy(m_Activity.assets.large_text, "TClient logo", sizeof(m_Activity.assets.large_text));
+		str_copy(m_Activity.assets.large_image, AetherDiscordLargeImage(), sizeof(m_Activity.assets.large_image));
+		str_format(m_Activity.assets.large_text, sizeof(m_Activity.assets.large_text), "Aether Client - %s", AetherDiscordVariantName());
 		m_Activity.timestamps.start = time_timestamp();
-		str_copy(m_Activity.name, "Online", sizeof(m_Activity.name));
-		m_Activity.instance = true;
+		str_copy(m_Activity.name, "Aether Client", sizeof(m_Activity.name));
+		m_Activity.instance = false;
 
-		str_copy(m_Activity.details, ServerInfo.m_aName, sizeof(m_Activity.details));
-		str_copy(m_Activity.state, ServerInfo.m_aMap, sizeof(m_Activity.state));
-		m_Activity.party.size.current_size = ServerInfo.m_NumClients;
-		m_Activity.party.size.max_size = ServerInfo.m_MaxClients;
-		// private makes it so the game isn't public to join, but there's 'Ask to Join' button instead
-		m_Activity.party.privacy = Registered ? DiscordActivityPartyPrivacy_Public : DiscordActivityPartyPrivacy_Private;
-
-		if(!Registered)
-		{
-			// private parties have random id to not leak the server ip
-			char aPartyId[sizeof(m_Activity.party.id)];
-			secure_random_password(aPartyId, sizeof(aPartyId), 64);
-			str_copy(m_Activity.party.id, aPartyId, sizeof(m_Activity.party.id));
-		}
-		UpdateServerIp(ServerInfo);
+		str_format(m_Activity.details, sizeof(m_Activity.details), "Map: %s", ServerInfo.m_aMap);
+		str_format(m_Activity.state, sizeof(m_Activity.state), "Client: %s", AetherDiscordVariantName());
 
 		m_UpdateActivity = true;
 	}
@@ -159,53 +181,26 @@ public:
 	void UpdateServerInfo(const CServerInfo &ServerInfo) override
 	{
 		if(!m_Activity.instance)
+		{
+			str_format(m_Activity.details, sizeof(m_Activity.details), "Map: %s", ServerInfo.m_aMap);
+			str_format(m_Activity.state, sizeof(m_Activity.state), "Client: %s", AetherDiscordVariantName());
+			m_UpdateActivity = true;
 			return;
+		}
 
-		UpdateServerIp(ServerInfo);
-
-		str_copy(m_Activity.details, ServerInfo.m_aName, sizeof(m_Activity.details));
-		str_copy(m_Activity.state, ServerInfo.m_aMap, sizeof(m_Activity.state));
-		m_Activity.party.size.max_size = ServerInfo.m_MaxClients;
+		str_format(m_Activity.details, sizeof(m_Activity.details), "Map: %s", ServerInfo.m_aMap);
+		str_format(m_Activity.state, sizeof(m_Activity.state), "Client: %s", AetherDiscordVariantName());
 		m_UpdateActivity = true;
 	}
 
 	void UpdatePlayerCount(int Count) override
 	{
-		if(!m_Activity.instance)
-			return;
-
-		if(m_Activity.party.size.current_size == Count)
-			return;
-
-		m_Activity.party.size.current_size = Count;
-		m_UpdateActivity = true;
+		(void)Count;
 	}
 
 	void UpdateServerIp(const CServerInfo &ServerInfo)
 	{
-		if(!m_Activity.instance)
-			return;
-
-		// secret is only shared when player is joining the game, or when they are invited for private games
-		if(str_length(ServerInfo.m_aAddress) < (int)sizeof(m_Activity.secrets.join))
-		{
-			str_copy(m_Activity.secrets.join, ServerInfo.m_aAddress, sizeof(m_Activity.secrets.join));
-		}
-		else
-		{
-			char aAddr[NETADDR_MAXSTRSIZE];
-			net_addr_str(&ServerInfo.m_aAddresses[0], aAddr, sizeof(aAddr), true);
-			str_copy(m_Activity.secrets.join, aAddr, sizeof(m_Activity.secrets.join));
-		}
-
-		if(m_Activity.party.privacy == DiscordActivityPartyPrivacy_Public)
-		{
-			// id is sha256, because it didn't work with the ':' character
-			char aPartyId[SHA256_MAXSTRSIZE];
-			SHA256_DIGEST PartyIdSha256 = sha256(m_Activity.secrets.join, str_length(m_Activity.secrets.join));
-			sha256_str(PartyIdSha256, aPartyId, sizeof(aPartyId));
-			str_copy(m_Activity.party.id, aPartyId, sizeof(m_Activity.party.id));
-		}
+		(void)ServerInfo;
 	}
 
 	static void DISCORD_CALLBACK OnActivityJoin(void *pEventData, const char *pSecret)

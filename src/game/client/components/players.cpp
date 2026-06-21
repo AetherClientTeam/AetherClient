@@ -9,6 +9,7 @@
 #include <engine/client/enums.h>
 #include <engine/demo.h>
 #include <engine/graphics.h>
+#include <engine/storage.h>
 #include <engine/shared/config.h>
 
 #include <generated/client_data.h>
@@ -120,6 +121,24 @@ void CPlayers::RenderHand6(const CTeeRenderInfo *pInfo, vec2 HandPos, float Hand
 	Graphics()->RenderQuadContainerAsSprite(m_WeaponEmoteQuadContainerIndex, NUM_WEAPONS * 2, HandPos.x, HandPos.y);
 	Graphics()->TextureSet(pSkinTextures->m_Hands);
 	Graphics()->RenderQuadContainerAsSprite(m_WeaponEmoteQuadContainerIndex, NUM_WEAPONS * 2 + 1, HandPos.x, HandPos.y);
+}
+
+void CPlayers::RenderMenuStatusIcon(vec2 Center, float Alpha)
+{
+	Alpha = std::clamp(Alpha, 0.0f, 1.0f);
+	if(Alpha <= 0.01f || !m_AetherMenuStatusIconTexture.IsValid())
+		return;
+
+	constexpr float IconSize = 22.0f;
+	Graphics()->WrapClamp();
+	Graphics()->TextureSet(m_AetherMenuStatusIconTexture);
+	Graphics()->QuadsBegin();
+	Graphics()->SetColor(1.0f, 1.0f, 1.0f, Alpha);
+	IGraphics::CQuadItem Quad(Center.x, Center.y, IconSize, IconSize);
+	Graphics()->QuadsDraw(&Quad, 1);
+	Graphics()->QuadsEnd();
+	Graphics()->WrapNormal();
+	Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
 float CPlayers::GetPlayerTargetAngle(
@@ -1085,6 +1104,9 @@ void CPlayers::RenderPlayer(
 	if(ClientId < 0)
 		return;
 
+	if(Player.m_PlayerFlags & PLAYERFLAG_IN_MENU)
+		RenderMenuStatusIcon(Position + vec2(0.0f, -56.0f), Alpha);
+
 	int QuadOffsetToEmoticon = NUM_WEAPONS * 2 + 2 + 2;
 	if((Player.m_PlayerFlags & PLAYERFLAG_CHATTING) && !GameClient()->m_aClients[ClientId].m_Afk)
 	{
@@ -1948,6 +1970,10 @@ bool CPlayers::EnsureAetherBlockTeeRenderInfoReady()
 
 void CPlayers::OnInit()
 {
+	m_AetherMenuStatusIconTexture = Graphics()->LoadTexture("core/icons/menu_gear.png", IStorage::TYPE_ALL);
+	if(!m_AetherMenuStatusIconTexture.IsValid())
+		m_AetherMenuStatusIconTexture = Graphics()->LoadTexture("aether/icons/menu_gear.png", IStorage::TYPE_ALL);
+
 	m_WeaponEmoteQuadContainerIndex = Graphics()->CreateQuadContainer(false);
 
 	Graphics()->SetColor(1.f, 1.f, 1.f, 1.f);

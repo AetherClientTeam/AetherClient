@@ -294,20 +294,34 @@ void CMenus::RenderSettingsPlayer(CUIRect MainView)
 		s_ClanInput.SetBuffer(g_Config.m_ClDummyClan, sizeof(g_Config.m_ClDummyClan));
 	}
 
-	// player name
 	CUIRect Button, Label;
-	MainView.HSplitTop(20.0f, &Button, &MainView);
-	Button.VSplitLeft(80.0f, &Label, &Button);
-	CUIRect FlagButton;
-	Button.VSplitRight(50.0f, &Button, &FlagButton);
-	Button.VSplitRight(8.0f, &Button, nullptr);
 	char aBuf[128];
-	str_format(aBuf, sizeof(aBuf), "%s:", Localize("Name"));
-	Ui()->DoLabel(&Label, aBuf, 14.0f, TEXTALIGN_ML);
-	if(Ui()->DoEditBox(&s_NameInput, &Button, 14.0f))
-	{
+
+	CUIRect IdentityPanel, IdentityFields, FlagButton;
+	MainView.HSplitTop(58.0f, &IdentityPanel, &MainView);
+	IdentityPanel.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.12f), IGraphics::CORNER_ALL, 6.0f);
+	IdentityPanel.Margin(6.0f, &IdentityPanel);
+	IdentityPanel.VSplitRight(58.0f, &IdentityFields, &FlagButton);
+	IdentityFields.VSplitRight(8.0f, &IdentityFields, nullptr);
+
+	CUIRect NameRow, ClanRow;
+	IdentityFields.HSplitTop(22.0f, &NameRow, &IdentityFields);
+	IdentityFields.HSplitTop(4.0f, nullptr, &IdentityFields);
+	IdentityFields.HSplitTop(22.0f, &ClanRow, &IdentityFields);
+
+	auto DoPlayerTextInput = [&](CUIRect Row, const char *pLabel, CLineInput &Input) {
+		CUIRect Edit;
+		Row.VSplitLeft(62.0f, &Label, &Edit);
+		str_format(aBuf, sizeof(aBuf), "%s:", pLabel);
+		Ui()->DoLabel(&Label, aBuf, 14.0f, TEXTALIGN_ML);
+		return Ui()->DoEditBox(&Input, &Edit, 14.0f);
+	};
+
+	if(DoPlayerTextInput(NameRow, Localize("Name"), s_NameInput))
 		SetNeedSendInfo();
-	}
+	if(DoPlayerTextInput(ClanRow, Localize("Clan"), s_ClanInput))
+		SetNeedSendInfo();
+
 	static CButtonContainer s_FlagButton;
 	if(DoButton_Menu(&s_FlagButton, "", 0, &FlagButton))
 	{
@@ -323,18 +337,6 @@ void CMenus::RenderSettingsPlayer(CUIRect MainView)
 	RenderFlag.w = FlagW;
 	RenderFlag.h = FlagH;
 	GameClient()->m_CountryFlags.Render(*pCountry, ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f), RenderFlag.x, RenderFlag.y, RenderFlag.w, RenderFlag.h);
-
-	// player clan
-	MainView.HSplitTop(5.0f, nullptr, &MainView);
-	MainView.HSplitTop(20.0f, &Button, &MainView);
-	Button.VSplitLeft(80.0f, &Label, &Button);
-	Button.VSplitRight(58.0f, &Button, nullptr);
-	str_format(aBuf, sizeof(aBuf), "%s:", Localize("Clan"));
-	Ui()->DoLabel(&Label, aBuf, 14.0f, TEXTALIGN_ML);
-	if(Ui()->DoEditBox(&s_ClanInput, &Button, 14.0f))
-	{
-		SetNeedSendInfo();
-	}
 
 	if(s_FlagPickerOpen)
 	{
@@ -458,10 +460,11 @@ void CMenus::RenderSettingsTee(CUIRect MainView)
 		pEmote = &g_Config.m_ClDummyDefaultEyes;
 	}
 
-	const float EyeButtonSize = 40.0f;
-	const bool RenderEyesBelow = MainView.w < 750.0f;
+	const float EyeButtonSize = MainView.w < 620.0f ? 34.0f : 40.0f;
+	const bool RenderEyesBelow = MainView.w < 520.0f;
 	CUIRect YourSkin, Checkboxes, SkinPrefix, Eyes, Button, Label;
-	MainView.HSplitTop(90.0f, &YourSkin, &MainView);
+	const float YourSkinHeight = MainView.h < 430.0f ? 74.0f : 86.0f;
+	MainView.HSplitTop(YourSkinHeight, &YourSkin, &MainView);
 	if(RenderEyesBelow)
 	{
 		YourSkin.VSplitLeft(MainView.w * 0.45f, &YourSkin, &Checkboxes);
@@ -725,7 +728,8 @@ void CMenus::RenderSettingsTee(CUIRect MainView)
 	if(*pUseCustomColor)
 	{
 		CUIRect CustomColors;
-		MainView.HSplitTop(95.0f, &CustomColors, &MainView);
+		const float CustomColorsHeight = MainView.h < 350.0f ? 82.0f : 95.0f;
+		MainView.HSplitTop(CustomColorsHeight, &CustomColors, &MainView);
 		CUIRect aRects[2];
 		CustomColors.VSplitMid(&aRects[0], &aRects[1], 20.0f);
 
@@ -759,7 +763,8 @@ void CMenus::RenderSettingsTee(CUIRect MainView)
 	static CListBox s_ListBox;
 	std::vector<CSkins::CSkinListEntry> &vSkinList = SkinList.Skins();
 	int OldSelected = -1;
-	s_ListBox.DoStart(50.0f, vSkinList.size(), 4, 2, OldSelected, &MainView);
+	const int SkinColumns = MainView.w < 560.0f ? 2 : MainView.w < 760.0f ? 3 : 4;
+	s_ListBox.DoStart(50.0f, vSkinList.size(), SkinColumns, 2, OldSelected, &MainView);
 	for(size_t i = 0; i < vSkinList.size(); ++i)
 	{
 		CSkins::CSkinListEntry &SkinListEntry = vSkinList[i];

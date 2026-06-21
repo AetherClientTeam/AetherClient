@@ -4,6 +4,8 @@
 #define GAME_CLIENT_COMPONENTS_PLAYERS_H
 #include <generated/protocol.h>
 
+#include <engine/graphics.h>
+
 #include <game/client/component.h>
 #include <game/client/render.h>
 
@@ -39,6 +41,7 @@ class CPlayers : public CComponent
 		const CNetObj_Character *pPlayerChar,
 		int ClientId);
 	void RenderAetherOrbitAura(int ClientId);
+	void RenderMenuStatusIcon(vec2 Center, float Alpha);
 	bool IsPlayerInfoAvailable(int ClientId) const;
 
 	int m_WeaponEmoteQuadContainerIndex;
@@ -53,6 +56,7 @@ class CPlayers : public CComponent
 	float m_aAetherJellyImpact[MAX_CLIENTS] = {};
 	float m_aAetherJellyLandingTime[MAX_CLIENTS] = {};
 	bool m_aAetherJellyGrounded[MAX_CLIENTS] = {};
+	IGraphics::CTextureHandle m_AetherMenuStatusIconTexture;
 
 	void CreateNinjaTeeRenderInfo();
 	void CreateSpectatorTeeRenderInfo();

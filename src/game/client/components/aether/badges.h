@@ -342,6 +342,7 @@ public:
 	const SClanState &Clan() const { return m_Clan; }
 	const SClanState &GeneralClan() const { return m_GeneralClan; }
 	const SClanState &KogClan() const { return m_KogClan; }
+	bool ClanRequestActive() const { return m_pClanRequest != nullptr; }
 	bool ClanManagementAvailable() const { return m_ClanManagementAvailable; }
 	bool IsPingWheelActive() const { return m_PingWheelActive; }
 	bool ScoreboardClanForClient(int ClientId, bool KogServer, char *pOut, int OutSize) const;

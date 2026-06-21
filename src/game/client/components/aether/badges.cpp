@@ -814,6 +814,7 @@ bool CAetherBadges::StartClanHttpPost(const char *pPath, const std::string &Payl
 	m_pClanRequest = std::make_shared<CHttpRequest>(aUrl);
 	m_pClanRequest->PostJson(Payload.c_str());
 	m_pClanRequest->MaxResponseSize(512 * 1024);
+	m_pClanRequest->FailOnErrorStatus(false);
 	m_pClanRequest->LogProgress(HTTPLOG::FAILURE);
 	Http()->Run(m_pClanRequest);
 	m_ClanAction = Action;
@@ -839,6 +840,7 @@ bool CAetherBadges::StartClanHttpGet(const char *pPath, EClanHttpAction Action, 
 	BuildUrl(aUrl, sizeof(aUrl), pPath);
 	m_pClanRequest = std::make_shared<CHttpRequest>(aUrl);
 	m_pClanRequest->MaxResponseSize(768 * 1024);
+	m_pClanRequest->FailOnErrorStatus(false);
 	m_pClanRequest->LogProgress(HTTPLOG::FAILURE);
 	Http()->Run(m_pClanRequest);
 	m_ClanAction = Action;
@@ -1158,6 +1160,7 @@ void CAetherBadges::PumpClanRequest()
 	const EClanHttpAction CompletedAction = m_ClanAction;
 	SClanState RecoveryClan;
 	EClanHttpAction RecoveryAction = EClanHttpAction::NONE;
+	bool RefreshClanBeforeRecovery = false;
 	if(HttpState == EHttpState::DONE && m_pClanRequest->StatusCode() >= 200 && m_pClanRequest->StatusCode() < 400)
 	{
 		json_value *pJson = m_pClanRequest->ResultJson();
@@ -1193,6 +1196,13 @@ void CAetherBadges::PumpClanRequest()
 				RecoveryAction = CompletedAction;
 				str_copy(m_aClanLastError, "Clan membership expired. Recovering...", sizeof(m_aClanLastError));
 			}
+			else if(Clan.m_Valid && CompletedAction != EClanHttpAction::MEMBER_REMOVE)
+			{
+				m_ClanRecoveryAction = CompletedAction;
+				str_copy(m_aClanRecoveryType, KogClan ? "kog" : "general", sizeof(m_aClanRecoveryType));
+				RefreshClanBeforeRecovery = true;
+				str_copy(m_aClanLastError, "Clan membership expired. Refreshing clan before recovery...", sizeof(m_aClanLastError));
+			}
 			else
 			{
 				str_copy(m_aClanLastError, "Clan membership expired. Rejoin with invite code to recover.", sizeof(m_aClanLastError));
@@ -1210,12 +1220,27 @@ void CAetherBadges::PumpClanRequest()
 			m_aClanRecoveryType[0] = '\0';
 			str_format(m_aClanLastError, sizeof(m_aClanLastError), "Clan membership recovery failed: %s", pError);
 		}
+		else if(CompletedAction == EClanHttpAction::MINE && m_ClanRecoveryAction != EClanHttpAction::NONE)
+		{
+			m_ClanRecoveryAction = EClanHttpAction::NONE;
+			m_aClanRecoveryType[0] = '\0';
+			str_format(m_aClanLastError, sizeof(m_aClanLastError), "Clan refresh before recovery failed: %s", pError);
+		}
 		else if(StatusCode > 0)
 			str_format(m_aClanLastError, sizeof(m_aClanLastError), "Clan HTTP %d: %s", StatusCode, pError);
 		else if(HttpState == EHttpState::ERROR)
 			str_copy(m_aClanLastError, "Clan request failed. Check API URL/deploy and try refresh.", sizeof(m_aClanLastError));
 		else
 			str_copy(m_aClanLastError, "Clan request aborted.", sizeof(m_aClanLastError));
+		if(CompletedAction == EClanHttpAction::MEMBERS && !RefreshClanBeforeRecovery && RecoveryAction == EClanHttpAction::NONE)
+		{
+			SClanState &Clan = str_comp_nocase(m_aClanRequestType, "kog") == 0 ? m_KogClan : m_GeneralClan;
+			if(Clan.m_Valid)
+			{
+				Clan.m_MembersLoaded = true;
+				Clan.m_MemberListCount = 0;
+			}
+		}
 		str_copy(m_aClanStatus, m_aClanLastError, sizeof(m_aClanStatus));
 		if(pJson)
 			json_value_free(pJson);
@@ -1224,8 +1249,15 @@ void CAetherBadges::PumpClanRequest()
 	m_ClanAction = EClanHttpAction::NONE;
 	m_aClanRequestType[0] = '\0';
 	m_aClanRequestId[0] = '\0';
-	if(RecoveryAction != EClanHttpAction::NONE)
+	if(RefreshClanBeforeRecovery)
+	{
+		m_LastClanMineTime = 0;
+		RequestClanMine(true);
+	}
+	else if(RecoveryAction != EClanHttpAction::NONE)
 		StartClanRecovery(RecoveryClan, RecoveryAction);
+	else if(CompletedAction == EClanHttpAction::MINE && m_ClanRecoveryAction != EClanHttpAction::NONE)
+		RetryClanRecoveryAction();
 	else if(CompletedAction == EClanHttpAction::RECOVER_MEMBERSHIP && m_ClanRecoveryAction != EClanHttpAction::NONE)
 		RetryClanRecoveryAction();
 }
@@ -1773,11 +1805,20 @@ void CAetherBadges::SendClanJoin(const char *pInviteCode)
 
 void CAetherBadges::SendClanMembers(const SClanState &Clan)
 {
+	if(m_pClanRequest)
+		return;
 	std::string Payload;
 	if(!BuildClanAuthPayload(Clan, Payload))
 	{
 		if(Clan.m_Valid && Clan.m_aInviteCode[0] != '\0' && StartClanRecovery(Clan, EClanHttpAction::MEMBERS))
 			return;
+		if(Clan.m_Valid)
+		{
+			m_ClanRecoveryAction = EClanHttpAction::MEMBERS;
+			str_copy(m_aClanRecoveryType, str_comp_nocase(Clan.m_aType, "kog") == 0 ? "kog" : "general", sizeof(m_aClanRecoveryType));
+			m_LastClanMineTime = 0;
+			RequestClanMine(true);
+		}
 		return;
 	}
 	StartClanHttpPost("/v1/clans/members", Payload, EClanHttpAction::MEMBERS, "Loading clan members...");

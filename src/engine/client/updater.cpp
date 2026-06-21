@@ -455,7 +455,7 @@ bool CUpdater::WriteApplyScript(char *pScriptPath, int ScriptPathSize, char *pIn
 		"    if($items.Count -eq 1 -and $items[0].PSIsContainer) {\n"
 		"        $copyRoot = $items[0].FullName\n"
 		"    }\n"
-		"    $requiredFiles = @('Aether.exe', 'Vera.exe', 'Via.exe', 'Vex.exe', 'Aether-Server.exe')\n"
+		"    $requiredFiles = @('Aether.exe', 'Vera.exe', 'Via.exe', 'Vex.exe', 'Aether-Server.exe', 'discord_game_sdk.dll')\n"
 		"    foreach($requiredFile in $requiredFiles) {\n"
 		"        if(-not (Test-Path -LiteralPath (Join-Path $copyRoot $requiredFile))) {\n"
 		"            throw ('Update archive is missing required file: ' + $requiredFile)\n"

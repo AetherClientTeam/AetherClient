@@ -759,14 +759,56 @@ bool AetherGetAssetPartRect(int SpriteId, const CImageInfo &Image, SAetherSprite
 	return Rect.m_W > 0 && Rect.m_H > 0;
 }
 
+ColorRGBA AetherApplyAssetTint(ColorRGBA SrcColor, unsigned TintColor, bool TintEnabled, int Opacity, bool OnlyColored, bool FullBright, bool FillInside, bool EntityTile)
+{
+	const ColorHSLA TintHsl(TintColor, false);
+	const float OpacityScale = std::clamp(Opacity / 100.0f, 0.0f, 1.0f);
+	ColorHSLA SrcHsl = color_cast<ColorHSLA>(SrcColor);
+	// "Only colored pixels" is about the source sprite, not the picked tint:
+	// keep white/black/gray highlights intact while allowing any target color.
+	const bool ColoredSource = SrcHsl.s > 0.08f;
+	const bool PreserveOutline = !EntityTile && FillInside && SrcColor.r < 0.08f && SrcColor.g < 0.08f && SrcColor.b < 0.08f;
+	if(TintEnabled && !PreserveOutline && (EntityTile || !OnlyColored || ColoredSource))
+	{
+		if(TintHsl.s > 0.02f)
+		{
+			SrcHsl.h = TintHsl.h;
+			SrcHsl.s = FillInside ? TintHsl.s : std::clamp(TintHsl.s * 0.85f + SrcHsl.s * 0.15f, 0.0f, 1.0f);
+			if(FillInside)
+				SrcHsl.l = TintHsl.l;
+			else
+			{
+				const float LowLight = std::clamp(TintHsl.l * 0.45f, 0.0f, 1.0f);
+				const float HighLight = std::clamp(TintHsl.l + (1.0f - TintHsl.l) * 0.35f, 0.0f, 1.0f);
+				SrcHsl.l = LowLight + (HighLight - LowLight) * std::clamp(SrcHsl.l, 0.0f, 1.0f);
+			}
+		}
+		else
+		{
+			SrcHsl.s = 0.0f;
+			if(FillInside)
+				SrcHsl.l = TintHsl.l;
+			else
+			{
+				const float LowLight = std::clamp(TintHsl.l * 0.45f, 0.0f, 1.0f);
+				const float HighLight = std::clamp(TintHsl.l + (1.0f - TintHsl.l) * 0.35f, 0.0f, 1.0f);
+				SrcHsl.l = LowLight + (HighLight - LowLight) * std::clamp(SrcHsl.l, 0.0f, 1.0f);
+			}
+		}
+		if(FullBright)
+			SrcHsl.l = std::max(SrcHsl.l, TintHsl.s > 0.02f ? 0.72f : 1.0f);
+		SrcColor = color_cast<ColorRGBA>(SrcHsl);
+	}
+	SrcColor.a = std::clamp(SrcColor.a * OpacityScale, 0.0f, 1.0f);
+	return SrcColor;
+}
+
 void AetherBlendSprite(CImageInfo &Dest, const CImageInfo &Src, int SourceSpriteId, int TargetSpriteId, bool TintEnabled, unsigned TintColor, int Opacity, bool OnlyColored, bool FullBright, bool FillInside)
 {
 	SAetherSpriteRect SrcRect;
 	SAetherSpriteRect DstRect;
 	if(!AetherGetAssetPartRect(SourceSpriteId, Src, SrcRect) || !AetherGetAssetPartRect(TargetSpriteId, Dest, DstRect))
 		return;
-	const ColorHSLA TintHsl(TintColor, false);
-	const float OpacityScale = std::clamp(Opacity / 100.0f, 0.0f, 1.0f);
 	const bool EntityTile = SourceSpriteId < 0 || TargetSpriteId < 0;
 	for(int y = 0; y < DstRect.m_H; ++y)
 	{
@@ -779,44 +821,7 @@ void AetherBlendSprite(CImageInfo &Dest, const CImageInfo &Src, int SourceSprite
 			const size_t DstX = (size_t)DstRect.m_X + x;
 			const size_t DstY = (size_t)DstRect.m_Y + y;
 			ColorRGBA SrcColor = Src.PixelColor(SrcX, SrcY);
-			ColorHSLA SrcHsl = color_cast<ColorHSLA>(SrcColor);
-			// "Only colored pixels" is about the source sprite, not the picked tint:
-			// keep white/black/gray highlights intact while allowing any target color.
-			const bool ColoredSource = SrcHsl.s > 0.08f;
-			const bool PreserveOutline = !EntityTile && FillInside && SrcColor.r < 0.08f && SrcColor.g < 0.08f && SrcColor.b < 0.08f;
-			if(TintEnabled && !PreserveOutline && (EntityTile || !OnlyColored || ColoredSource))
-			{
-				if(TintHsl.s > 0.02f)
-				{
-					SrcHsl.h = TintHsl.h;
-					SrcHsl.s = FillInside ? TintHsl.s : std::clamp(TintHsl.s * 0.85f + SrcHsl.s * 0.15f, 0.0f, 1.0f);
-					if(FillInside)
-						SrcHsl.l = TintHsl.l;
-					else
-					{
-						const float LowLight = std::clamp(TintHsl.l * 0.45f, 0.0f, 1.0f);
-						const float HighLight = std::clamp(TintHsl.l + (1.0f - TintHsl.l) * 0.35f, 0.0f, 1.0f);
-						SrcHsl.l = LowLight + (HighLight - LowLight) * std::clamp(SrcHsl.l, 0.0f, 1.0f);
-					}
-				}
-				else
-				{
-					SrcHsl.s = 0.0f;
-					if(FillInside)
-						SrcHsl.l = TintHsl.l;
-					else
-					{
-						const float LowLight = std::clamp(TintHsl.l * 0.45f, 0.0f, 1.0f);
-						const float HighLight = std::clamp(TintHsl.l + (1.0f - TintHsl.l) * 0.35f, 0.0f, 1.0f);
-						SrcHsl.l = LowLight + (HighLight - LowLight) * std::clamp(SrcHsl.l, 0.0f, 1.0f);
-					}
-				}
-				if(FullBright)
-					SrcHsl.l = std::max(SrcHsl.l, TintHsl.s > 0.02f ? 0.72f : 1.0f);
-				SrcColor = color_cast<ColorRGBA>(SrcHsl);
-			}
-			SrcColor.a = std::clamp(SrcColor.a * OpacityScale, 0.0f, 1.0f);
-			Dest.SetPixelColor(DstX, DstY, SrcColor);
+			Dest.SetPixelColor(DstX, DstY, AetherApplyAssetTint(SrcColor, TintColor, TintEnabled, Opacity, OnlyColored, FullBright, FillInside, EntityTile));
 		}
 	}
 }
@@ -1068,6 +1073,39 @@ bool AetherLoadAssetEditorImage(IGraphics *pGraphics, int Category, const char *
 	return AetherLoadAtlasImage(pGraphics, s_aAssetEditorCategories[Category].m_pPath, s_aAssetEditorCategories[Category].m_ImageId, pPack, Image);
 }
 
+bool AetherBuildAssetPartPreviewImage(const CImageInfo &Src, int SourceSpriteId, int TargetSpriteId, int TargetImageW, int TargetImageH, const SAetherAssetPartState &State, CImageInfo &Dest)
+{
+	SAetherSpriteRect SrcRect;
+	SAetherSpriteRect DstRect;
+	CImageInfo TargetMeta;
+	TargetMeta.m_Width = TargetImageW;
+	TargetMeta.m_Height = TargetImageH;
+	if(!AetherGetAssetPartRect(SourceSpriteId, Src, SrcRect) || !AetherGetAssetPartRect(TargetSpriteId, TargetMeta, DstRect))
+		return false;
+	Dest.m_Width = DstRect.m_W;
+	Dest.m_Height = DstRect.m_H;
+	Dest.m_Format = CImageInfo::FORMAT_RGBA;
+	Dest.m_pData = static_cast<uint8_t *>(malloc(Dest.DataSize()));
+	if(!Dest.m_pData)
+		return false;
+	mem_zero(Dest.m_pData, Dest.DataSize());
+
+	const bool EntityTile = SourceSpriteId < 0 || TargetSpriteId < 0;
+	for(int y = 0; y < DstRect.m_H; ++y)
+	{
+		for(int x = 0; x < DstRect.m_W; ++x)
+		{
+			const int MappedX = std::clamp((int)((x + 0.5f) * SrcRect.m_W / DstRect.m_W), 0, SrcRect.m_W - 1);
+			const int MappedY = std::clamp((int)((y + 0.5f) * SrcRect.m_H / DstRect.m_H), 0, SrcRect.m_H - 1);
+			const size_t SrcX = (size_t)SrcRect.m_X + MappedX;
+			const size_t SrcY = (size_t)SrcRect.m_Y + MappedY;
+			ColorRGBA SrcColor = Src.PixelColor(SrcX, SrcY);
+			Dest.SetPixelColor(x, y, AetherApplyAssetTint(SrcColor, State.m_Color, State.m_TintEnabled, State.m_Opacity, State.m_OnlyColored, State.m_FullBright, State.m_FillInside, EntityTile));
+		}
+	}
+	return true;
+}
+
 struct SAetherAssetImageCacheEntry
 {
 	int m_Category = -1;
@@ -1242,6 +1280,8 @@ IGraphics::CTextureHandle s_AetherAssetsEditorLiveSourceTexture;
 char s_aAetherAssetsEditorLiveSourcePath[IO_MAX_PATH_LENGTH] = {};
 int s_AetherAssetsEditorLiveSourceWidth = 0;
 int s_AetherAssetsEditorLiveSourceHeight = 0;
+IGraphics::CTextureHandle s_AetherAssetsEditorLivePartTexture;
+char s_aAetherAssetsEditorLivePartKey[512] = {};
 IGraphics::CTextureHandle s_AetherAssetsEditorMixedTexture;
 bool s_AetherAssetsEditorMixedDirty = true;
 bool s_AetherAssetsEditorForcePreviewBuild = true;
@@ -1253,6 +1293,12 @@ bool s_AetherAssetsEditorEditPanelOpen = false;
 float s_AetherAssetsEditorEditDragOffsetX = 0.0f;
 float s_AetherAssetsEditorEditDragOffsetY = 0.0f;
 bool s_AetherAssetsEditorPickColor = false;
+
+void AetherResetAssetsEditorLivePartTexture(IGraphics *pGraphics)
+{
+	pGraphics->UnloadTexture(&s_AetherAssetsEditorLivePartTexture);
+	s_aAetherAssetsEditorLivePartKey[0] = '\0';
+}
 
 void AetherSanitizeSoundFileName(const char *pInput, char *pOut, int OutSize)
 {
@@ -1525,7 +1571,7 @@ void CMenus::RenderSettingsAetherDdraceConfigs(CUIRect Body)
 {
 	const float S = AetherSettingsScale();
 	Body.Draw(AetherPanelColor(0.34f), IGraphics::CORNER_ALL, 6.0f);
-	Body.Margin(12.0f * S, &Body);
+	Body.Margin(8.0f * S, &Body);
 	struct SConfigEntry
 	{
 		const char *m_pLabel;
@@ -1574,30 +1620,37 @@ void CMenus::RenderSettingsAetherDdraceConfigs(CUIRect Body)
 		}
 	};
 
+	const float Gap = 4.0f * S;
 	for(size_t i = 0; i < std::size(s_aConfigs); ++i)
 	{
 		CUIRect Row;
-		Body.HSplitTop(30.0f * S, &Row, &Body);
+		Body.HSplitTop(24.0f * S, &Row, &Body);
 		CUIRect Label, KeyButton, Toggle, Reset;
-		Row.VSplitLeft(230.0f * S, &Label, &Row);
-		Row.VSplitRight(74.0f * S, &Row, &Reset);
-		Row.VSplitRight(6.0f * S, &Row, nullptr);
-		Row.VSplitRight(82.0f * S, &Row, &Toggle);
-		Row.VSplitRight(6.0f * S, &Row, nullptr);
-		Row.VSplitRight(236.0f * S, &Row, &KeyButton);
-		Ui()->DoLabel(&Label, Localize(s_aConfigs[i].m_pLabel), 13.0f * S, TEXTALIGN_ML);
+		const float ResetW = std::clamp(54.0f * S, 46.0f, 64.0f * S);
+		const float ToggleW = std::clamp(66.0f * S, 56.0f, 76.0f * S);
+		const float LabelW = std::clamp(Row.w * 0.30f, 112.0f * S, 188.0f * S);
+		Row.VSplitLeft(LabelW, &Label, &Row);
+		Row.VSplitRight(ResetW, &Row, &Reset);
+		Row.VSplitRight(Gap, &Row, nullptr);
+		Row.VSplitRight(ToggleW, &Row, &Toggle);
+		Row.VSplitRight(Gap, &Row, nullptr);
+		KeyButton = Row;
+		KeyButton.VMargin(2.0f * S, &KeyButton);
+		Ui()->DoLabel(&Label, Localize(s_aConfigs[i].m_pLabel), 12.0f * S, TEXTALIGN_ML);
 		DoCompactKeyReader(KeyButton, s_aReaderButtons[i], s_aClearButtons[i], s_aConfigs[i].m_pCommand);
 		if(DoButton_Menu(&s_aApplyButtons[i], Localize("Toggle"), 0, &Toggle))
 			ExecConfig(s_aConfigs[i].m_pName, "toggle");
 		if(DoButton_Menu(&s_aResetButtons[i], Localize("Reset"), 0, &Reset))
 			ExecConfig(s_aConfigs[i].m_pName, "off");
 
-		Body.HSplitTop(5.0f * S, nullptr, &Body);
+		Body.HSplitTop(3.0f * S, nullptr, &Body);
 	}
 
 	CUIRect OpenFolder;
-	Body.HSplitTop(4.0f * S, nullptr, &Body);
-	Body.HSplitTop(24.0f * S, &OpenFolder, &Body);
+	Body.HSplitTop(2.0f * S, nullptr, &Body);
+	Body.HSplitTop(22.0f * S, &OpenFolder, &Body);
+	if(OpenFolder.w > 190.0f * S)
+		OpenFolder.VSplitRight(180.0f * S, nullptr, &OpenFolder);
 	if(DoButton_Menu(&s_OpenFolderButton, Localize("Open folder"), 0, &OpenFolder))
 	{
 		char aDir[IO_MAX_PATH_LENGTH];
@@ -1957,7 +2010,7 @@ void CMenus::RenderSettingsAetherClan(CUIRect Body)
 	Body.HSplitTop(10.0f * S, nullptr, &Body);
 
 	const auto &SelectedClan = s_SelectedClanType == 1 ? KogClan : GeneralClan;
-	if(SelectedClan.m_Valid && !SelectedClan.m_MembersLoaded && ManagementReady)
+	if(SelectedClan.m_Valid && !SelectedClan.m_MembersLoaded && ManagementReady && !GameClient()->m_AetherBadges.ClanRequestActive())
 	{
 		static int64_t s_aLastMembersAutoRequestTime[2] = {};
 		const int TypeIndex = s_SelectedClanType == 1 ? 1 : 0;
@@ -2245,7 +2298,7 @@ void CMenus::RenderSettingsAetherTranslator(CUIRect Body)
 	Body.HSplitTop(4.0f * S, nullptr, &Body);
 	Body.HSplitTop(34.0f * S, &Row, &Body);
 	TextRender()->TextColor(0.72f, 0.78f, 0.86f, 1.0f);
-	Ui()->DoLabel(&Row, "Manual /translate and optional outgoing chat use the embedded Google backend. Target examples: en, tr, de.", 11.0f * S, TEXTALIGN_ML);
+	Ui()->DoLabel(&Row, "Manual !translate and optional outgoing chat use the embedded Google backend. Target examples: en, tr, de.", 11.0f * S, TEXTALIGN_ML);
 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
@@ -4273,6 +4326,7 @@ void CMenus::RenderSettingsAetherAssetsEditorPopup(CUIRect Screen)
 			s_AetherAssetsEditorMixedDirty = true;
 			s_aAetherAssetsEditorSourcePath[0] = '\0';
 			s_aAetherAssetsEditorLiveSourcePath[0] = '\0';
+			AetherResetAssetsEditorLivePartTexture(Graphics());
 		}
 
 		std::vector<std::string> &vNames = s_AetherAssetsEditorCategory == AETHER_ASSET_EDITOR_SKINS_CATEGORY ? s_vAetherAssetsEditorSkinSources : s_vAetherAssetsEditorAssetSources;
@@ -4530,6 +4584,7 @@ void CMenus::RenderSettingsAetherAssetsEditorPopup(CUIRect Screen)
 		{
 			s_AetherAssetsEditorOpen = false;
 			s_AetherAssetsEditorPickColor = false;
+			AetherResetAssetsEditorLivePartTexture(Graphics());
 		}
 		Ui()->DoLabel(&ModeLabel, "Mode", 16.0f * S, TEXTALIGN_ML);
 		static const char *s_apModeLabels[] = {"Game", "Emoticons", "Entities", "HUD", "Particles", "Extras", "Skins"};
@@ -4556,6 +4611,7 @@ void CMenus::RenderSettingsAetherAssetsEditorPopup(CUIRect Screen)
 			s_AetherAssetsEditorCategory = s_aModeCategories[NewMode];
 			s_LastCategory = -1;
 			s_aAetherAssetsEditorLiveSourcePath[0] = '\0';
+			AetherResetAssetsEditorLivePartTexture(Graphics());
 			str_copy(s_aAetherAssetsEditorStatus, "Mode changed. Donor and mixed previews refreshed.");
 			return;
 		}
@@ -4568,6 +4624,7 @@ void CMenus::RenderSettingsAetherAssetsEditorPopup(CUIRect Screen)
 			s_AetherAssetsEditorMixedDirty = true;
 			s_aAetherAssetsEditorSourcePath[0] = '\0';
 			s_aAetherAssetsEditorLiveSourcePath[0] = '\0';
+			AetherResetAssetsEditorLivePartTexture(Graphics());
 			str_copy(s_aAetherAssetsEditorStatus, "Source lists refreshed.");
 		}
 		if(DoButton_Menu(&s_ExportButton, "Export", 0, &Export))
@@ -4677,6 +4734,33 @@ void CMenus::RenderSettingsAetherAssetsEditorPopup(CUIRect Screen)
 					CUIRect TargetRect;
 					if(!SpriteHitRect(MixedImageRect, s_AetherAssetsEditorMixedWidth, s_AetherAssetsEditorMixedHeight, TargetSprite, TargetRect))
 						continue;
+					if(s_AetherAssetsEditorCategory == AETHER_ASSET_EDITOR_ENTITIES_CATEGORY)
+					{
+						char aLivePartKey[512];
+						str_format(aLivePartKey, sizeof(aLivePartKey), "%s|%d|%d|%d|%d|%u|%d|%d|%d|%d|%d",
+							vNames[LiveState.m_SourceIndex].c_str(), SourceSprite, TargetSprite,
+							s_AetherAssetsEditorMixedWidth, s_AetherAssetsEditorMixedHeight,
+							LiveState.m_Color, LiveState.m_Opacity,
+							LiveState.m_TintEnabled ? 1 : 0,
+							LiveState.m_OnlyColored ? 1 : 0,
+							LiveState.m_FullBright ? 1 : 0,
+							LiveState.m_FillInside ? 1 : 0);
+						if(str_comp(s_aAetherAssetsEditorLivePartKey, aLivePartKey) != 0)
+						{
+							AetherResetAssetsEditorLivePartTexture(Graphics());
+							if(const CImageInfo *pLiveImage = AetherCachedAssetEditorImage(Graphics(), s_AetherAssetsEditorCategory, vNames[LiveState.m_SourceIndex].c_str()))
+							{
+								CImageInfo LivePartImage;
+								if(AetherBuildAssetPartPreviewImage(*pLiveImage, SourceSprite, TargetSprite, s_AetherAssetsEditorMixedWidth, s_AetherAssetsEditorMixedHeight, LiveState, LivePartImage))
+								{
+									s_AetherAssetsEditorLivePartTexture = Graphics()->LoadTextureRawMove(LivePartImage, 0, "aether-assets-editor-live-part");
+									str_copy(s_aAetherAssetsEditorLivePartKey, aLivePartKey);
+								}
+							}
+						}
+						AetherDrawTextureInRect(Graphics(), s_AetherAssetsEditorLivePartTexture, TargetRect);
+						continue;
+					}
 					SAetherSpriteRect SourceRect;
 					CImageInfo SourceMeta;
 					SourceMeta.m_Width = s_AetherAssetsEditorLiveSourceWidth;
