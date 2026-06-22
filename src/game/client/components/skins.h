@@ -6,6 +6,7 @@
 #include <base/lock.h>
 
 #include <engine/shared/config.h>
+#include <engine/shared/http.h>
 #include <engine/shared/jobs.h>
 
 #include <game/client/component.h>
@@ -18,8 +19,6 @@
 #include <string_view>
 #include <unordered_map>
 #include <utility>
-
-class CHttpRequest;
 
 class CSkins : public CComponent
 {
@@ -291,6 +290,7 @@ private:
 	private:
 		CLock m_Lock;
 		std::shared_ptr<CHttpRequest> m_pGetRequest GUARDED_BY(m_Lock);
+		bool TryLoadAetherCloudSkin(const char *pPathReal, const CTimeout &Timeout, size_t MaxResponseSize) REQUIRES(!m_Lock);
 	};
 
 	std::unordered_map<std::string_view, std::unique_ptr<CSkinContainer>> m_Skins;

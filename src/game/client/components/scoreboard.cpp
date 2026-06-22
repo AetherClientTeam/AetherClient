@@ -2,6 +2,8 @@
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include "scoreboard.h"
 
+#include <base/color.h>
+#include <base/math.h>
 #include <base/str.h>
 #include <base/time.h>
 
@@ -29,6 +31,83 @@
 
 namespace
 {
+ColorRGBA AetherGradientNicknameColor(int ClientId, float Alpha, const CAetherBadges::SGradientNicknameStyle &Style)
+{
+	ColorRGBA Start = color_cast<ColorRGBA>(ColorHSLA(Style.m_StartColor));
+	ColorRGBA End = color_cast<ColorRGBA>(ColorHSLA(Style.m_EndColor));
+	float T = (ClientId % 7) / 6.0f;
+	const float Seconds = time_get() / (float)time_freq();
+	if(Style.m_Animated)
+	{
+		T = 0.5f + 0.5f * std::sin(Seconds * (0.25f + Style.m_Speed / 45.0f) + ClientId * 0.73f);
+	}
+	float Glow = Style.m_Glow / 100.0f;
+	if(Style.m_Style == 1)
+	{
+		const float Shine = std::pow(0.5f + 0.5f * std::sin(Seconds * (1.0f + Style.m_Speed / 30.0f) + ClientId * 0.37f), 3.0f);
+		Glow = minimum(1.0f, Glow * 1.9f + 0.24f + Shine * 0.28f);
+		Start.r = mix(Start.r, 1.0f, 0.14f + Shine * 0.34f);
+		Start.g = mix(Start.g, 0.92f, 0.12f + Shine * 0.28f);
+		Start.b = mix(Start.b, 0.48f, Shine * 0.18f);
+		End.r = mix(End.r, 1.0f, 0.18f + Shine * 0.38f);
+		End.g = mix(End.g, 0.96f, 0.16f + Shine * 0.32f);
+		End.b = mix(End.b, 0.58f, Shine * 0.20f);
+	}
+	else if(Style.m_Style == 2)
+	{
+		const float Pulse = 0.5f + 0.5f * std::sin(Seconds * (0.85f + Style.m_Speed / 55.0f) + ClientId * 1.11f);
+		Glow = minimum(1.0f, Glow * 1.65f + 0.20f + Pulse * 0.18f);
+		Start.r = mix(Start.r, 1.0f, 0.10f + Pulse * 0.12f);
+		Start.g = mix(Start.g, 1.0f, 0.08f + Pulse * 0.10f);
+		Start.b = mix(Start.b, 1.0f, 0.10f + Pulse * 0.12f);
+		End.r = mix(End.r, 1.0f, 0.10f + (1.0f - Pulse) * 0.12f);
+		End.g = mix(End.g, 1.0f, 0.08f + (1.0f - Pulse) * 0.10f);
+		End.b = mix(End.b, 1.0f, 0.10f + (1.0f - Pulse) * 0.12f);
+	}
+	ColorRGBA Out;
+	Out.r = mix(Start.r, End.r, T);
+	Out.g = mix(Start.g, End.g, T);
+	Out.b = mix(Start.b, End.b, T);
+	Out.a = Alpha;
+	Out.r = mix(Out.r, 1.0f, Glow * 0.18f);
+	Out.g = mix(Out.g, 1.0f, Glow * 0.18f);
+	Out.b = mix(Out.b, 1.0f, Glow * 0.18f);
+	if(Style.m_Style == 1)
+	{
+		Out.r = minimum(1.0f, Out.r * 1.22f + 0.08f);
+		Out.g = minimum(1.0f, Out.g * 1.22f + 0.08f);
+		Out.b = minimum(1.0f, Out.b * 1.22f + 0.08f);
+	}
+	return Out;
+}
+
+bool AetherGradientNicknameGlow(const CAetherBadges::SGradientNicknameStyle &Style, const ColorRGBA &TextColor, ColorRGBA &GlowColor, float &GlowRadius)
+{
+	float Strength = Style.m_Glow / 100.0f;
+	if(Style.m_Style == 1)
+		Strength = maximum(Strength, 0.48f);
+	else if(Style.m_Style == 2)
+		Strength = maximum(Strength, 0.30f);
+	if(Strength <= 0.001f)
+		return false;
+	GlowColor = TextColor;
+	GlowColor.a = TextColor.a * Strength * (Style.m_Style == 1 ? 0.52f : Style.m_Style == 2 ? 0.34f : 0.26f);
+	if(Style.m_Style == 1)
+	{
+		GlowColor.r = minimum(1.0f, GlowColor.r * 1.45f + 0.22f);
+		GlowColor.g = minimum(1.0f, GlowColor.g * 1.35f + 0.16f);
+		GlowColor.b = minimum(1.0f, GlowColor.b * 1.18f + 0.04f);
+	}
+	else if(Style.m_Style == 2)
+	{
+		GlowColor.r = minimum(1.0f, GlowColor.r * 1.22f + 0.08f);
+		GlowColor.g = minimum(1.0f, GlowColor.g * 1.22f + 0.08f);
+		GlowColor.b = minimum(1.0f, GlowColor.b * 1.22f + 0.08f);
+	}
+	GlowRadius = 0.5f + Strength * (Style.m_Style == 1 ? 2.2f : Style.m_Style == 2 ? 1.6f : 1.1f);
+	return true;
+}
+
 bool AetherScoreboardIsKogServer(IClient *pClient)
 {
 	CServerInfo ServerInfo = {};
@@ -846,13 +925,61 @@ void CScoreboard::RenderScoreboard(CUIRect Scoreboard, int Team, int CountStart,
 					TextRender()->SetFontPreset(EFontPreset::DEFAULT_FONT);
 					TextRender()->TextEx(&Cursor, " ");
 				}
-				TextRender()->TextColor(TextColor);
+				ColorRGBA NameTextColor = TextColor;
+				ColorRGBA NameGlowColor;
+				float NameGlowRadius = 0.0f;
+				int NameGradientStyle = 0;
+				int NameGradientSpeed = 35;
+				bool NameGradientGlow = false;
 				if(ClientData.m_AuthLevel)
-					TextRender()->TextColor(color_cast<ColorRGBA>(ColorHSLA(g_Config.m_ClAuthedPlayerColor)));
+					NameTextColor = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_ClAuthedPlayerColor));
 				if(pInfo->m_ClientId >= 0 && GameClient()->m_AetherBlockAwareness.ShouldColorName(pInfo->m_ClientId))
-					TextRender()->TextColor(GameClient()->m_AetherBlockAwareness.NameColorForClient(pInfo->m_ClientId, TextColor.a));
+					NameTextColor = GameClient()->m_AetherBlockAwareness.NameColorForClient(pInfo->m_ClientId, TextColor.a);
 				else if(AetherVariant::WarlistEnabled() && pInfo->m_ClientId >= 0 && g_Config.m_TcWarList && g_Config.m_TcWarListScoreboard && GameClient()->m_WarList.GetAnyWar(pInfo->m_ClientId))
-					TextRender()->TextColor(GameClient()->m_WarList.GetNameplateColor(pInfo->m_ClientId));
+					NameTextColor = GameClient()->m_WarList.GetNameplateColor(pInfo->m_ClientId);
+				else if(pInfo->m_ClientId >= 0)
+				{
+					CAetherBadges::SGradientNicknameStyle Style;
+					if(GameClient()->m_AetherBadges.GradientNicknameStyleForClient(pInfo->m_ClientId, Style))
+					{
+						NameTextColor = AetherGradientNicknameColor(pInfo->m_ClientId, TextColor.a, Style);
+						NameGradientGlow = AetherGradientNicknameGlow(Style, NameTextColor, NameGlowColor, NameGlowRadius);
+						NameGradientStyle = Style.m_Style;
+						NameGradientSpeed = Style.m_Speed;
+					}
+				}
+				if(NameGradientGlow)
+				{
+					const vec2 aOffsets[] = {
+						vec2(-NameGlowRadius, 0.0f),
+						vec2(NameGlowRadius, 0.0f),
+						vec2(0.0f, -NameGlowRadius),
+						vec2(0.0f, NameGlowRadius),
+						vec2(-NameGlowRadius * 0.72f, -NameGlowRadius * 0.72f),
+						vec2(NameGlowRadius * 0.72f, -NameGlowRadius * 0.72f),
+						vec2(-NameGlowRadius * 0.72f, NameGlowRadius * 0.72f),
+						vec2(NameGlowRadius * 0.72f, NameGlowRadius * 0.72f),
+					};
+					TextRender()->TextColor(NameGlowColor);
+					for(const vec2 &Offset : aOffsets)
+					{
+						CTextCursor GlowCursor = Cursor;
+						GlowCursor.m_X += Offset.x;
+						GlowCursor.m_Y += Offset.y;
+						TextRender()->TextEx(&GlowCursor, ClientData.m_aName);
+					}
+				}
+				if(NameGradientGlow && NameGradientStyle == 1)
+				{
+					const float Seconds = time_get() / (float)time_freq();
+					const float Pulse = std::pow(0.5f + 0.5f * std::sin(Seconds * (1.2f + NameGradientSpeed / 45.0f)), 4.0f);
+					CTextCursor ShineCursor = Cursor;
+					ShineCursor.m_X += 0.7f;
+					ShineCursor.m_Y -= 0.7f;
+					TextRender()->TextColor(ColorRGBA(1.0f, 0.92f, 0.46f, TextColor.a * (0.08f + Pulse * 0.22f)));
+					TextRender()->TextEx(&ShineCursor, ClientData.m_aName);
+				}
+				TextRender()->TextColor(NameTextColor);
 				TextRender()->TextEx(&Cursor, ClientData.m_aName);
 				char aDummyOwner[64];
 				if(pInfo->m_ClientId >= 0 && GameClient()->m_AetherBlockAwareness.DummyOwnerLabel(pInfo->m_ClientId, aDummyOwner, sizeof(aDummyOwner)))

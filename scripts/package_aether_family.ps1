@@ -3,7 +3,7 @@ param(
 	[string]$BuildRoot = "build-vs2026",
 	[string]$ReleaseDir = "Release",
 	[string]$OutRoot = "portable",
-	[string]$Version = "1.0.2",
+	[string]$Version = "1.0.3",
 	[string]$Name = "",
 	[switch]$SkipBuild
 )
@@ -39,7 +39,7 @@ function Remove-LegacyAetherData($Root)
 
 if(!$SkipBuild)
 {
-	cmake -S $RepoRoot -B $BuildPath -DAUTOUPDATE=ON -DDISCORD=ON -DSERVER_EXECUTABLE=Aether-Server
+	cmake -S $RepoRoot -B $BuildPath -DAUTOUPDATE=ON -DDISCORD=ON -DSTEAM=ON -DSERVER_EXECUTABLE=Aether-Server
 	cmake --build $BuildPath --config Release --target game-client-family game-server
 }
 
@@ -73,6 +73,16 @@ if(!(Test-Path $DiscordDllPath))
 {
 	throw "Discord SDK DLL missing: $DiscordDllPath"
 }
+$SteamDllPath = Join-Path $BuildPath "steam_api.dll"
+if(!(Test-Path $SteamDllPath))
+{
+	throw "Steam API DLL missing: $SteamDllPath"
+}
+$SteamAppIdPath = Join-Path $BuildPath "steam_appid.txt"
+if(!(Test-Path $SteamAppIdPath))
+{
+	throw "Steam app id file missing: $SteamAppIdPath"
+}
 
 New-Item -ItemType Directory -Force -Path $ReleasePath | Out-Null
 foreach($Exe in $ExeNames)
@@ -85,6 +95,7 @@ Get-ChildItem -LiteralPath $BuildPath -Filter "*.dll" | ForEach-Object {
 }
 Copy-Item -LiteralPath $DataPath -Destination $ReleasePath -Recurse -Force
 Remove-LegacyAetherData $ReleasePath
+Copy-Item -LiteralPath $SteamAppIdPath -Destination (Join-Path $ReleasePath "steam_appid.txt") -Force
 Copy-Item -LiteralPath (Join-Path $RepoRoot "storage.cfg") -Destination (Join-Path $ReleasePath "storage.cfg") -Force
 Copy-Item -LiteralPath (Join-Path $RepoRoot "license.txt") -Destination (Join-Path $ReleasePath "license.txt") -Force
 Copy-Item -LiteralPath (Join-Path $RepoRoot "NOTICE-AETHER.txt") -Destination (Join-Path $ReleasePath "NOTICE-AETHER.txt") -Force
@@ -104,6 +115,7 @@ Get-ChildItem -LiteralPath $BuildPath -Filter "*.dll" | ForEach-Object {
 }
 Copy-Item -LiteralPath $DataPath -Destination $PortablePath -Recurse -Force
 Remove-LegacyAetherData $PortablePath
+Copy-Item -LiteralPath $SteamAppIdPath -Destination (Join-Path $PortablePath "steam_appid.txt") -Force
 Copy-Item -LiteralPath (Join-Path $RepoRoot "storage.cfg") -Destination (Join-Path $PortablePath "storage.cfg") -Force
 Copy-Item -LiteralPath (Join-Path $RepoRoot "license.txt") -Destination (Join-Path $PortablePath "license.txt") -Force
 Copy-Item -LiteralPath (Join-Path $RepoRoot "NOTICE-AETHER.txt") -Destination (Join-Path $PortablePath "NOTICE-AETHER.txt") -Force
@@ -125,6 +137,14 @@ foreach($Root in @($ReleasePath, $PortablePath))
 	if(!(Test-Path (Join-Path $Root "discord_game_sdk.dll")))
 	{
 		throw "Packaged Discord SDK DLL missing in $Root"
+	}
+	if(!(Test-Path (Join-Path $Root "steam_api.dll")))
+	{
+		throw "Packaged Steam API DLL missing in $Root"
+	}
+	if(!(Test-Path (Join-Path $Root "steam_appid.txt")))
+	{
+		throw "Packaged steam_appid.txt missing in $Root"
 	}
 	foreach($Badge in $BadgeNames)
 	{

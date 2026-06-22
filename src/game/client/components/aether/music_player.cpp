@@ -521,7 +521,7 @@ void CAetherMusicPlayer::OnRender()
 			ReleaseArtwork();
 		return;
 	}
-	if(g_Config.m_AeFocusMode && g_Config.m_AeFocusModeHideAllUi && !m_EditorOpen)
+	if(g_Config.m_AeFocusMode && g_Config.m_AeFocusModeHideAllUi && !g_Config.m_AeFocusModeKeepMusicPlayer && !m_EditorOpen)
 		return;
 	if(Client()->State() != IClient::STATE_ONLINE && Client()->State() != IClient::STATE_DEMOPLAYBACK)
 		return;

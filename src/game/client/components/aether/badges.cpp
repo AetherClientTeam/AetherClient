@@ -429,6 +429,20 @@ bool CAetherBadges::BuildPresencePayload(std::string &Payload) const
 	Json.WriteBoolValue(Spectator);
 	Json.WriteAttribute("spectate_target");
 	Json.WriteIntValue(SpectateTarget);
+	Json.WriteAttribute("gradient_nicknames");
+	Json.WriteBoolValue(g_Config.m_AeGradientNicknames != 0);
+	Json.WriteAttribute("gradient_start_color");
+	Json.WriteIntValue(g_Config.m_AeGradientNicknameStartColor);
+	Json.WriteAttribute("gradient_end_color");
+	Json.WriteIntValue(g_Config.m_AeGradientNicknameEndColor);
+	Json.WriteAttribute("gradient_glow");
+	Json.WriteIntValue(g_Config.m_AeGradientNicknameGlow);
+	Json.WriteAttribute("gradient_animated");
+	Json.WriteBoolValue(g_Config.m_AeGradientNicknameAnimated != 0);
+	Json.WriteAttribute("gradient_speed");
+	Json.WriteIntValue(g_Config.m_AeGradientNicknameSpeed);
+	Json.WriteAttribute("gradient_style");
+	Json.WriteIntValue(g_Config.m_AeGradientNicknameStyle == 2 ? 2 : 0);
 	Json.EndObject();
 
 	Payload = Json.GetOutputString();
@@ -2124,6 +2138,27 @@ void CAetherBadges::ApplyChessOnlineUpdate(const json_value *pPlayer)
 	Entry.m_Spectator = JsonBoolValue(json_object_get(pPlayer, "spectator"));
 	Entry.m_InServer = JsonStringValue(json_object_get(pPlayer, "server_key"))[0] != '\0' ||
 			   JsonStringValue(json_object_get(pPlayer, "server_address"))[0] != '\0';
+	const json_value *pGradient = json_object_get(pPlayer, "gradient");
+	if(pGradient && pGradient->type == json_object)
+	{
+		Entry.m_GradientEnabled = JsonBoolValue(json_object_get(pGradient, "enabled"));
+		Entry.m_GradientStartColor = JsonIntValue(json_object_get(pGradient, "start_color"), 0x64C8FF);
+		Entry.m_GradientEndColor = JsonIntValue(json_object_get(pGradient, "end_color"), 0xFF7BDA);
+		Entry.m_GradientGlow = std::clamp(JsonIntValue(json_object_get(pGradient, "glow"), 20), 0, 100);
+		Entry.m_GradientAnimated = JsonBoolValue(json_object_get(pGradient, "animated"));
+		Entry.m_GradientSpeed = std::clamp(JsonIntValue(json_object_get(pGradient, "speed"), 35), 1, 200);
+		Entry.m_GradientStyle = std::clamp(JsonIntValue(json_object_get(pGradient, "style"), 0), 0, 2);
+	}
+	else
+	{
+		Entry.m_GradientEnabled = false;
+		Entry.m_GradientStartColor = 0x64C8FF;
+		Entry.m_GradientEndColor = 0xFF7BDA;
+		Entry.m_GradientGlow = 20;
+		Entry.m_GradientAnimated = false;
+		Entry.m_GradientSpeed = 35;
+		Entry.m_GradientStyle = 0;
+	}
 }
 
 void CAetherBadges::ApplyChessOnlineLeft(const char *pName)
@@ -2821,6 +2856,44 @@ const CAetherBadges::SChessOnlinePlayer *CAetherBadges::AetherOnlinePlayer(int I
 	if(Index < 0 || Index >= m_AetherOnlineCount)
 		return nullptr;
 	return &m_aAetherOnline[Index];
+}
+
+bool CAetherBadges::GradientNicknameStyleForClient(int ClientId, SGradientNicknameStyle &Style) const
+{
+	if(ClientId < 0 || ClientId >= MAX_CLIENTS)
+		return false;
+	const char *pName = GameClient()->m_aClients[ClientId].m_aName;
+	if(!pName || !pName[0])
+		return false;
+	const bool Local = ClientId == GameClient()->m_Snap.m_LocalClientId || ClientId == GameClient()->m_aLocalIds[0] || ClientId == GameClient()->m_aLocalIds[1];
+	if(Local)
+	{
+		if(!g_Config.m_AeGradientNicknames)
+			return false;
+		Style.m_Enabled = true;
+		Style.m_StartColor = g_Config.m_AeGradientNicknameStartColor;
+		Style.m_EndColor = g_Config.m_AeGradientNicknameEndColor;
+		Style.m_Glow = g_Config.m_AeGradientNicknameGlow;
+		Style.m_Animated = g_Config.m_AeGradientNicknameAnimated != 0;
+		Style.m_Speed = g_Config.m_AeGradientNicknameSpeed;
+		Style.m_Style = g_Config.m_AeGradientNicknameStyle == 2 ? 2 : 0;
+		return true;
+	}
+	for(int i = 0; i < m_AetherOnlineCount; ++i)
+	{
+		const SChessOnlinePlayer &Entry = m_aAetherOnline[i];
+		if(!Entry.m_GradientEnabled || str_comp_nocase(Entry.m_aName, pName) != 0)
+			continue;
+		Style.m_Enabled = true;
+		Style.m_StartColor = Entry.m_GradientStartColor;
+		Style.m_EndColor = Entry.m_GradientEndColor;
+		Style.m_Glow = Entry.m_GradientGlow;
+		Style.m_Animated = Entry.m_GradientAnimated;
+		Style.m_Speed = Entry.m_GradientSpeed;
+		Style.m_Style = Entry.m_GradientStyle == 2 ? 2 : 0;
+		return true;
+	}
+	return false;
 }
 
 bool CAetherBadges::ShouldRenderBadge(const SBadge &Badge) const

@@ -40,6 +40,23 @@ public:
 		int m_Rating = 1200;
 		bool m_Spectator = false;
 		bool m_InServer = false;
+		bool m_GradientEnabled = false;
+		int m_GradientStartColor = 0x64C8FF;
+		int m_GradientEndColor = 0xFF7BDA;
+		int m_GradientGlow = 20;
+		bool m_GradientAnimated = false;
+		int m_GradientSpeed = 35;
+		int m_GradientStyle = 0;
+	};
+	struct SGradientNicknameStyle
+	{
+		bool m_Enabled = false;
+		int m_StartColor = 0x64C8FF;
+		int m_EndColor = 0xFF7BDA;
+		int m_Glow = 20;
+		bool m_Animated = false;
+		int m_Speed = 35;
+		int m_Style = 0;
 	};
 	struct SChessRoomPlayer
 	{
@@ -362,6 +379,7 @@ public:
 	float ClientBadgeIconsWidth(int ClientId, float IconSize) const;
 	bool RenderClientBadgeIcons(int ClientId, float x, float y, float IconSize, float Alpha) const;
 	bool RenderClientBadgeKey(const char *pClientKey, float x, float y, float IconSize, float Alpha) const;
+	bool GradientNicknameStyleForClient(int ClientId, SGradientNicknameStyle &Style) const;
 	const char *Status() const { return m_aStatus; }
 };
 

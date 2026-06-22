@@ -136,7 +136,7 @@ option(CLIENT "Compile client" ON)
 option(SERVER "Compile server" ON)
 option(TOOLS "Compile tools" ON)
 option(DOWNLOAD_GTEST "Download and compile GTest" ${AUTO_DEPENDENCIES_DEFAULT})
-option(STEAM "Build the Steam release version" OFF)
+option(STEAM "Build the Steam release version" ON)
 option(DISCORD "Enable Discord rich presence support" OFF)
 option(DISCORD_DYNAMIC "Enable discovering Discord rich presence libraries at runtime (Linux only)" OFF)
 option(PREFER_BUNDLED_LIBS "Prefer bundled libraries over system libraries" ${AUTO_DEPENDENCIES_DEFAULT})
@@ -2518,6 +2518,22 @@ if(CLIENT)
   endif()
   set(TARGET_STEAMAPI steam_api)
   add_library(${TARGET_STEAMAPI} ${STEAMAPI_KIND} ${STEAMAPI_SRC})
+  if(TARGET_OS STREQUAL "windows" AND STEAM)
+    set(AETHER_STEAM_API_DLL "${CMAKE_SOURCE_DIR}/steam_api.dll")
+    set(AETHER_STEAM_APPID_FILE "${CMAKE_SOURCE_DIR}/steam_appid.txt")
+    if(NOT EXISTS "${AETHER_STEAM_API_DLL}" OR NOT EXISTS "${AETHER_STEAM_APPID_FILE}")
+      message(FATAL_ERROR "STEAM=ON requires steam_api.dll and steam_appid.txt in the repository root")
+    endif()
+    add_custom_command(
+      TARGET ${TARGET_STEAMAPI} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${AETHER_STEAM_API_DLL}"
+        "$<TARGET_FILE_DIR:${TARGET_STEAMAPI}>"
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${AETHER_STEAM_APPID_FILE}"
+        "$<TARGET_FILE_DIR:${TARGET_STEAMAPI}>"
+    )
+  endif()
   list(APPEND TARGETS_OWN ${TARGET_STEAMAPI})
 
   set_src(ENGINE_CLIENT GLOB_RECURSE src/engine/client

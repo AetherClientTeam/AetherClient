@@ -1,6 +1,9 @@
 #include "nameplates.h"
 
+#include <base/color.h>
+#include <base/math.h>
 #include <base/str.h>
+#include <base/system.h>
 #include <base/vmath.h>
 
 #include <engine/font_icons.h>
@@ -17,6 +20,7 @@
 #include <game/client/prediction/entities/character.h>
 
 #include <memory>
+#include <cmath>
 #include <vector>
 
 enum class EHookStrongWeakState
@@ -348,11 +352,93 @@ public:
 	}
 };
 
+static ColorRGBA AetherGradientNicknameColor(int ClientId, float Alpha, const CAetherBadges::SGradientNicknameStyle &Style)
+{
+	ColorRGBA Start = color_cast<ColorRGBA>(ColorHSLA(Style.m_StartColor));
+	ColorRGBA End = color_cast<ColorRGBA>(ColorHSLA(Style.m_EndColor));
+	float T = (ClientId % 7) / 6.0f;
+	const float Seconds = time_get() / (float)time_freq();
+	if(Style.m_Animated)
+	{
+		T = 0.5f + 0.5f * std::sin(Seconds * (0.25f + Style.m_Speed / 45.0f) + ClientId * 0.73f);
+	}
+	float Glow = Style.m_Glow / 100.0f;
+	if(Style.m_Style == 1)
+	{
+		const float Shine = std::pow(0.5f + 0.5f * std::sin(Seconds * (1.0f + Style.m_Speed / 30.0f) + ClientId * 0.37f), 3.0f);
+		Glow = minimum(1.0f, Glow * 1.9f + 0.24f + Shine * 0.28f);
+		Start.r = mix(Start.r, 1.0f, 0.14f + Shine * 0.34f);
+		Start.g = mix(Start.g, 0.92f, 0.12f + Shine * 0.28f);
+		Start.b = mix(Start.b, 0.48f, Shine * 0.18f);
+		End.r = mix(End.r, 1.0f, 0.18f + Shine * 0.38f);
+		End.g = mix(End.g, 0.96f, 0.16f + Shine * 0.32f);
+		End.b = mix(End.b, 0.58f, Shine * 0.20f);
+	}
+	else if(Style.m_Style == 2)
+	{
+		const float Pulse = 0.5f + 0.5f * std::sin(Seconds * (0.85f + Style.m_Speed / 55.0f) + ClientId * 1.11f);
+		Glow = minimum(1.0f, Glow * 1.65f + 0.20f + Pulse * 0.18f);
+		Start.r = mix(Start.r, 1.0f, 0.10f + Pulse * 0.12f);
+		Start.g = mix(Start.g, 1.0f, 0.08f + Pulse * 0.10f);
+		Start.b = mix(Start.b, 1.0f, 0.10f + Pulse * 0.12f);
+		End.r = mix(End.r, 1.0f, 0.10f + (1.0f - Pulse) * 0.12f);
+		End.g = mix(End.g, 1.0f, 0.08f + (1.0f - Pulse) * 0.10f);
+		End.b = mix(End.b, 1.0f, 0.10f + (1.0f - Pulse) * 0.12f);
+	}
+	ColorRGBA Out;
+	Out.r = mix(Start.r, End.r, T);
+	Out.g = mix(Start.g, End.g, T);
+	Out.b = mix(Start.b, End.b, T);
+	Out.a = Alpha;
+	Out.r = mix(Out.r, 1.0f, Glow * 0.18f);
+	Out.g = mix(Out.g, 1.0f, Glow * 0.18f);
+	Out.b = mix(Out.b, 1.0f, Glow * 0.18f);
+	if(Style.m_Style == 1)
+	{
+		Out.r = minimum(1.0f, Out.r * 1.22f + 0.08f);
+		Out.g = minimum(1.0f, Out.g * 1.22f + 0.08f);
+		Out.b = minimum(1.0f, Out.b * 1.22f + 0.08f);
+	}
+	return Out;
+}
+
+static bool AetherGradientNicknameGlow(const CAetherBadges::SGradientNicknameStyle &Style, const ColorRGBA &TextColor, ColorRGBA &GlowColor, float &GlowRadius)
+{
+	float Strength = Style.m_Glow / 100.0f;
+	if(Style.m_Style == 1)
+		Strength = maximum(Strength, 0.52f);
+	else if(Style.m_Style == 2)
+		Strength = maximum(Strength, 0.36f);
+	if(Strength <= 0.001f)
+		return false;
+	GlowColor = TextColor;
+	GlowColor.a = TextColor.a * Strength * (Style.m_Style == 1 ? 0.72f : Style.m_Style == 2 ? 0.48f : 0.38f);
+	if(Style.m_Style == 1)
+	{
+		GlowColor.r = minimum(1.0f, GlowColor.r * 1.45f + 0.25f);
+		GlowColor.g = minimum(1.0f, GlowColor.g * 1.38f + 0.18f);
+		GlowColor.b = minimum(1.0f, GlowColor.b * 1.20f + 0.05f);
+	}
+	else if(Style.m_Style == 2)
+	{
+		GlowColor.r = minimum(1.0f, GlowColor.r * 1.28f + 0.10f);
+		GlowColor.g = minimum(1.0f, GlowColor.g * 1.28f + 0.10f);
+		GlowColor.b = minimum(1.0f, GlowColor.b * 1.28f + 0.10f);
+	}
+	GlowRadius = 0.7f + Strength * (Style.m_Style == 1 ? 3.4f : Style.m_Style == 2 ? 2.2f : 1.7f);
+	return true;
+}
+
 class CNamePlatePartName : public CNamePlatePartText
 {
 private:
 	char m_aText[std::max<size_t>(MAX_NAME_LENGTH, protocol7::MAX_NAME_ARRAY_SIZE)] = "";
 	float m_FontSize = -INFINITY;
+	ColorRGBA m_GlowColor = ColorRGBA(1.0f, 1.0f, 1.0f, 0.0f);
+	float m_GlowRadius = 0.0f;
+	int m_GradientStyle = 0;
+	int m_GradientSpeed = 35;
+	bool m_UseGradientGlow = false;
 
 protected:
 	bool UpdateNeeded(CGameClient &This, const CNamePlateData &Data) override
@@ -361,6 +447,9 @@ protected:
 		if(!m_Visible)
 			return false;
 		m_Color = Data.m_Color;
+		m_UseGradientGlow = false;
+		m_GradientStyle = 0;
+		m_GradientSpeed = 35;
 		if(This.m_AetherBlockAwareness.ShouldColorName(Data.m_ClientId))
 			m_Color = This.m_AetherBlockAwareness.NameColorForClient(Data.m_ClientId, Data.m_Color.a);
 		// TClient
@@ -370,6 +459,28 @@ protected:
 				m_Color = This.m_WarList.GetNameplateColor(Data.m_ClientId).WithAlpha(Data.m_Color.a);
 			else if(This.m_WarList.GetWarData(Data.m_ClientId).m_WarClan)
 				m_Color = This.m_WarList.GetClanColor(Data.m_ClientId).WithAlpha(Data.m_Color.a);
+			else
+			{
+				CAetherBadges::SGradientNicknameStyle Style;
+				if(This.m_AetherBadges.GradientNicknameStyleForClient(Data.m_ClientId, Style))
+				{
+					m_Color = AetherGradientNicknameColor(Data.m_ClientId, Data.m_Color.a, Style);
+					m_UseGradientGlow = AetherGradientNicknameGlow(Style, m_Color, m_GlowColor, m_GlowRadius);
+					m_GradientStyle = Style.m_Style;
+					m_GradientSpeed = Style.m_Speed;
+				}
+			}
+		}
+		else
+		{
+			CAetherBadges::SGradientNicknameStyle Style;
+			if(This.m_AetherBadges.GradientNicknameStyleForClient(Data.m_ClientId, Style))
+			{
+				m_Color = AetherGradientNicknameColor(Data.m_ClientId, Data.m_Color.a, Style);
+				m_UseGradientGlow = AetherGradientNicknameGlow(Style, m_Color, m_GlowColor, m_GlowRadius);
+				m_GradientStyle = Style.m_Style;
+				m_GradientSpeed = Style.m_Speed;
+			}
 		}
 		return m_FontSize != Data.m_FontSize || str_comp(m_aText, Data.m_aName) != 0;
 	}
@@ -380,6 +491,66 @@ protected:
 		CTextCursor Cursor;
 		Cursor.m_FontSize = m_FontSize;
 		This.TextRender()->CreateOrAppendTextContainer(m_TextContainerIndex, &Cursor, m_aText);
+	}
+	void Render(CGameClient &This, vec2 Pos) const override
+	{
+		if(m_UseGradientGlow && m_GradientStyle == 2)
+		{
+			const float Seconds = time_get() / (float)time_freq();
+			const float Width = maximum(Size().x, 8.0f);
+			const float Height = maximum(Size().y, 8.0f);
+			This.Graphics()->TextureClear();
+			This.Graphics()->QuadsBegin();
+			for(int i = 0; i < 7; ++i)
+			{
+				const float Phase = std::fmod(Seconds * (0.18f + m_GradientSpeed / 360.0f) + i * 0.173f, 1.0f);
+				const float Wave = std::sin(Seconds * (1.2f + i * 0.13f) + i * 1.9f);
+				const float X = Pos.x - Width * 0.52f + Phase * Width * 1.04f;
+				const float Y = Pos.y - Height * 0.70f + Wave * Height * 0.28f + (i % 2 ? Height * 0.90f : 0.0f);
+				const float Size = 1.2f + 1.5f * (0.5f + 0.5f * std::sin(Seconds * 2.1f + i));
+				ColorRGBA Spark = m_GlowColor;
+				Spark.a = minimum(0.55f, m_GlowColor.a * (0.55f + 0.45f * std::sin(Seconds * 2.7f + i * 0.8f)));
+				This.Graphics()->SetColor(Spark);
+				This.Graphics()->DrawCircle(X, Y, Size, 8);
+			}
+			This.Graphics()->QuadsEnd();
+			This.Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f);
+		}
+		if(m_UseGradientGlow && m_TextContainerIndex.Valid())
+		{
+			const ColorRGBA NoOutline(0.0f, 0.0f, 0.0f, 0.0f);
+			const vec2 aOffsets[] = {
+				vec2(-m_GlowRadius, 0.0f),
+				vec2(m_GlowRadius, 0.0f),
+				vec2(0.0f, -m_GlowRadius),
+				vec2(0.0f, m_GlowRadius),
+				vec2(-m_GlowRadius * 0.72f, -m_GlowRadius * 0.72f),
+				vec2(m_GlowRadius * 0.72f, -m_GlowRadius * 0.72f),
+				vec2(-m_GlowRadius * 0.72f, m_GlowRadius * 0.72f),
+				vec2(m_GlowRadius * 0.72f, m_GlowRadius * 0.72f),
+			};
+			for(const vec2 &Offset : aOffsets)
+			{
+				This.TextRender()->RenderTextContainer(m_TextContainerIndex,
+					m_GlowColor, NoOutline,
+					Pos.x + Offset.x - Size().x / 2.0f, Pos.y + Offset.y - Size().y / 2.0f);
+			}
+		}
+		if(m_UseGradientGlow && m_GradientStyle == 1 && m_TextContainerIndex.Valid())
+		{
+			const float Seconds = time_get() / (float)time_freq();
+			const float Pulse = std::pow(0.5f + 0.5f * std::sin(Seconds * (1.2f + m_GradientSpeed / 45.0f)), 4.0f);
+			const ColorRGBA NoOutline(0.0f, 0.0f, 0.0f, 0.0f);
+			ColorRGBA Shine(1.0f, 0.92f, 0.48f, m_Color.a * (0.12f + Pulse * 0.32f));
+			This.TextRender()->RenderTextContainer(m_TextContainerIndex,
+				Shine, NoOutline,
+				Pos.x - Size().x / 2.0f + 0.7f, Pos.y - Size().y / 2.0f - 0.9f);
+			Shine = ColorRGBA(1.0f, 1.0f, 1.0f, m_Color.a * Pulse * 0.20f);
+			This.TextRender()->RenderTextContainer(m_TextContainerIndex,
+				Shine, NoOutline,
+				Pos.x - Size().x / 2.0f - 0.5f, Pos.y - Size().y / 2.0f + 0.4f);
+		}
+		CNamePlatePartText::Render(This, Pos);
 	}
 
 public:

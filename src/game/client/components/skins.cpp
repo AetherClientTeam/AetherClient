@@ -5,6 +5,7 @@
 
 #include <base/log.h>
 #include <base/math.h>
+#include <base/str.h>
 #include <base/system.h>
 
 #include <engine/engine.h>
@@ -12,12 +13,15 @@
 #include <engine/graphics.h>
 #include <engine/shared/config.h>
 #include <engine/shared/http.h>
+#include <engine/shared/json.h>
 #include <engine/storage.h>
 
 #include <generated/client_data.h>
 
 #include <game/client/gameclient.h>
 #include <game/localization.h>
+
+#include <vector>
 
 using namespace std::chrono_literals;
 
@@ -988,6 +992,84 @@ bool CSkins::CSkinDownloadJob::Abort()
 	return true;
 }
 
+bool CSkins::CSkinDownloadJob::TryLoadAetherCloudSkin(const char *pPathReal, const CTimeout &Timeout, size_t MaxResponseSize)
+{
+	if(g_Config.m_AeBadgesApiUrl[0] == '\0')
+		return false;
+
+	char aEscapedName[256];
+	EscapeUrl(aEscapedName, sizeof(aEscapedName), m_aName);
+
+	char aBase[256];
+	str_copy(aBase, g_Config.m_AeBadgesApiUrl, sizeof(aBase));
+	int BaseLen = str_length(aBase);
+	while(BaseLen > 0 && aBase[BaseLen - 1] == '/')
+		aBase[--BaseLen] = '\0';
+
+	char aUrl[IO_MAX_PATH_LENGTH];
+	str_format(aUrl, sizeof(aUrl), "%s/v1/assets/resolve?category=skins&name=%s", aBase, aEscapedName);
+
+	std::shared_ptr<CHttpRequest> pCloud = HttpGet(aUrl);
+	pCloud->Timeout(Timeout);
+	pCloud->MaxResponseSize(MaxResponseSize);
+	pCloud->LogProgress(HTTPLOG::NONE);
+	pCloud->FailOnErrorStatus(false);
+	{
+		const CLockScope LockScope(m_Lock);
+		m_pGetRequest = pCloud;
+	}
+	m_pSkins->Http()->Run(pCloud);
+	pCloud->Wait();
+	{
+		const CLockScope LockScope(m_Lock);
+		m_pGetRequest = nullptr;
+	}
+
+	if(pCloud->State() != EHttpState::DONE || State() == IJob::STATE_ABORTED || pCloud->StatusCode() >= 400)
+		return false;
+
+	json_value *pJson = pCloud->ResultJson();
+	const json_value *pAsset = pJson && pJson->type == json_object ? json_object_get(pJson, "asset") : nullptr;
+	const char *pContent = pAsset && pAsset->type == json_object ? json_string_get(json_object_get(pAsset, "content_base64")) : nullptr;
+	if(!pContent || pContent[0] == '\0')
+	{
+		if(pJson)
+			json_value_free(pJson);
+		return false;
+	}
+
+	std::vector<unsigned char> vDecoded((str_length(pContent) / 4) * 3 + 4);
+	const int DecodedSize = str_base64_decode(vDecoded.data(), (int)vDecoded.size(), pContent);
+	if(DecodedSize <= 0)
+	{
+		if(pJson)
+			json_value_free(pJson);
+		return false;
+	}
+
+	m_Data.m_Info.Free();
+	m_Data.m_InfoGrayscale.Free();
+	const bool Success = m_pSkins->Graphics()->LoadPng(m_Data.m_Info, vDecoded.data(), DecodedSize, aUrl);
+	if(Success && State() != IJob::STATE_ABORTED)
+	{
+		m_pSkins->Storage()->CreateFolder("downloadedskins", IStorage::TYPE_SAVE);
+		if(IOHANDLE File = m_pSkins->Storage()->OpenFile(pPathReal, IOFLAG_WRITE, IStorage::TYPE_SAVE))
+		{
+			io_write(File, vDecoded.data(), DecodedSize);
+			io_close(File);
+		}
+		m_pSkins->LoadSkinData(m_aName, m_Data);
+	}
+	else
+	{
+		log_error("skins", "Failed to load Aether cloud skin '%s' from '%s' (size %d)", m_aName, aUrl, DecodedSize);
+	}
+
+	if(pJson)
+		json_value_free(pJson);
+	return Success;
+}
+
 void CSkins::CSkinDownloadJob::Run()
 {
 	const char *pBaseUrl = g_Config.m_ClDownloadCommunitySkins != 0 ? g_Config.m_ClSkinCommunityDownloadUrl : g_Config.m_ClSkinDownloadUrl;
@@ -1041,6 +1123,8 @@ void CSkins::CSkinDownloadJob::Run()
 	}
 	if(pGet->State() != EHttpState::DONE || State() == IJob::STATE_ABORTED || pGet->StatusCode() >= 400)
 	{
+		if(TryLoadAetherCloudSkin(aPathReal, Timeout, MaxResponseSize))
+			return;
 		m_NotFound = pGet->State() == EHttpState::DONE && pGet->StatusCode() == 404; // 404 Not Found
 		return;
 	}
@@ -1073,6 +1157,8 @@ void CSkins::CSkinDownloadJob::Run()
 		}
 		if(pGet->State() != EHttpState::DONE || State() == IJob::STATE_ABORTED || pGet->StatusCode() >= 400)
 		{
+			if(TryLoadAetherCloudSkin(aPathReal, Timeout, MaxResponseSize))
+				return;
 			m_NotFound = pGet->State() == EHttpState::DONE && pGet->StatusCode() == 404; // 404 Not Found
 			return;
 		}

@@ -85,7 +85,9 @@ struct SAetherCloudAsset
 	char m_aName[64] = "";
 	char m_aPath[IO_MAX_PATH_LENGTH] = "";
 	char m_aUploader[MAX_NAME_LENGTH] = "";
+	char m_aCreatedAt[32] = "";
 	char m_aUpdatedAt[32] = "";
+	int m_DownloadCount = 0;
 	IGraphics::CTextureHandle m_ThumbnailTexture;
 	int m_ThumbnailWidth = 0;
 	int m_ThumbnailHeight = 0;
@@ -1546,25 +1548,24 @@ void CMenus::RenderSettingsAetherFocusMode(CUIRect Body)
 {
 	const float S = AetherSettingsScale();
 	Body.Draw(AetherPanelColor(0.34f), IGraphics::CORNER_ALL, 6.0f);
-	Body.Margin(12.0f * S, &Body);
+	Body.Margin(10.0f * S, &Body);
 
 	CUIRect Control;
 	static CButtonContainer s_FocusModeReaderButton;
 	static CButtonContainer s_FocusModeClearButton;
 	DoLine_KeyReader(Body, s_FocusModeReaderButton, s_FocusModeClearButton, "Focus Mode key", "toggle ae_focus_mode 0 1");
-	Body.HSplitTop(6.0f * S, nullptr, &Body);
-	Body.HSplitTop(22.0f * S, &Control, &Body);
+	Body.HSplitTop(4.0f * S, nullptr, &Body);
+	Body.HSplitTop(20.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeFocusModeHideAllUi, "Hide all UI", g_Config.m_AeFocusModeHideAllUi, &Control))
 		g_Config.m_AeFocusModeHideAllUi ^= 1;
-	Body.HSplitTop(5.0f * S, nullptr, &Body);
-	Body.HSplitTop(22.0f * S, &Control, &Body);
+	Body.HSplitTop(4.0f * S, nullptr, &Body);
+	Body.HSplitTop(20.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeFocusModeHideNameplates, "Hide nameplates", g_Config.m_AeFocusModeHideNameplates, &Control))
 		g_Config.m_AeFocusModeHideNameplates ^= 1;
-	Body.HSplitTop(6.0f * S, nullptr, &Body);
-	Body.HSplitTop(28.0f * S, &Control, &Body);
-	TextRender()->TextColor(0.72f, 0.78f, 0.86f, 1.0f);
-	Ui()->DoLabel(&Control, "Focus Mode hides nonessential UI. Nameplates can be controlled separately.", 11.0f * S, TEXTALIGN_ML);
-	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+	Body.HSplitTop(4.0f * S, nullptr, &Body);
+	Body.HSplitTop(20.0f * S, &Control, &Body);
+	if(DoButton_CheckBox(&g_Config.m_AeFocusModeKeepMusicPlayer, "Keep music player visible", g_Config.m_AeFocusModeKeepMusicPlayer, &Control))
+		g_Config.m_AeFocusModeKeepMusicPlayer ^= 1;
 }
 
 void CMenus::RenderSettingsAetherDdraceConfigs(CUIRect Body)
@@ -2208,8 +2209,52 @@ void CMenus::RenderSettingsAetherFastInput(CUIRect Body)
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		Ui()->DoScrollbarOption(&g_Config.m_AeFastInputSmoothCorrections, &g_Config.m_AeFastInputSmoothCorrections, &Control, "Correction sharpness", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
+		if(DoButton_CheckBox(&g_Config.m_AeFastInputBrakePriority, "Instant A/D response", g_Config.m_AeFastInputBrakePriority, &Control))
+			g_Config.m_AeFastInputBrakePriority ^= 1;
+		if(g_Config.m_AeFastInputBrakePriority)
+		{
+			Body.HSplitTop(22.0f * S, &Control, &Body);
+			Ui()->DoScrollbarOption(&g_Config.m_AeFastInputBrakeAmount, &g_Config.m_AeFastInputBrakeAmount, &Control, "Brake amount", 0, 50, &CUi::ms_LinearScrollbarScale, 0, "ms");
+		}
+		Body.HSplitTop(22.0f * S, &Control, &Body);
 		if(DoButton_CheckBox(&g_Config.m_AeFastInputAdaptiveOthers, "Adaptive input other tees", g_Config.m_AeFastInputAdaptiveOthers, &Control))
 			g_Config.m_AeFastInputAdaptiveOthers ^= 1;
+		if(g_Config.m_AeFastInputAdaptiveOthers)
+		{
+			static CButtonContainer s_OthersSmooth;
+			static CButtonContainer s_OthersPrecision;
+			static CButtonContainer s_OthersAggressive;
+			g_Config.m_AeFastInputAdaptiveOthersStyle = std::clamp(g_Config.m_AeFastInputAdaptiveOthersStyle, 0, 2);
+
+			Body.HSplitTop(22.0f * S, &Control, &Body);
+			CUIRect Label, Buttons;
+			Control.VSplitMid(&Label, &Buttons, minimum(10.0f * S, Control.w * 0.05f));
+			Ui()->DoLabel(&Label, "Other tees feel", Label.h * CUi::ms_FontmodHeight * 0.78f, TEXTALIGN_ML);
+
+			CUIRect B0, B1, B2, Rest;
+			const float FeelSpacing = 2.0f * S;
+			const float FeelSlotW = (Buttons.w - FeelSpacing * 2.0f) / 3.0f;
+			Buttons.VSplitLeft(FeelSlotW, &B0, &Rest);
+			Rest.VSplitLeft(FeelSpacing, nullptr, &Rest);
+			Rest.VSplitLeft(FeelSlotW, &B1, &Rest);
+			Rest.VSplitLeft(FeelSpacing, nullptr, &Rest);
+			B2 = Rest;
+			if(DoButton_Menu(&s_OthersSmooth, "Smooth", g_Config.m_AeFastInputAdaptiveOthersStyle == 0, &B0, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_L))
+				g_Config.m_AeFastInputAdaptiveOthersStyle = 0;
+			if(DoButton_Menu(&s_OthersPrecision, "Precision", g_Config.m_AeFastInputAdaptiveOthersStyle == 1, &B1, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_NONE))
+				g_Config.m_AeFastInputAdaptiveOthersStyle = 1;
+			if(DoButton_Menu(&s_OthersAggressive, "Aggressive", g_Config.m_AeFastInputAdaptiveOthersStyle == 2, &B2, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_R))
+				g_Config.m_AeFastInputAdaptiveOthersStyle = 2;
+
+			Body.HSplitTop(22.0f * S, &Control, &Body);
+			char aBuf[64];
+			str_format(aBuf, sizeof(aBuf), "Other tees amount: %.2f", std::clamp(g_Config.m_AeFastInputAdaptiveOthersAmount, 0, 500) / 100.0f);
+			CUIRect AmountLabel, ScrollBar;
+			Control.VSplitMid(&AmountLabel, &ScrollBar, minimum(10.0f * S, Control.w * 0.05f));
+			Ui()->DoLabel(&AmountLabel, aBuf, AmountLabel.h * CUi::ms_FontmodHeight * 0.78f, TEXTALIGN_ML);
+			const float Relative = std::clamp(g_Config.m_AeFastInputAdaptiveOthersAmount, 0, 500) / 500.0f;
+			g_Config.m_AeFastInputAdaptiveOthersAmount = std::clamp(round_to_int(Ui()->DoScrollbarH(&g_Config.m_AeFastInputAdaptiveOthersAmount, &ScrollBar, Relative) * 500.0f), 0, 500);
+		}
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		if(DoButton_CheckBox(&g_Config.m_AeFastInputPingAssist, "Ping assist", g_Config.m_AeFastInputPingAssist, &Control))
 			g_Config.m_AeFastInputPingAssist ^= 1;
@@ -3264,10 +3309,37 @@ void CMenus::RenderSettingsAetherGradientTeamColors(CUIRect Body)
 	Body.Draw(AetherPanelColor(0.34f), IGraphics::CORNER_ALL, 6.0f);
 	Body.Margin(12.0f * S, &Body);
 	CUIRect Control;
-	Body.HSplitTop(18.0f * S, &Control, &Body);
-	TextRender()->TextColor(0.75f, 0.80f, 0.88f, 1.0f);
-	Ui()->DoLabel(&Control, "Fades each DDTeam background from its team color into black.", 12.0f * S, TEXTALIGN_ML);
-	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+	static CButtonContainer s_TeamToggle;
+	static CButtonContainer s_NicknameToggle;
+	static CButtonContainer s_SparkleToggle;
+	static CButtonContainer s_AnimatedToggle;
+	static CButtonContainer s_StartColorReset;
+	static CButtonContainer s_EndColorReset;
+	Body.HSplitTop(20.0f * S, &Control, &Body);
+	if(DoButton_CheckBox(&s_TeamToggle, "Team background gradient (local)", g_Config.m_AeGradientTeamColors, &Control))
+		g_Config.m_AeGradientTeamColors ^= 1;
+	Body.HSplitTop(4.0f * S, nullptr, &Body);
+	Body.HSplitTop(20.0f * S, &Control, &Body);
+	if(DoButton_CheckBox(&s_NicknameToggle, "Nickname gradient", g_Config.m_AeGradientNicknames, &Control))
+		g_Config.m_AeGradientNicknames ^= 1;
+	Body.HSplitTop(4.0f * S, nullptr, &Body);
+	Body.HSplitTop(20.0f * S, &Control, &Body);
+	if(DoButton_CheckBox(&s_SparkleToggle, "Sparkle effect", g_Config.m_AeGradientNicknameStyle == 2, &Control))
+		g_Config.m_AeGradientNicknameStyle = g_Config.m_AeGradientNicknameStyle == 2 ? 0 : 2;
+	if(g_Config.m_AeGradientNicknameStyle != 2)
+		g_Config.m_AeGradientNicknameStyle = 0;
+	Body.HSplitTop(4.0f * S, nullptr, &Body);
+	DoLine_ColorPicker(&s_StartColorReset, 22.0f * S, 12.0f * S, 3.0f * S, &Body, "Nickname start", &g_Config.m_AeGradientNicknameStartColor, ColorRGBA(0.39f, 0.78f, 1.0f), false);
+	DoLine_ColorPicker(&s_EndColorReset, 22.0f * S, 12.0f * S, 3.0f * S, &Body, "Nickname end", &g_Config.m_AeGradientNicknameEndColor, ColorRGBA(1.0f, 0.48f, 0.85f), false);
+	Body.HSplitTop(20.0f * S, &Control, &Body);
+	Ui()->DoScrollbarOption(&g_Config.m_AeGradientNicknameGlow, &g_Config.m_AeGradientNicknameGlow, &Control, "Glow intensity", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+	Body.HSplitTop(4.0f * S, nullptr, &Body);
+	Body.HSplitTop(20.0f * S, &Control, &Body);
+	if(DoButton_CheckBox(&s_AnimatedToggle, "Animate nickname blend", g_Config.m_AeGradientNicknameAnimated, &Control))
+		g_Config.m_AeGradientNicknameAnimated ^= 1;
+	Body.HSplitTop(4.0f * S, nullptr, &Body);
+	Body.HSplitTop(20.0f * S, &Control, &Body);
+	Ui()->DoScrollbarOption(&g_Config.m_AeGradientNicknameSpeed, &g_Config.m_AeGradientNicknameSpeed, &Control, "Animation speed", 1, 200, &CUi::ms_LinearScrollbarScale, 0, "%");
 }
 
 void CMenus::RenderSettingsAetherCustomResolution(CUIRect Body)
@@ -3960,7 +4032,9 @@ void CMenus::RenderSettingsAetherAssetsCloud(CUIRect Body)
 						str_copy(Asset.m_aName, json_string_get(json_object_get(pAsset, "name")) ? json_string_get(json_object_get(pAsset, "name")) : "", sizeof(Asset.m_aName));
 						str_copy(Asset.m_aPath, json_string_get(json_object_get(pAsset, "path")) ? json_string_get(json_object_get(pAsset, "path")) : "", sizeof(Asset.m_aPath));
 						str_copy(Asset.m_aUploader, json_string_get(json_object_get(pAsset, "uploader")) ? json_string_get(json_object_get(pAsset, "uploader")) : "", sizeof(Asset.m_aUploader));
+						str_copy(Asset.m_aCreatedAt, json_string_get(json_object_get(pAsset, "created_at")) ? json_string_get(json_object_get(pAsset, "created_at")) : "", sizeof(Asset.m_aCreatedAt));
 						str_copy(Asset.m_aUpdatedAt, json_string_get(json_object_get(pAsset, "updated_at")) ? json_string_get(json_object_get(pAsset, "updated_at")) : "", sizeof(Asset.m_aUpdatedAt));
+						Asset.m_DownloadCount = json_int_get(json_object_get(pAsset, "download_count"));
 						Asset.m_ThumbnailTexture = AetherCloudLoadThumbnailTexture(Graphics(), json_string_get(json_object_get(pAsset, "thumbnail_base64")), &Asset.m_ThumbnailWidth, &Asset.m_ThumbnailHeight);
 						Asset.m_TriedLocalThumbnail = false;
 					}
@@ -4175,7 +4249,7 @@ void CMenus::RenderSettingsAetherAssetsCloud(CUIRect Body)
 				Row.Margin(6.0f * S, &Row);
 				if(Cloud)
 				{
-					CUIRect Preview, Text, Name, ByLine;
+					CUIRect Preview, Text, Name, ByLine, StatsLine;
 					Row.VSplitLeft(64.0f * S, &Preview, &Text);
 					Text.VSplitLeft(10.0f * S, nullptr, &Text);
 					Preview.Draw(AetherPanelColor(0.18f), IGraphics::CORNER_ALL, 5.0f * S);
@@ -4186,13 +4260,26 @@ void CMenus::RenderSettingsAetherAssetsCloud(CUIRect Body)
 						s_aAetherAssetsCloudRemote[i].m_TriedLocalThumbnail = true;
 					}
 					DrawPreview(AetherCloudCategory().m_pKey, pName, s_aAetherAssetsCloudRemote[i].m_ThumbnailTexture, s_aAetherAssetsCloudRemote[i].m_ThumbnailWidth, s_aAetherAssetsCloudRemote[i].m_ThumbnailHeight, Preview);
-					Text.HSplitTop(27.0f * S, &Name, &ByLine);
+					Text.HSplitTop(23.0f * S, &Name, &Text);
+					Text.HSplitTop(17.0f * S, &ByLine, &StatsLine);
 					const char *pUploader = s_aAetherAssetsCloudRemote[i].m_aUploader[0] ? s_aAetherAssetsCloudRemote[i].m_aUploader : "unknown";
 					Ui()->DoLabel(&Name, pName, 13.0f * S, TEXTALIGN_ML);
 					char aBy[96];
 					str_format(aBy, sizeof(aBy), "by %s", pUploader);
 					TextRender()->TextColor(0.66f, 0.74f, 0.84f, 1.0f);
 					Ui()->DoLabel(&ByLine, aBy, 10.5f * S, TEXTALIGN_ML);
+					char aDate[16] = "";
+					if(s_aAetherAssetsCloudRemote[i].m_aCreatedAt[0])
+						str_copy(aDate, s_aAetherAssetsCloudRemote[i].m_aCreatedAt, minimum<int>((int)sizeof(aDate), 11));
+					else if(s_aAetherAssetsCloudRemote[i].m_aUpdatedAt[0])
+						str_copy(aDate, s_aAetherAssetsCloudRemote[i].m_aUpdatedAt, minimum<int>((int)sizeof(aDate), 11));
+					char aStats[96];
+					if(aDate[0])
+						str_format(aStats, sizeof(aStats), "%s | %d downloads", aDate, s_aAetherAssetsCloudRemote[i].m_DownloadCount);
+					else
+						str_format(aStats, sizeof(aStats), "%d downloads", s_aAetherAssetsCloudRemote[i].m_DownloadCount);
+					TextRender()->TextColor(0.50f, 0.58f, 0.68f, 1.0f);
+					Ui()->DoLabel(&StatsLine, aStats, 9.0f * S, TEXTALIGN_ML);
 					TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 				}
 				else
@@ -5331,10 +5418,11 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 	static const std::array<const char *, 2> s_apAutoTeamLockChildren = {
 		"Lock delay",
 		"/lock"};
-	static const std::array<const char *, 5> s_apFocusModeChildren = {
+	static const std::array<const char *, 6> s_apFocusModeChildren = {
 		"Keybind",
 		"Hide all UI",
 		"Hide nameplates",
+		"Keep music player",
 		"Hide HUD",
 		"Hide chat"};
 	static const std::array<const char *, 2> s_apSnapTapChildren = {
@@ -5351,14 +5439,22 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		"Edge2Edge Freeze Tiles",
 		"Keybinds",
 		"Open folder"};
-	static const std::array<const char *, 14> s_apFastInputChildren = {
+	static const std::array<const char *, 23> s_apFastInputChildren = {
 		"TClient",
 		"Adaptive",
 		"Saiko+",
 		"Movement amount",
 		"Hook fire amount",
 		"Saiko amount",
+		"Saiko+ input others",
+		"Instant A/D response",
+		"Brake amount",
 		"Adaptive input other tees",
+		"Other tees feel",
+		"Smooth",
+		"Precision",
+		"Aggressive",
+		"Other tees amount",
 		"Correction sharpness",
 		"Sub-Tick aiming",
 		"Auto margin",
@@ -5397,8 +5493,15 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		"Keyboard folder",
 		"Typing sound file",
 		"Volume"};
-	static const std::array<const char *, 1> s_apGradientTeamColorChildren = {
-		"Scoreboard team gradient"};
+	static const std::array<const char *, 8> s_apGradientTeamColorChildren = {
+		"Team background gradient",
+		"Nickname gradient",
+		"Sparkle effect",
+		"Nickname start",
+		"Nickname end",
+		"Glow intensity",
+		"Animate nickname blend",
+		"Animation speed"};
 	static const std::array<const char *, 4> s_apBrowserUtilsChildren = {
 		"Auto refresh",
 		"Refresh interval",
@@ -5474,6 +5577,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		"Fog radius"};
 	static const std::array<const char *, 0> s_apEditorChildren = {};
 	const std::array<SFeature, 43> aFeatures = {{
+		{AetherMusic::EAetherFeatureId::GRADIENT_TEAM_COLORS, EAetherPage::VISUALS, ESection::VISUALS, "Gradient Effects", nullptr, s_apGradientTeamColorChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::MUSIC_PLAYER, EAetherPage::VISUALS, ESection::VISUALS, "Music Player", &g_Config.m_AeMusicPlayer, s_apMusicChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::KEYSTROKES, EAetherPage::VISUALS, ESection::VISUALS, "Keystrokes", &g_Config.m_AeKeystrokes, s_apKeystrokesChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::INPUT_VISUALIZER, EAetherPage::VISUALS, ESection::VISUALS, "Input Visualizer", &g_Config.m_AeInputVisualizer, s_apInputVisualizerChildren, EEditorAction::NONE},
@@ -5515,7 +5619,6 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		{AetherMusic::EAetherFeatureId::ROLLBACK_DEMO, EAetherPage::TOOLS, ESection::TOOLS, "Rollback Demo", &g_Config.m_AeRollbackDemo, s_apRollbackDemoChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::AIM_TRAINING, EAetherPage::TOOLS, ESection::TOOLS, "Aim Training", &g_Config.m_AeAimTraining, s_apAimTrainingChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::PSA, EAetherPage::TOOLS, ESection::TOOLS, "PSA", &g_Config.m_AePsa, s_apPsaChildren, EEditorAction::NONE},
-		{AetherMusic::EAetherFeatureId::GRADIENT_TEAM_COLORS, EAetherPage::TOOLS, ESection::TOOLS, "Gradient Team Colors", &g_Config.m_AeGradientTeamColors, s_apGradientTeamColorChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::CLOUD_CLAN, EAetherPage::CLAN, ESection::TOOLS, "Cloud Clan", nullptr, s_apClanChildren, EEditorAction::NONE},
 	}};
 
@@ -5682,16 +5785,16 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		case AetherMusic::EAetherFeatureId::CLOUD_CLAN: return 430.0f * S;
 		case AetherMusic::EAetherFeatureId::GORES_MAPS: return 430.0f * S;
 		case AetherMusic::EAetherFeatureId::ASSETS_EDITOR: return 0.0f;
-		case AetherMusic::EAetherFeatureId::FOCUS_MODE: return 112.0f * S;
+		case AetherMusic::EAetherFeatureId::FOCUS_MODE: return 126.0f * S;
 		case AetherMusic::EAetherFeatureId::SNAP_TAP: return 46.0f * S;
 		case AetherMusic::EAetherFeatureId::GORES_MODE: return 86.0f * S;
 		case AetherMusic::EAetherFeatureId::DDRACE_CONFIGS: return 172.0f * S;
-		case AetherMusic::EAetherFeatureId::FAST_INPUT: return 366.0f * S;
+		case AetherMusic::EAetherFeatureId::FAST_INPUT: return 430.0f * S;
 		case AetherMusic::EAetherFeatureId::FAST_SPEC: return 104.0f * S;
 		case AetherMusic::EAetherFeatureId::TRANSLATOR: return 124.0f * S;
 		case AetherMusic::EAetherFeatureId::SILENT_TYPING: return 52.0f * S;
 		case AetherMusic::EAetherFeatureId::SAVE_UNSENT_MESSAGES: return 52.0f * S;
-		case AetherMusic::EAetherFeatureId::GRADIENT_TEAM_COLORS: return 46.0f * S;
+		case AetherMusic::EAetherFeatureId::GRADIENT_TEAM_COLORS: return 230.0f * S;
 		case AetherMusic::EAetherFeatureId::BROWSER_UTILS: return 108.0f * S;
 		case AetherMusic::EAetherFeatureId::CUSTOM_RESOLUTION: return 86.0f * S;
 		case AetherMusic::EAetherFeatureId::OPTIMIZER: return 224.0f * S;
