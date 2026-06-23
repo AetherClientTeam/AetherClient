@@ -1209,6 +1209,23 @@ void CMenus::Render()
 		{
 			RenderPopupFullscreen(Screen);
 		}
+		else if(m_MenuActive && m_GamePage == PAGE_SETTINGS)
+		{
+			Screen.Margin(10.0f, &Screen);
+			CUIRect Header, MainView, BackButton;
+			Screen.HSplitTop(28.0f, &Header, &MainView);
+			Header.VSplitRight(110.0f, &Header, &BackButton);
+			Ui()->DoLabel(&Header, Localize("Settings"), 18.0f, TEXTALIGN_ML);
+			static CButtonContainer s_DemoSettingsBackButton;
+			if(DoButton_Menu(&s_DemoSettingsBackButton, Localize("Back"), 0, &BackButton) || Ui()->ConsumeHotkey(CUi::HOTKEY_ESCAPE))
+				m_GamePage = PAGE_GAME;
+			else
+			{
+				RenderSettings(MainView);
+				if(IsAetherAssetsEditorOpen())
+					RenderSettingsAetherAssetsEditorPopup(Screen);
+			}
+		}
 		else
 		{
 			RenderDemoPlayer(Screen);

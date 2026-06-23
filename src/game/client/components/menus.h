@@ -894,8 +894,11 @@ private:
 	void RenderSettingsAetherGoresMaps(CUIRect Body);
 	void RenderSettingsAetherAssetsEditor(CUIRect Body);
 	void RenderSettingsAetherAssetsCloud(CUIRect Body);
+	void RenderSettingsAetherMapBackgroundBuilder(CUIRect Body);
 	bool IsAetherAssetsEditorOpen() const;
 	void RenderSettingsAetherAssetsEditorPopup(CUIRect Screen);
+	bool IsAetherMapBackgroundBuilderOpen() const;
+	void RenderSettingsAetherMapBackgroundBuilderPopup(CUIRect Screen);
 	void RenderSettingsAetherInputVisualizer(CUIRect Body);
 	void RenderSettingsAetherKeystrokes(CUIRect Body);
 	void RenderSettingsAetherStabilityTrainer(CUIRect Body);

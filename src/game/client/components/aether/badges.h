@@ -197,6 +197,12 @@ private:
 	int64_t m_ChessInviteExpireTime = 0;
 	std::array<EAutoHelpPingState, MAX_CLIENTS> m_aHelpPingStates{};
 	int m_LastRefreshSeconds = 0;
+	int m_LastGradientNicknames = -1;
+	int m_LastGradientStartColor = -1;
+	int m_LastGradientEndColor = -1;
+	int m_LastGradientAnimated = -1;
+	int m_LastGradientSpeed = -1;
+	int m_LastGradientStyle = -1;
 	int m_ChessOnlineCount = 0;
 	int m_AetherOnlineCount = 0;
 	int m_LastPingSeq = 0;

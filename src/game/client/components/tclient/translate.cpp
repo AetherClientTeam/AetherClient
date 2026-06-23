@@ -40,6 +40,52 @@ static void UrlEncode(const char *pText, char *pOut, size_t Length)
 	pOut[OutPos] = '\0';
 }
 
+static int HexValue(char c)
+{
+	if(c >= '0' && c <= '9')
+		return c - '0';
+	if(c >= 'a' && c <= 'f')
+		return 10 + c - 'a';
+	if(c >= 'A' && c <= 'F')
+		return 10 + c - 'A';
+	return -1;
+}
+
+static void DecodePercentEncodedText(char *pText, int Size)
+{
+	if(!pText || Size <= 0)
+		return;
+	int EncodedTriples = 0;
+	for(const char *p = pText; p[0] && p[1] && p[2]; ++p)
+	{
+		if(p[0] == '%' && HexValue(p[1]) >= 0 && HexValue(p[2]) >= 0)
+			++EncodedTriples;
+	}
+	if(EncodedTriples < 2)
+		return;
+
+	char aDecoded[512];
+	int Out = 0;
+	for(int In = 0; pText[In] && Out < (int)sizeof(aDecoded) - 1; ++In)
+	{
+		if(pText[In] == '%' && pText[In + 1] && pText[In + 2])
+		{
+			const int Hi = HexValue(pText[In + 1]);
+			const int Lo = HexValue(pText[In + 2]);
+			if(Hi >= 0 && Lo >= 0)
+			{
+				aDecoded[Out++] = (char)((Hi << 4) | Lo);
+				In += 2;
+				continue;
+			}
+		}
+		aDecoded[Out++] = pText[In];
+	}
+	aDecoded[Out] = '\0';
+	if(str_utf8_check(aDecoded))
+		str_copy(pText, aDecoded, Size);
+}
+
 static void NormalizeLibreTranslateEndpoint(char *pOut, int OutSize)
 {
 	pOut[0] = '\0';
@@ -178,6 +224,7 @@ private:
 		}
 
 		str_copy(Out.m_Text, pTranslatedText->u.string.ptr);
+		DecodePercentEncodedText(Out.m_Text, sizeof(Out.m_Text));
 		const json_value *pDetectedLanguage = json_object_get(pObj, "detectedLanguage");
 		if(pDetectedLanguage != &json_value_none && pDetectedLanguage->type == json_object)
 		{
@@ -272,6 +319,7 @@ private:
 		}
 
 		str_copy(Out.m_Text, pTranslatedText->u.string.ptr);
+		DecodePercentEncodedText(Out.m_Text, sizeof(Out.m_Text));
 		str_copy(Out.m_Language, pDetectedLanguage->u.string.ptr);
 
 		return true;
@@ -356,6 +404,7 @@ protected:
 				else
 				{
 					str_copy(Out.m_Text, Result.c_str(), sizeof(Out.m_Text));
+					DecodePercentEncodedText(Out.m_Text, sizeof(Out.m_Text));
 					const json_value *pDetectedLanguage = json_array_get(pRoot, 2);
 					if(pDetectedLanguage && pDetectedLanguage->type == json_string)
 						str_copy(Out.m_Language, pDetectedLanguage->u.string.ptr, sizeof(Out.m_Language));

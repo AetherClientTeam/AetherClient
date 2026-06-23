@@ -1702,7 +1702,7 @@ void CGameClient::OnMessage(int MsgId, CUnpacker *pUnpacker, int Conn, bool Dumm
 void CGameClient::OnStateChange(int NewState, int OldState)
 {
 	const bool LeavingLocalServer = OldState >= IClient::STATE_ONLINE &&
-					NewState < IClient::STATE_ONLINE &&
+					NewState == IClient::STATE_OFFLINE &&
 					m_LocalServer.IsServerRunning() &&
 					net_addr_is_local(&Client()->ServerAddress());
 
@@ -3003,8 +3003,12 @@ static float AetherFastInputSaikoPlusOffsetTicks()
 
 static float AetherFastInputAdaptiveOthersOffsetTicks()
 {
-	const float Amount = std::clamp(g_Config.m_AeFastInputAdaptiveOthersAmount, 0, 500) / 100.0f;
 	const float SelfOffset = AetherFastInputOffsetTicksFromMs(g_Config.m_AeFastInputMovementAmount);
+	const int Style = std::clamp(g_Config.m_AeFastInputAdaptiveOthersStyle, 0, 2);
+	if(Style == AETHER_FAST_ADAPTIVE_OTHERS_SMOOTH)
+		return SelfOffset;
+
+	const float Amount = std::clamp(g_Config.m_AeFastInputAdaptiveOthersAmount, 0, 500) / 100.0f;
 	const float SafetyCap = std::max(1.35f, SelfOffset + 1.0f);
 	return std::min(Amount, SafetyCap);
 }
@@ -3266,11 +3270,15 @@ void CGameClient::OnPredict()
 	const int FastInputActionTicks = UseAetherFastInput ?
 		(UseAetherSaikoPlus ? FastInputMovementTicks : AetherFastInputTicksFromMs(g_Config.m_AeFastInputActionAmount)) :
 		0;
-	if(UseAetherAdaptive && g_Config.m_AeFastInputBrakePriority)
+	if(UseAetherAdaptive && (g_Config.m_AeFastInputBrakePriority || g_Config.m_AeFastInputBrakeReleasePriority))
 	{
 		const int Direction = std::clamp(m_Controls.m_aFastInput[LocalTee].m_Direction, -1, 1);
 		const int PreviousDirection = s_aAetherFastInputLastDirection[LocalTee];
-		const bool BrakeEdge = PreviousDirection != 0 && Direction == -PreviousDirection;
+		const bool ReverseEdge = PreviousDirection != 0 && Direction == -PreviousDirection;
+		const bool ReleaseEdge = PreviousDirection != 0 && Direction == 0;
+		const bool BrakeEdge =
+			(ReverseEdge && g_Config.m_AeFastInputBrakePriority) ||
+			(ReleaseEdge && g_Config.m_AeFastInputBrakeReleasePriority);
 		if(BrakeEdge)
 			s_aAetherFastInputBrakeUntilTick[LocalTee] = Client()->GameTick(g_Config.m_ClDummy) + 1;
 		s_aAetherFastInputLastDirection[LocalTee] = Direction;

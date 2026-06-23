@@ -43,11 +43,11 @@ bool CLocalServer::RunServer(const std::vector<const char *> &vpArguments)
 	}
 #else
 	char aBuf[IO_MAX_PATH_LENGTH];
-	Storage()->GetBinaryPath(PLAT_SERVER_EXEC, aBuf, sizeof(aBuf));
+	Storage()->GetBinaryPathAbsolute(PLAT_SERVER_EXEC, aBuf, sizeof(aBuf));
 	if(str_find(aBuf, "/") != nullptr && !fs_is_file(aBuf))
 	{
 		char aFallback[IO_MAX_PATH_LENGTH];
-		Storage()->GetBinaryPath(AETHER_LEGACY_SERVER_EXEC, aFallback, sizeof(aFallback));
+		Storage()->GetBinaryPathAbsolute(AETHER_LEGACY_SERVER_EXEC, aFallback, sizeof(aFallback));
 		if(fs_is_file(aFallback))
 		{
 			str_copy(aBuf, aFallback);
@@ -64,7 +64,13 @@ bool CLocalServer::RunServer(const std::vector<const char *> &vpArguments)
 	// No / in binary path means to search in $PATH, so it is expected that the file can't be opened. Just try executing anyway.
 	if(str_find(aBuf, "/") == nullptr || fs_is_file(aBuf))
 	{
-		m_Process = process_execute(aBuf, EShellExecuteWindowState::BACKGROUND, vpArgumentsWithAuth.data(), vpArgumentsWithAuth.size());
+		char aWorkingDirectory[IO_MAX_PATH_LENGTH] = "";
+		if(str_find(aBuf, "/") != nullptr)
+		{
+			str_copy(aWorkingDirectory, aBuf);
+			fs_parent_dir(aWorkingDirectory);
+		}
+		m_Process = process_execute(aBuf, EShellExecuteWindowState::BACKGROUND, vpArgumentsWithAuth.data(), vpArgumentsWithAuth.size(), aWorkingDirectory[0] != '\0' ? aWorkingDirectory : nullptr);
 		if(m_Process != INVALID_PROCESS)
 		{
 			GameClient()->m_Menus.ForceRefreshLanPage();

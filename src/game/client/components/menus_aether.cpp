@@ -13,6 +13,7 @@
 #include <engine/image.h>
 #include <engine/sound.h>
 #include <engine/shared/config.h>
+#include <engine/shared/datafile.h>
 #include <engine/shared/http.h>
 #include <engine/shared/json.h>
 #include <engine/shared/jsonwriter.h>
@@ -20,6 +21,8 @@
 
 #include <generated/client_data.h>
 
+#include <game/mapitems.h>
+#include <game/gamecore.h>
 #include <game/client/components/aether/audio_decoder.h>
 #include <game/client/components/aether/client_variant.h>
 #include <game/client/components/mapimages.h>
@@ -143,11 +146,23 @@ int AetherWarlistJsonScan(const char *pName, int IsDir, int DirType, void *pUser
 	return 0;
 }
 
+int AetherMapBgMapScan(const char *pName, int IsDir, int DirType, void *pUser)
+{
+	(void)DirType;
+	if(IsDir || !pName || pName[0] == '.')
+		return 0;
+	const int Len = str_length(pName);
+	if(Len > 4 && str_comp_nocase(pName + Len - 4, ".map") == 0)
+		static_cast<std::vector<std::string> *>(pUser)->emplace_back(pName);
+	return 0;
+}
+
 enum class EEditorAction
 {
 	NONE,
 	OPEN_HUD_EDITOR,
 	OPEN_ASSETS_EDITOR,
+	OPEN_MAP_BACKGROUND_BUILDER,
 };
 
 struct SFeature
@@ -195,6 +210,7 @@ bool AetherFeatureAllowed(AetherMusic::EAetherFeatureId Id)
 		case EAetherFeatureId::TRANSLATOR:
 		case EAetherFeatureId::HUD_EDITOR:
 		case EAetherFeatureId::ASSETS_EDITOR:
+		case EAetherFeatureId::MAP_BACKGROUND_BUILDER:
 		case EAetherFeatureId::GORES_MAPS:
 		case EAetherFeatureId::BROWSER_UTILS:
 			return true;
@@ -230,6 +246,7 @@ bool AetherFeatureAllowed(AetherMusic::EAetherFeatureId Id)
 		case EAetherFeatureId::TRANSLATOR:
 		case EAetherFeatureId::HUD_EDITOR:
 		case EAetherFeatureId::ASSETS_EDITOR:
+		case EAetherFeatureId::MAP_BACKGROUND_BUILDER:
 		case EAetherFeatureId::BROWSER_UTILS:
 			return true;
 		default:
@@ -262,6 +279,7 @@ bool AetherFeatureAllowed(AetherMusic::EAetherFeatureId Id)
 		case EAetherFeatureId::TRANSLATOR:
 		case EAetherFeatureId::HUD_EDITOR:
 		case EAetherFeatureId::ASSETS_EDITOR:
+		case EAetherFeatureId::MAP_BACKGROUND_BUILDER:
 		case EAetherFeatureId::BROWSER_UTILS:
 			return true;
 		default:
@@ -353,6 +371,437 @@ void AetherSanitizeExportName(const char *pInput, char *pOut, int OutSize)
 			pOut[Out++] = '_';
 	}
 	pOut[Out] = '\0';
+}
+
+ColorRGBA AetherMapBgConfigColor(unsigned Color)
+{
+	ColorRGBA Result = color_cast<ColorRGBA>(ColorHSLA(Color, false));
+	Result.a = 1.0f;
+	return Result;
+}
+
+ColorRGBA AetherMapBgMix(ColorRGBA A, ColorRGBA B, float Amount)
+{
+	Amount = std::clamp(Amount, 0.0f, 1.0f);
+	return ColorRGBA(
+		mix(A.r, B.r, Amount),
+		mix(A.g, B.g, Amount),
+		mix(A.b, B.b, Amount),
+		mix(A.a, B.a, Amount));
+}
+
+ColorRGBA AetherMapBgAdjust(ColorRGBA Color)
+{
+	ColorHSLA Hsl = color_cast<ColorHSLA>(Color);
+	Hsl.s = std::clamp(Hsl.s * (g_Config.m_AeMapBgSaturation / 100.0f), 0.0f, 1.0f);
+	Color = color_cast<ColorRGBA>(Hsl);
+	const float Contrast = g_Config.m_AeMapBgContrast / 100.0f;
+	Color.r = std::clamp((Color.r - 0.5f) * Contrast + 0.5f, 0.0f, 1.0f);
+	Color.g = std::clamp((Color.g - 0.5f) * Contrast + 0.5f, 0.0f, 1.0f);
+	Color.b = std::clamp((Color.b - 0.5f) * Contrast + 0.5f, 0.0f, 1.0f);
+	const float Brightness = g_Config.m_AeMapBgBrightness / 100.0f;
+	Color.r = std::clamp(Color.r * Brightness, 0.0f, 1.0f);
+	Color.g = std::clamp(Color.g * Brightness, 0.0f, 1.0f);
+	Color.b = std::clamp(Color.b * Brightness, 0.0f, 1.0f);
+	Color.a = 1.0f;
+	return Color;
+}
+
+ColorRGBA AetherMapBgPreviewColor(float X, float Y)
+{
+	const ColorRGBA Top = AetherMapBgConfigColor(g_Config.m_AeMapBgTopColor);
+	const ColorRGBA Bottom = AetherMapBgConfigColor(g_Config.m_AeMapBgBottomColor);
+	const ColorRGBA Accent = AetherMapBgConfigColor(g_Config.m_AeMapBgAccentColor);
+	float T = 0.0f;
+	if(g_Config.m_AeMapBgGradientType == 3)
+	{
+		const float Dx = X - 0.5f;
+		const float Dy = Y - 0.5f;
+		T = std::clamp(std::sqrt(Dx * Dx + Dy * Dy) * 1.55f, 0.0f, 1.0f);
+	}
+	else
+	{
+		const float BaseAngle = g_Config.m_AeMapBgGradientType == 1 ? 0.0f : g_Config.m_AeMapBgGradientType == 2 ? 45.0f : 90.0f;
+		const float Angle = (BaseAngle + g_Config.m_AeMapBgAngle) * 3.14159265358979323846f / 180.0f;
+		const float DirectionX = std::cos(Angle);
+		const float DirectionY = std::sin(Angle);
+		const float Projection = DirectionX * (X - 0.5f) + DirectionY * (Y - 0.5f);
+		const float MaxProjection = 0.5f * (std::abs(DirectionX) + std::abs(DirectionY));
+		T = MaxProjection > 0.0001f ? std::clamp(0.5f + Projection / (2.0f * MaxProjection), 0.0f, 1.0f) : 0.5f;
+	}
+	ColorRGBA Color = AetherMapBgMix(Top, Bottom, T);
+	const float AccentAmount = (1.0f - std::abs(T - 0.5f) * 2.0f) * 0.22f;
+	Color = AetherMapBgMix(Color, Accent, AccentAmount);
+	const float Edge = maximum(std::abs(X - 0.5f), std::abs(Y - 0.5f)) * 2.0f;
+	const float Vignette = 1.0f - std::clamp((Edge - 0.35f) / 0.65f, 0.0f, 1.0f) * (g_Config.m_AeMapBgVignette / 100.0f);
+	Color.r *= Vignette;
+	Color.g *= Vignette;
+	Color.b *= Vignette;
+	return AetherMapBgAdjust(Color);
+}
+
+CColor AetherMapBgMapColor(ColorRGBA Color)
+{
+	return CColor(round_to_int(std::clamp(Color.r, 0.0f, 1.0f) * 255.0f),
+		round_to_int(std::clamp(Color.g, 0.0f, 1.0f) * 255.0f),
+		round_to_int(std::clamp(Color.b, 0.0f, 1.0f) * 255.0f),
+		round_to_int(std::clamp(Color.a, 0.0f, 1.0f) * 255.0f));
+}
+
+unsigned AetherMapBgConfigFromMapColor(const CColor &Color)
+{
+	const ColorRGBA Rgba(
+		std::clamp(Color.x / 255.0f, 0.0f, 1.0f),
+		std::clamp(Color.y / 255.0f, 0.0f, 1.0f),
+		std::clamp(Color.z / 255.0f, 0.0f, 1.0f),
+		1.0f);
+	return color_cast<ColorHSLA>(Rgba).Pack(false);
+}
+
+struct SAetherMapBgImportedLayer
+{
+	char m_aName[32];
+	char m_aSourceName[64];
+	unsigned m_aColors[4];
+	std::vector<CQuad> m_vQuads;
+	CMapItemGroup m_Group{};
+	bool m_HasGroup = false;
+};
+
+bool AetherImportBackgroundLayers(IStorage *pStorage, const char *pMapName, std::vector<SAetherMapBgImportedLayer> &vLayers, char *pStatus, int StatusSize)
+{
+	vLayers.clear();
+	if(!pMapName || pMapName[0] == '\0' || str_comp(pMapName, CURRENT_MAP) == 0)
+	{
+		str_copy(pStatus, "Choose a background map first, then import.", StatusSize);
+		return false;
+	}
+
+	char aPath[IO_MAX_PATH_LENGTH];
+	str_format(aPath, sizeof(aPath), "maps/%s%s", pMapName, str_endswith(pMapName, ".map") ? "" : ".map");
+
+	CDataFileReader Reader;
+	if(!Reader.Open(pStorage, aPath, IStorage::TYPE_ALL) && !Reader.Open(pStorage, pMapName, IStorage::TYPE_ALL))
+	{
+		str_format(pStatus, StatusSize, "Could not import %s.", pMapName);
+		return false;
+	}
+
+	int Start = 0;
+	int Num = 0;
+	Reader.GetType(MAPITEMTYPE_LAYER, &Start, &Num);
+	int GroupStart = 0;
+	int GroupNum = 0;
+	Reader.GetType(MAPITEMTYPE_GROUP, &GroupStart, &GroupNum);
+	char aSourceNameRaw[64];
+	char aSourceName[64];
+	str_copy(aSourceNameRaw, pMapName);
+	if(str_endswith(aSourceNameRaw, ".map"))
+		aSourceNameRaw[str_length(aSourceNameRaw) - 4] = '\0';
+	AetherSanitizeExportName(aSourceNameRaw, aSourceName, sizeof(aSourceName));
+	for(int i = 0; i < Num; ++i)
+	{
+		int Type = 0;
+		const CMapItemLayer *pLayer = static_cast<const CMapItemLayer *>(Reader.GetItem(Start + i, &Type));
+		if(!pLayer || Type != MAPITEMTYPE_LAYER || pLayer->m_Type != LAYERTYPE_QUADS)
+			continue;
+
+		const CMapItemLayerQuads *pQuadsLayer = reinterpret_cast<const CMapItemLayerQuads *>(pLayer);
+		if(pQuadsLayer->m_NumQuads <= 0 || pQuadsLayer->m_Data < 0)
+			continue;
+
+		const CQuad *pQuads = static_cast<const CQuad *>(Reader.GetDataSwapped(pQuadsLayer->m_Data));
+		if(!pQuads)
+			continue;
+
+		SAetherMapBgImportedLayer Imported{};
+		str_copy(Imported.m_aSourceName, aSourceName);
+		if(pQuadsLayer->m_Version >= 2)
+			IntsToStr(pQuadsLayer->m_aName, std::size(pQuadsLayer->m_aName), Imported.m_aName, sizeof(Imported.m_aName));
+		if(Imported.m_aName[0] == '\0')
+			str_format(Imported.m_aName, sizeof(Imported.m_aName), "Quads layer %d", (int)vLayers.size() + 1);
+		for(int Corner = 0; Corner < 4; ++Corner)
+			Imported.m_aColors[Corner] = AetherMapBgConfigFromMapColor(pQuads[0].m_aColors[Corner]);
+		Imported.m_vQuads.assign(pQuads, pQuads + pQuadsLayer->m_NumQuads);
+		for(int Group = 0; Group < GroupNum; ++Group)
+		{
+			int GroupType = 0;
+			const CMapItemGroup *pGroup = static_cast<const CMapItemGroup *>(Reader.GetItem(GroupStart + Group, &GroupType));
+			if(!pGroup || GroupType != MAPITEMTYPE_GROUP)
+				continue;
+			if(i >= pGroup->m_StartLayer && i < pGroup->m_StartLayer + pGroup->m_NumLayers)
+			{
+				Imported.m_Group = *pGroup;
+				Imported.m_HasGroup = true;
+				break;
+			}
+		}
+		vLayers.push_back(Imported);
+		Reader.UnloadData(pQuadsLayer->m_Data);
+	}
+	Reader.Close();
+
+	if(vLayers.empty())
+	{
+		str_copy(pStatus, "No quad background layers found in that map.", StatusSize);
+		return false;
+	}
+	str_format(pStatus, StatusSize, "Imported %d background layer(s).", (int)vLayers.size());
+	return true;
+}
+
+void AetherUseImportedBackgroundLayer(const SAetherMapBgImportedLayer &Layer)
+{
+	g_Config.m_AeMapBgTopColor = Layer.m_aColors[0];
+	g_Config.m_AeMapBgBottomColor = Layer.m_aColors[2];
+	const ColorRGBA TopRight = AetherMapBgConfigColor(Layer.m_aColors[1]);
+	const ColorRGBA BottomLeft = AetherMapBgConfigColor(Layer.m_aColors[2]);
+	g_Config.m_AeMapBgAccentColor = color_cast<ColorHSLA>(AetherMapBgMix(TopRight, BottomLeft, 0.5f)).Pack(false);
+}
+
+bool AetherMapBgImportedBounds(const SAetherMapBgImportedLayer &Layer, int &MinX, int &MinY, int &MaxX, int &MaxY)
+{
+	if(Layer.m_vQuads.empty())
+		return false;
+
+	bool HasBounds = false;
+	for(const CQuad &Quad : Layer.m_vQuads)
+	{
+		for(int i = 0; i < 4; ++i)
+		{
+			const CPoint &Point = Quad.m_aPoints[i];
+			if(!HasBounds)
+			{
+				MinX = MaxX = Point.x;
+				MinY = MaxY = Point.y;
+				HasBounds = true;
+			}
+			else
+			{
+				MinX = std::min(MinX, Point.x);
+				MinY = std::min(MinY, Point.y);
+				MaxX = std::max(MaxX, Point.x);
+				MaxY = std::max(MaxY, Point.y);
+			}
+		}
+	}
+	return HasBounds && MaxX > MinX && MaxY > MinY;
+}
+
+CColor AetherMapBgImportedPointColor(const CPoint &Point, int MinX, int MinY, int MaxX, int MaxY, int Alpha)
+{
+	const float X = std::clamp((Point.x - MinX) / (float)(MaxX - MinX), 0.0f, 1.0f);
+	const float Y = std::clamp((Point.y - MinY) / (float)(MaxY - MinY), 0.0f, 1.0f);
+	CColor Color = AetherMapBgMapColor(AetherMapBgPreviewColor(X, Y));
+	Color.a = Alpha;
+	return Color;
+}
+
+void AetherMapBgApplyConfigToImportedQuads(std::vector<CQuad> &vQuads)
+{
+	SAetherMapBgImportedLayer Temp{};
+	Temp.m_vQuads = vQuads;
+	int MinX = 0;
+	int MinY = 0;
+	int MaxX = 0;
+	int MaxY = 0;
+	if(!AetherMapBgImportedBounds(Temp, MinX, MinY, MaxX, MaxY))
+		return;
+	for(CQuad &Quad : vQuads)
+	{
+		for(int i = 0; i < 4; ++i)
+			Quad.m_aColors[i] = AetherMapBgImportedPointColor(Quad.m_aPoints[i], MinX, MinY, MaxX, MaxY, Quad.m_aColors[i].a);
+	}
+}
+
+void AetherDrawImportedBackgroundPreview(IGraphics *pGraphics, const CUIRect &Rect, const SAetherMapBgImportedLayer &Layer)
+{
+	int MinX = 0;
+	int MinY = 0;
+	int MaxX = 0;
+	int MaxY = 0;
+	if(!AetherMapBgImportedBounds(Layer, MinX, MinY, MaxX, MaxY))
+		return;
+
+	const float Scale = std::min(Rect.w / (float)(MaxX - MinX), Rect.h / (float)(MaxY - MinY));
+	const float DrawW = (MaxX - MinX) * Scale;
+	const float DrawH = (MaxY - MinY) * Scale;
+	const float OffX = Rect.x + (Rect.w - DrawW) * 0.5f;
+	const float OffY = Rect.y + (Rect.h - DrawH) * 0.5f;
+	auto Transform = [&](const CPoint &Point) {
+		return vec2(OffX + (Point.x - MinX) * Scale, OffY + (Point.y - MinY) * Scale);
+	};
+
+	pGraphics->TextureClear();
+	pGraphics->QuadsBegin();
+	for(const CQuad &Quad : Layer.m_vQuads)
+	{
+		IGraphics::CColorVertex aVertices[4];
+		for(int i = 0; i < 4; ++i)
+		{
+			const CColor Color = AetherMapBgImportedPointColor(Quad.m_aPoints[i], MinX, MinY, MaxX, MaxY, Quad.m_aColors[i].a);
+			aVertices[i] = IGraphics::CColorVertex(i, Color.x / 255.0f, Color.y / 255.0f, Color.z / 255.0f, Color.a / 255.0f);
+		}
+		pGraphics->SetColorVertex(aVertices, std::size(aVertices));
+		const vec2 P0 = Transform(Quad.m_aPoints[0]);
+		const vec2 P1 = Transform(Quad.m_aPoints[1]);
+		const vec2 P2 = Transform(Quad.m_aPoints[2]);
+		const vec2 P3 = Transform(Quad.m_aPoints[3]);
+		const IGraphics::CFreeformItem Item(P0.x, P0.y, P1.x, P1.y, P2.x, P2.y, P3.x, P3.y);
+		pGraphics->QuadsDrawFreeform(&Item, 1);
+	}
+	pGraphics->QuadsEnd();
+}
+
+bool AetherWriteBackgroundTemplateMap(IStorage *pStorage, const char *pMapName, char *pError, int ErrorSize, const SAetherMapBgImportedLayer *pImportedLayer = nullptr)
+{
+	char aCleanName[64];
+	AetherSanitizeExportName(pMapName, aCleanName, sizeof(aCleanName));
+	if(aCleanName[0] == '\0')
+		str_copy(aCleanName, "aether_bg");
+	if(pImportedLayer && pImportedLayer->m_aSourceName[0] != '\0' && str_comp_nocase(aCleanName, pImportedLayer->m_aSourceName) == 0)
+		str_format(aCleanName, sizeof(aCleanName), "%s_aether", pImportedLayer->m_aSourceName);
+
+	char aPath[IO_MAX_PATH_LENGTH];
+	str_format(aPath, sizeof(aPath), "maps/%s.map", aCleanName);
+	pStorage->CreateFolder("maps", IStorage::TYPE_SAVE);
+
+	CDataFileWriter Writer;
+	if(!Writer.Open(pStorage, aPath, IStorage::TYPE_SAVE))
+	{
+		str_format(pError, ErrorSize, "Could not write %s.", aPath);
+		return false;
+	}
+
+	CMapItemVersion Version{};
+	Version.m_Version = 1;
+	Writer.AddItem(MAPITEMTYPE_VERSION, 0, sizeof(Version), &Version);
+
+	CMapItemInfoSettings Info{};
+	Info.m_Version = 1;
+	Info.m_Author = Writer.AddDataString("Aether Client");
+	Info.m_MapVersion = Writer.AddDataString("background-template");
+	Info.m_Credits = Writer.AddDataString("Generated by Aether Map Background Builder");
+	Info.m_License = Writer.AddDataString("");
+	Info.m_Settings = -1;
+	Writer.AddItem(MAPITEMTYPE_INFO, 0, sizeof(Info), &Info);
+
+	std::vector<CQuad> vQuads;
+	if(pImportedLayer && !pImportedLayer->m_vQuads.empty())
+	{
+		vQuads = pImportedLayer->m_vQuads;
+		AetherMapBgApplyConfigToImportedQuads(vQuads);
+		for(CQuad &Quad : vQuads)
+		{
+			Quad.m_PosEnv = -1;
+			Quad.m_PosEnvOffset = 0;
+			Quad.m_ColorEnv = -1;
+			Quad.m_ColorEnvOffset = 0;
+		}
+	}
+	else
+	{
+		CQuad Quad{};
+		constexpr int QuadLeft = -800 * 1024;
+		constexpr int QuadRight = 800 * 1024;
+		constexpr int QuadTop = -600 * 1024;
+		constexpr int QuadBottom = 600 * 1024;
+		Quad.m_aPoints[0] = CPoint(QuadLeft, QuadTop);
+		Quad.m_aPoints[1] = CPoint(QuadRight, QuadTop);
+		Quad.m_aPoints[2] = CPoint(QuadLeft, QuadBottom);
+		Quad.m_aPoints[3] = CPoint(QuadRight, QuadBottom);
+		Quad.m_aPoints[4] = CPoint(0, 0);
+		Quad.m_aColors[0] = AetherMapBgMapColor(AetherMapBgPreviewColor(0.0f, 0.0f));
+		Quad.m_aColors[1] = AetherMapBgMapColor(AetherMapBgPreviewColor(1.0f, 0.0f));
+		Quad.m_aColors[2] = AetherMapBgMapColor(AetherMapBgPreviewColor(0.0f, 1.0f));
+		Quad.m_aColors[3] = AetherMapBgMapColor(AetherMapBgPreviewColor(1.0f, 1.0f));
+		Quad.m_aTexcoords[0] = CPoint(0, 0);
+		Quad.m_aTexcoords[1] = CPoint(1024, 0);
+		Quad.m_aTexcoords[2] = CPoint(0, 1024);
+		Quad.m_aTexcoords[3] = CPoint(1024, 1024);
+		Quad.m_PosEnv = -1;
+		Quad.m_PosEnvOffset = 0;
+		Quad.m_ColorEnv = -1;
+		Quad.m_ColorEnvOffset = 0;
+		vQuads.push_back(Quad);
+	}
+	const int QuadData = Writer.AddDataSwapped((int)(vQuads.size() * sizeof(CQuad)), vQuads.data());
+
+	CMapItemLayerQuads QuadLayer{};
+	QuadLayer.m_Layer.m_Version = 0;
+	QuadLayer.m_Layer.m_Type = LAYERTYPE_QUADS;
+	QuadLayer.m_Layer.m_Flags = 0;
+	QuadLayer.m_Version = 2;
+	QuadLayer.m_NumQuads = (int)vQuads.size();
+	QuadLayer.m_Data = QuadData;
+	QuadLayer.m_Image = -1;
+	StrToInts(QuadLayer.m_aName, std::size(QuadLayer.m_aName), "Background");
+
+	constexpr int LayerWidth = 50;
+	constexpr int LayerHeight = 50;
+	std::array<CTile, LayerWidth * LayerHeight> aTiles{};
+	const int TilesData = Writer.AddData(aTiles.size() * sizeof(CTile), aTiles.data());
+
+	CMapItemLayerTilemap GameLayer{};
+	GameLayer.m_Layer.m_Version = 0;
+	GameLayer.m_Layer.m_Type = LAYERTYPE_TILES;
+	GameLayer.m_Layer.m_Flags = 0;
+	GameLayer.m_Version = 3;
+	GameLayer.m_Width = LayerWidth;
+	GameLayer.m_Height = LayerHeight;
+	GameLayer.m_Flags = TILESLAYERFLAG_GAME;
+	GameLayer.m_Color = CColor(255, 255, 255, 255);
+	GameLayer.m_ColorEnv = -1;
+	GameLayer.m_ColorEnvOffset = 0;
+	GameLayer.m_Image = -1;
+	GameLayer.m_Data = TilesData;
+	GameLayer.m_Tele = -1;
+	GameLayer.m_Speedup = -1;
+	GameLayer.m_Front = -1;
+	GameLayer.m_Switch = -1;
+	GameLayer.m_Tune = -1;
+	StrToInts(GameLayer.m_aName, std::size(GameLayer.m_aName), "Game");
+
+	CMapItemGroup BackgroundGroup{};
+	if(pImportedLayer && pImportedLayer->m_HasGroup)
+	{
+		BackgroundGroup = pImportedLayer->m_Group;
+		BackgroundGroup.m_StartLayer = 0;
+		BackgroundGroup.m_NumLayers = 1;
+		StrToInts(BackgroundGroup.m_aName, std::size(BackgroundGroup.m_aName), "Aether BG");
+	}
+	else
+	{
+		BackgroundGroup.m_Version = 3;
+		BackgroundGroup.m_OffsetX = 0;
+		BackgroundGroup.m_OffsetY = 0;
+		BackgroundGroup.m_ParallaxX = 0;
+		BackgroundGroup.m_ParallaxY = 0;
+		BackgroundGroup.m_StartLayer = 0;
+		BackgroundGroup.m_NumLayers = 1;
+		BackgroundGroup.m_UseClipping = 0;
+		StrToInts(BackgroundGroup.m_aName, std::size(BackgroundGroup.m_aName), "Aether BG");
+	}
+
+	CMapItemGroup GameGroup{};
+	GameGroup.m_Version = 3;
+	GameGroup.m_OffsetX = 0;
+	GameGroup.m_OffsetY = 0;
+	GameGroup.m_ParallaxX = 100;
+	GameGroup.m_ParallaxY = 100;
+	GameGroup.m_StartLayer = 1;
+	GameGroup.m_NumLayers = 1;
+	GameGroup.m_UseClipping = 0;
+	StrToInts(GameGroup.m_aName, std::size(GameGroup.m_aName), "Game");
+
+	Writer.AddItem(MAPITEMTYPE_GROUP, 0, sizeof(BackgroundGroup), &BackgroundGroup);
+	Writer.AddItem(MAPITEMTYPE_GROUP, 1, sizeof(GameGroup), &GameGroup);
+	Writer.AddItem(MAPITEMTYPE_LAYER, 0, sizeof(QuadLayer), &QuadLayer);
+	Writer.AddItem(MAPITEMTYPE_LAYER, 1, sizeof(GameLayer), &GameLayer);
+	Writer.Finish();
+
+	str_format(pError, ErrorSize, "Exported maps/%s.map.", aCleanName);
+	return true;
 }
 
 struct SAetherNameScanContext
@@ -1261,6 +1710,7 @@ bool AetherAtlasPixelFromScreen(const CUIRect &ImageRect, int ImageW, int ImageH
 bool s_AetherAssetsEditorOpen = false;
 bool s_AetherAssetsEditorWindowInit = false;
 CUIRect s_AetherAssetsEditorWindow = {0.0f, 0.0f, 1120.0f, 660.0f};
+bool s_AetherMapBackgroundBuilderOpen = false;
 int s_AetherAssetsEditorCategory = 0;
 int s_AetherAssetsEditorBaseIndex = 0;
 int s_AetherAssetsEditorDonorIndex = 0;
@@ -2209,9 +2659,12 @@ void CMenus::RenderSettingsAetherFastInput(CUIRect Body)
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		Ui()->DoScrollbarOption(&g_Config.m_AeFastInputSmoothCorrections, &g_Config.m_AeFastInputSmoothCorrections, &Control, "Correction sharpness", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
-		if(DoButton_CheckBox(&g_Config.m_AeFastInputBrakePriority, "Instant A/D response", g_Config.m_AeFastInputBrakePriority, &Control))
+		if(DoButton_CheckBox(&g_Config.m_AeFastInputBrakePriority, "A/D reverse", g_Config.m_AeFastInputBrakePriority, &Control))
 			g_Config.m_AeFastInputBrakePriority ^= 1;
-		if(g_Config.m_AeFastInputBrakePriority)
+		Body.HSplitTop(22.0f * S, &Control, &Body);
+		if(DoButton_CheckBox(&g_Config.m_AeFastInputBrakeReleasePriority, "A/D to none", g_Config.m_AeFastInputBrakeReleasePriority, &Control))
+			g_Config.m_AeFastInputBrakeReleasePriority ^= 1;
+		if(g_Config.m_AeFastInputBrakePriority || g_Config.m_AeFastInputBrakeReleasePriority)
 		{
 			Body.HSplitTop(22.0f * S, &Control, &Body);
 			Ui()->DoScrollbarOption(&g_Config.m_AeFastInputBrakeAmount, &g_Config.m_AeFastInputBrakeAmount, &Control, "Brake amount", 0, 50, &CUi::ms_LinearScrollbarScale, 0, "ms");
@@ -2836,6 +3289,11 @@ bool CMenus::IsAetherAssetsEditorOpen() const
 	return s_AetherAssetsEditorOpen;
 }
 
+bool CMenus::IsAetherMapBackgroundBuilderOpen() const
+{
+	return s_AetherMapBackgroundBuilderOpen;
+}
+
 void CMenus::RenderSettingsAetherInputVisualizer(CUIRect Body)
 {
 	static CButtonContainer s_aLaneColorReset[5];
@@ -3332,14 +3790,308 @@ void CMenus::RenderSettingsAetherGradientTeamColors(CUIRect Body)
 	DoLine_ColorPicker(&s_StartColorReset, 22.0f * S, 12.0f * S, 3.0f * S, &Body, "Nickname start", &g_Config.m_AeGradientNicknameStartColor, ColorRGBA(0.39f, 0.78f, 1.0f), false);
 	DoLine_ColorPicker(&s_EndColorReset, 22.0f * S, 12.0f * S, 3.0f * S, &Body, "Nickname end", &g_Config.m_AeGradientNicknameEndColor, ColorRGBA(1.0f, 0.48f, 0.85f), false);
 	Body.HSplitTop(20.0f * S, &Control, &Body);
-	Ui()->DoScrollbarOption(&g_Config.m_AeGradientNicknameGlow, &g_Config.m_AeGradientNicknameGlow, &Control, "Glow intensity", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
-	Body.HSplitTop(4.0f * S, nullptr, &Body);
-	Body.HSplitTop(20.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&s_AnimatedToggle, "Animate nickname blend", g_Config.m_AeGradientNicknameAnimated, &Control))
 		g_Config.m_AeGradientNicknameAnimated ^= 1;
 	Body.HSplitTop(4.0f * S, nullptr, &Body);
 	Body.HSplitTop(20.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeGradientNicknameSpeed, &g_Config.m_AeGradientNicknameSpeed, &Control, "Animation speed", 1, 200, &CUi::ms_LinearScrollbarScale, 0, "%");
+}
+
+void CMenus::RenderSettingsAetherMapBackgroundBuilder(CUIRect Body)
+{
+	const float S = AetherSettingsScale();
+	Body.Draw(AetherPanelColor(0.34f), IGraphics::CORNER_ALL, 6.0f);
+	Body.Margin(12.0f * S, &Body);
+
+	static CButtonContainer s_OpenBuilderButton;
+	CUIRect Text, Button;
+	Body.VSplitRight(170.0f * S, &Text, &Button);
+	Text.VSplitRight(10.0f * S, &Text, nullptr);
+	TextRender()->TextColor(0.74f, 0.82f, 0.92f, 1.0f);
+	Ui()->DoLabel(&Text, "Create a local .map background for cl_background_entities.", 12.0f * S, TEXTALIGN_ML);
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+	if(DoButton_Menu(&s_OpenBuilderButton, "Open builder", 0, &Button))
+		s_AetherMapBackgroundBuilderOpen = true;
+}
+
+void CMenus::RenderSettingsAetherMapBackgroundBuilderPopup(CUIRect Screen)
+{
+	if(!s_AetherMapBackgroundBuilderOpen)
+		return;
+
+	const float S = AetherSettingsScale();
+	static CButtonContainer s_BackButton;
+
+	Screen.Draw(AetherPanelColor(0.42f), IGraphics::CORNER_ALL, 8.0f * S);
+	Screen.Margin(14.0f * S, &Screen);
+
+	CUIRect Header, Body;
+	Screen.HSplitTop(36.0f * S, &Header, &Body);
+	CUIRect Back;
+	Header.VSplitRight(120.0f * S, &Header, &Back);
+	Ui()->DoLabel(&Header, "Map Background Builder", 22.0f * S, TEXTALIGN_ML);
+	if(DoButton_Menu(&s_BackButton, "Back", 0, &Back))
+	{
+		s_AetherMapBackgroundBuilderOpen = false;
+		return;
+	}
+
+	Body.HSplitTop(12.0f * S, nullptr, &Body);
+	static CButtonContainer s_TopColorReset;
+	static CButtonContainer s_BottomColorReset;
+	static CButtonContainer s_AccentColorReset;
+	static CButtonContainer s_ExportButton;
+	static CButtonContainer s_ApplyButton;
+	static CButtonContainer s_ImportButton;
+	static CButtonContainer s_RefreshImportMapsButton;
+	static CButtonContainer s_UseImportLayerButton;
+	static CButtonContainer s_OpenFolderButton;
+	static CButtonContainer s_aGradientButtons[4];
+	static CUi::SDropDownState s_ImportMapDropState;
+	static CScrollRegion s_ImportMapDropScrollRegion;
+	static CUi::SDropDownState s_ImportLayerDropState;
+	static CScrollRegion s_ImportLayerDropScrollRegion;
+	static CLineInput s_NameInput(g_Config.m_AeMapBgExportName, sizeof(g_Config.m_AeMapBgExportName));
+	static char s_aStatus[192] = "Creates a local background map for cl_background_entities.";
+	static const char *s_apGradientTypes[] = {"Vertical", "Horizontal", "Diagonal", "Radial"};
+	static std::vector<std::string> s_vImportMaps;
+	static std::vector<const char *> s_vpImportMaps;
+	static int s_ImportMapIndex = 0;
+	static bool s_ImportMapsScanned = false;
+	static std::vector<SAetherMapBgImportedLayer> s_vImportedLayers;
+	static int s_ImportedLayerIndex = 0;
+
+	auto RefreshImportMaps = [&]() {
+		s_vImportMaps.clear();
+		Storage()->ListDirectory(IStorage::TYPE_ALL, "maps", AetherMapBgMapScan, &s_vImportMaps);
+		std::sort(s_vImportMaps.begin(), s_vImportMaps.end(), [](const std::string &a, const std::string &b) {
+			return str_comp_nocase(a.c_str(), b.c_str()) < 0;
+		});
+		s_vpImportMaps.resize(s_vImportMaps.size());
+		for(size_t i = 0; i < s_vImportMaps.size(); ++i)
+			s_vpImportMaps[i] = s_vImportMaps[i].c_str();
+		s_ImportMapIndex = std::clamp(s_ImportMapIndex, 0, maximum(0, (int)s_vImportMaps.size() - 1));
+		if(g_Config.m_ClBackgroundEntities[0] != '\0')
+		{
+			const char *pBg = g_Config.m_ClBackgroundEntities[0] == '/' ? g_Config.m_ClBackgroundEntities + 1 : g_Config.m_ClBackgroundEntities;
+			for(size_t i = 0; i < s_vImportMaps.size(); ++i)
+			{
+				if(str_comp_nocase(s_vImportMaps[i].c_str(), pBg) == 0)
+				{
+					s_ImportMapIndex = (int)i;
+					break;
+				}
+			}
+		}
+		s_ImportMapsScanned = true;
+	};
+	if(!s_ImportMapsScanned)
+		RefreshImportMaps();
+
+	CUIRect Top, Bottom;
+	const float TopHeight = std::min(520.0f * S, std::max(160.0f * S, Body.h - 190.0f * S));
+	Body.HSplitTop(TopHeight, &Top, &Bottom);
+	CUIRect Preview, Controls;
+	Top.VSplitMid(&Preview, &Controls, 14.0f * S);
+
+	Preview.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.22f), IGraphics::CORNER_ALL, 7.0f * S);
+	Preview.Margin(10.0f * S, &Preview);
+	CUIRect PreviewTitle, PreviewBox;
+	Preview.HSplitTop(20.0f * S, &PreviewTitle, &PreviewBox);
+	Ui()->DoLabel(&PreviewTitle, "Background preview", 13.0f * S, TEXTALIGN_ML);
+	PreviewBox.HMargin(4.0f * S, &PreviewBox);
+	if(!s_vImportedLayers.empty())
+		AetherDrawImportedBackgroundPreview(Graphics(), PreviewBox, s_vImportedLayers[std::clamp(s_ImportedLayerIndex, 0, (int)s_vImportedLayers.size() - 1)]);
+	else
+	{
+		Graphics()->TextureClear();
+		Graphics()->QuadsBegin();
+		const ColorRGBA TopLeft = AetherMapBgPreviewColor(0.0f, 0.0f);
+		const ColorRGBA TopRight = AetherMapBgPreviewColor(1.0f, 0.0f);
+		const ColorRGBA BottomLeft = AetherMapBgPreviewColor(0.0f, 1.0f);
+		const ColorRGBA BottomRight = AetherMapBgPreviewColor(1.0f, 1.0f);
+		IGraphics::CColorVertex aVertices[] = {
+			IGraphics::CColorVertex(0, TopLeft.r, TopLeft.g, TopLeft.b, TopLeft.a),
+			IGraphics::CColorVertex(1, TopRight.r, TopRight.g, TopRight.b, TopRight.a),
+			IGraphics::CColorVertex(2, BottomLeft.r, BottomLeft.g, BottomLeft.b, BottomLeft.a),
+			IGraphics::CColorVertex(3, BottomRight.r, BottomRight.g, BottomRight.b, BottomRight.a)};
+		Graphics()->SetColorVertex(aVertices, std::size(aVertices));
+		const IGraphics::CFreeformItem PreviewQuad(
+			PreviewBox.x, PreviewBox.y,
+			PreviewBox.x + PreviewBox.w, PreviewBox.y,
+			PreviewBox.x, PreviewBox.y + PreviewBox.h,
+			PreviewBox.x + PreviewBox.w, PreviewBox.y + PreviewBox.h);
+		Graphics()->QuadsDrawFreeform(&PreviewQuad, 1);
+		Graphics()->QuadsEnd();
+	}
+	PreviewBox.DrawOutline(ColorRGBA(1.0f, 1.0f, 1.0f, 0.14f));
+
+	Controls.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.14f), IGraphics::CORNER_ALL, 7.0f * S);
+	Controls.Margin(10.0f * S, &Controls);
+	CUIRect Row, Label, Control;
+	Controls.HSplitTop(22.0f * S, &Row, &Controls);
+	AetherOptionRow(Row, S, &Label, &Control);
+	Ui()->DoLabel(&Label, "Gradient type", 13.0f * S, TEXTALIGN_ML);
+	const float GradientButtonWidth = Control.w / std::size(s_apGradientTypes);
+	for(int i = 0; i < (int)std::size(s_apGradientTypes); ++i)
+	{
+		CUIRect GradientButton;
+		Control.VSplitLeft(i == (int)std::size(s_apGradientTypes) - 1 ? Control.w : GradientButtonWidth, &GradientButton, &Control);
+		const int Corners = i == 0 ? IGraphics::CORNER_L : i == (int)std::size(s_apGradientTypes) - 1 ? IGraphics::CORNER_R : IGraphics::CORNER_NONE;
+		if(DoButton_Menu(&s_aGradientButtons[i], s_apGradientTypes[i], g_Config.m_AeMapBgGradientType == i, &GradientButton, BUTTONFLAG_LEFT, nullptr, Corners))
+			g_Config.m_AeMapBgGradientType = i;
+	}
+	Controls.HSplitTop(4.0f * S, nullptr, &Controls);
+	Controls.HSplitTop(20.0f * S, &Row, &Controls);
+	Ui()->DoScrollbarOption(&g_Config.m_AeMapBgAngle, &g_Config.m_AeMapBgAngle, &Row, "Angle", -180, 180, &CUi::ms_LinearScrollbarScale, 0, "");
+	Controls.HSplitTop(4.0f * S, nullptr, &Controls);
+	DoLine_ColorPicker(&s_TopColorReset, 22.0f * S, 12.0f * S, 3.0f * S, &Controls, "Top color", &g_Config.m_AeMapBgTopColor, ColorRGBA(0.04f, 0.18f, 0.32f), false);
+	DoLine_ColorPicker(&s_BottomColorReset, 22.0f * S, 12.0f * S, 3.0f * S, &Controls, "Bottom color", &g_Config.m_AeMapBgBottomColor, ColorRGBA(0.11f, 0.06f, 0.17f), false);
+	DoLine_ColorPicker(&s_AccentColorReset, 22.0f * S, 12.0f * S, 3.0f * S, &Controls, "Accent color", &g_Config.m_AeMapBgAccentColor, ColorRGBA(0.12f, 0.56f, 0.66f), false);
+	Controls.HSplitTop(20.0f * S, &Row, &Controls);
+	Ui()->DoScrollbarOption(&g_Config.m_AeMapBgBrightness, &g_Config.m_AeMapBgBrightness, &Row, "Brightness", 40, 160, &CUi::ms_LinearScrollbarScale, 0, "%");
+	Controls.HSplitTop(4.0f * S, nullptr, &Controls);
+	Controls.HSplitTop(20.0f * S, &Row, &Controls);
+	Ui()->DoScrollbarOption(&g_Config.m_AeMapBgContrast, &g_Config.m_AeMapBgContrast, &Row, "Contrast", 40, 180, &CUi::ms_LinearScrollbarScale, 0, "%");
+	Controls.HSplitTop(4.0f * S, nullptr, &Controls);
+	Controls.HSplitTop(20.0f * S, &Row, &Controls);
+	Ui()->DoScrollbarOption(&g_Config.m_AeMapBgSaturation, &g_Config.m_AeMapBgSaturation, &Row, "Saturation", 0, 180, &CUi::ms_LinearScrollbarScale, 0, "%");
+	Controls.HSplitTop(4.0f * S, nullptr, &Controls);
+	Controls.HSplitTop(20.0f * S, &Row, &Controls);
+	Ui()->DoScrollbarOption(&g_Config.m_AeMapBgVignette, &g_Config.m_AeMapBgVignette, &Row, "Vignette", 0, 80, &CUi::ms_LinearScrollbarScale, 0, "%");
+
+	Bottom.HSplitTop(8.0f * S, nullptr, &Bottom);
+	CUIRect NameRow;
+	Bottom.HSplitTop(28.0f * S, &NameRow, &Bottom);
+	AetherOptionRow(NameRow, S, &Label, &Control);
+	Ui()->DoLabel(&Label, "Map name", 13.0f * S, TEXTALIGN_ML);
+	Ui()->DoEditBox(&s_NameInput, &Control, 13.0f * S, IGraphics::CORNER_ALL, {}, 5.0f * S);
+
+	Bottom.HSplitTop(6.0f * S, nullptr, &Bottom);
+	CUIRect ImportRow;
+	Bottom.HSplitTop(28.0f * S, &ImportRow, &Bottom);
+	AetherOptionRow(ImportRow, S, &Label, &Control);
+	Ui()->DoLabel(&Label, "Import map", 13.0f * S, TEXTALIGN_ML);
+	CUIRect ImportButton, RefreshButton, ImportMapDrop;
+	Control.VSplitRight(92.0f * S, &ImportMapDrop, &ImportButton);
+	ImportMapDrop.VSplitRight(6.0f * S, &ImportMapDrop, nullptr);
+	ImportMapDrop.VSplitRight(34.0f * S, &ImportMapDrop, &RefreshButton);
+	ImportMapDrop.VSplitRight(6.0f * S, &ImportMapDrop, nullptr);
+	if(!s_vpImportMaps.empty())
+	{
+		s_ImportMapDropState.m_SelectionPopupContext.m_pScrollRegion = &s_ImportMapDropScrollRegion;
+		const int NewMapIndex = Ui()->DoDropDown(&ImportMapDrop, s_ImportMapIndex, s_vpImportMaps.data(), (int)s_vpImportMaps.size(), s_ImportMapDropState);
+		if(NewMapIndex != s_ImportMapIndex && NewMapIndex >= 0 && NewMapIndex < (int)s_vImportMaps.size())
+		{
+			s_ImportMapIndex = NewMapIndex;
+			s_vImportedLayers.clear();
+		}
+	}
+	else
+	{
+		ImportMapDrop.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, 0.10f), IGraphics::CORNER_ALL, 5.0f * S);
+		Ui()->DoLabel(&ImportMapDrop, "No maps found", 12.0f * S, TEXTALIGN_MC);
+	}
+	if(DoButton_Menu(&s_RefreshImportMapsButton, "R", 0, &RefreshButton))
+		RefreshImportMaps();
+	if(DoButton_Menu(&s_ImportButton, "Import", 0, &ImportButton))
+	{
+		const char *pImportMap = !s_vImportMaps.empty() ? s_vImportMaps[s_ImportMapIndex].c_str() : g_Config.m_ClBackgroundEntities;
+		if(AetherImportBackgroundLayers(Storage(), pImportMap, s_vImportedLayers, s_aStatus, sizeof(s_aStatus)))
+		{
+			s_ImportedLayerIndex = 0;
+			AetherUseImportedBackgroundLayer(s_vImportedLayers[s_ImportedLayerIndex]);
+			if(s_vImportedLayers[s_ImportedLayerIndex].m_aSourceName[0] != '\0')
+			{
+				char aExportName[64];
+				str_format(aExportName, sizeof(aExportName), "%s_aether", s_vImportedLayers[s_ImportedLayerIndex].m_aSourceName);
+				str_copy(g_Config.m_AeMapBgExportName, aExportName);
+				s_NameInput.Set(aExportName);
+			}
+		}
+	}
+	if(!s_vImportedLayers.empty())
+	{
+		s_ImportedLayerIndex = std::clamp(s_ImportedLayerIndex, 0, (int)s_vImportedLayers.size() - 1);
+		Bottom.HSplitTop(4.0f * S, nullptr, &Bottom);
+		CUIRect LayerRow;
+		Bottom.HSplitTop(26.0f * S, &LayerRow, &Bottom);
+		AetherOptionRow(LayerRow, S, &Label, &Control);
+		char aLayerLabel[96];
+		str_format(aLayerLabel, sizeof(aLayerLabel), "Imported layer %d/%d", s_ImportedLayerIndex + 1, (int)s_vImportedLayers.size());
+		Ui()->DoLabel(&Label, aLayerLabel, 13.0f * S, TEXTALIGN_ML);
+		CUIRect Drop, Use;
+		Control.VSplitRight(94.0f * S, &Drop, &Use);
+		Drop.VSplitRight(8.0f * S, &Drop, nullptr);
+		static std::vector<std::string> s_vImportLayerNames;
+		static std::vector<const char *> s_vpImportLayerNames;
+		s_vImportLayerNames.resize(s_vImportedLayers.size());
+		s_vpImportLayerNames.resize(s_vImportedLayers.size());
+		for(size_t i = 0; i < s_vImportedLayers.size(); ++i)
+		{
+			char aName[96];
+			str_format(aName, sizeof(aName), "%d. %s", (int)i + 1, s_vImportedLayers[i].m_aName);
+			s_vImportLayerNames[i] = aName;
+			s_vpImportLayerNames[i] = s_vImportLayerNames[i].c_str();
+		}
+		s_ImportLayerDropState.m_SelectionPopupContext.m_pScrollRegion = &s_ImportLayerDropScrollRegion;
+		const int NewLayerIndex = Ui()->DoDropDown(&Drop, s_ImportedLayerIndex, s_vpImportLayerNames.data(), (int)s_vpImportLayerNames.size(), s_ImportLayerDropState);
+		if(NewLayerIndex != s_ImportedLayerIndex && NewLayerIndex >= 0 && NewLayerIndex < (int)s_vImportedLayers.size())
+		{
+			s_ImportedLayerIndex = NewLayerIndex;
+			AetherUseImportedBackgroundLayer(s_vImportedLayers[s_ImportedLayerIndex]);
+		}
+		if(DoButton_Menu(&s_UseImportLayerButton, "Use layer", 0, &Use))
+			AetherUseImportedBackgroundLayer(s_vImportedLayers[s_ImportedLayerIndex]);
+	}
+
+	Bottom.HSplitTop(8.0f * S, nullptr, &Bottom);
+	CUIRect Buttons;
+	Bottom.HSplitTop(30.0f * S, &Buttons, &Bottom);
+	CUIRect ExportButton, ApplyButton, FolderButton;
+	Buttons.VSplitRight(150.0f * S, &Buttons, &FolderButton);
+	Buttons.VSplitRight(8.0f * S, &Buttons, nullptr);
+	Buttons.VSplitRight(150.0f * S, &Buttons, &ApplyButton);
+	Buttons.VSplitRight(8.0f * S, &Buttons, nullptr);
+	Buttons.VSplitRight(150.0f * S, &Buttons, &ExportButton);
+	if(DoButton_Menu(&s_ExportButton, "Export map", 0, &ExportButton))
+	{
+		char aStatus[192];
+		const SAetherMapBgImportedLayer *pImportedLayer = s_vImportedLayers.empty() ? nullptr : &s_vImportedLayers[std::clamp(s_ImportedLayerIndex, 0, (int)s_vImportedLayers.size() - 1)];
+		if(AetherWriteBackgroundTemplateMap(Storage(), g_Config.m_AeMapBgExportName, aStatus, sizeof(aStatus), pImportedLayer))
+			str_copy(s_aStatus, aStatus);
+		else
+			str_copy(s_aStatus, aStatus);
+	}
+	if(DoButton_Menu(&s_ApplyButton, "Export + apply", 0, &ApplyButton))
+	{
+		char aCleanName[64];
+		AetherSanitizeExportName(g_Config.m_AeMapBgExportName, aCleanName, sizeof(aCleanName));
+		if(aCleanName[0] == '\0')
+			str_copy(aCleanName, "aether_bg");
+		char aStatus[192];
+		const SAetherMapBgImportedLayer *pImportedLayer = s_vImportedLayers.empty() ? nullptr : &s_vImportedLayers[std::clamp(s_ImportedLayerIndex, 0, (int)s_vImportedLayers.size() - 1)];
+		if(AetherWriteBackgroundTemplateMap(Storage(), aCleanName, aStatus, sizeof(aStatus), pImportedLayer))
+		{
+			str_format(g_Config.m_ClBackgroundEntities, sizeof(g_Config.m_ClBackgroundEntities), "/%s.map", aCleanName);
+			g_Config.m_ClBackgroundShowTilesLayers = 0;
+			GameClient()->m_Background.LoadBackground();
+			str_format(s_aStatus, sizeof(s_aStatus), "Exported and applied /%s.map.", aCleanName);
+		}
+		else
+			str_copy(s_aStatus, aStatus);
+	}
+	if(DoButton_Menu(&s_OpenFolderButton, "Open maps", 0, &FolderButton))
+	{
+		char aDir[IO_MAX_PATH_LENGTH];
+		Storage()->GetCompletePath(IStorage::TYPE_SAVE, "maps", aDir, sizeof(aDir));
+		Client()->ViewFile(aDir);
+	}
+	Bottom.HSplitTop(8.0f * S, nullptr, &Bottom);
+	Bottom.HSplitTop(22.0f * S, &Row, &Bottom);
+	TextRender()->TextColor(0.72f, 0.80f, 0.90f, 1.0f);
+	Ui()->DoLabel(&Row, s_aStatus, 12.0f * S, TEXTALIGN_ML);
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
 void CMenus::RenderSettingsAetherCustomResolution(CUIRect Body)
@@ -5260,6 +6012,11 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 
 	UpdateAetherSettingsScale(MainView);
 	const float S = AetherSettingsScale();
+	if(s_AetherMapBackgroundBuilderOpen)
+	{
+		RenderSettingsAetherMapBackgroundBuilderPopup(MainView);
+		return;
+	}
 	static const std::array<const char *, 7> s_apMusicChildren = {
 		"Dynamic cover color",
 		"Background color",
@@ -5439,7 +6196,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		"Edge2Edge Freeze Tiles",
 		"Keybinds",
 		"Open folder"};
-	static const std::array<const char *, 23> s_apFastInputChildren = {
+	static const std::array<const char *, 24> s_apFastInputChildren = {
 		"TClient",
 		"Adaptive",
 		"Saiko+",
@@ -5447,7 +6204,8 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		"Hook fire amount",
 		"Saiko amount",
 		"Saiko+ input others",
-		"Instant A/D response",
+		"A/D reverse",
+		"A/D to none",
 		"Brake amount",
 		"Adaptive input other tees",
 		"Other tees feel",
@@ -5493,13 +6251,12 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		"Keyboard folder",
 		"Typing sound file",
 		"Volume"};
-	static const std::array<const char *, 8> s_apGradientTeamColorChildren = {
+	static const std::array<const char *, 7> s_apGradientTeamColorChildren = {
 		"Team background gradient",
 		"Nickname gradient",
 		"Sparkle effect",
 		"Nickname start",
 		"Nickname end",
-		"Glow intensity",
 		"Animate nickname blend",
 		"Animation speed"};
 	static const std::array<const char *, 4> s_apBrowserUtilsChildren = {
@@ -5565,6 +6322,18 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		"Opacity",
 		"Export",
 		"Apply"};
+	static const std::array<const char *, 11> s_apMapBackgroundChildren = {
+		"Gradient type",
+		"Angle",
+		"Top color",
+		"Bottom color",
+		"Accent color",
+		"Brightness",
+		"Contrast",
+		"Saturation",
+		"Vignette",
+		"Export map",
+		"Apply background"};
 	static const std::array<const char *, 9> s_apOptimizerChildren = {
 		"High process priority",
 		"Discord priority",
@@ -5576,7 +6345,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		"Fog rectangle",
 		"Fog radius"};
 	static const std::array<const char *, 0> s_apEditorChildren = {};
-	const std::array<SFeature, 43> aFeatures = {{
+	const std::array<SFeature, 44> aFeatures = {{
 		{AetherMusic::EAetherFeatureId::GRADIENT_TEAM_COLORS, EAetherPage::VISUALS, ESection::VISUALS, "Gradient Effects", nullptr, s_apGradientTeamColorChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::MUSIC_PLAYER, EAetherPage::VISUALS, ESection::VISUALS, "Music Player", &g_Config.m_AeMusicPlayer, s_apMusicChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::KEYSTROKES, EAetherPage::VISUALS, ESection::VISUALS, "Keystrokes", &g_Config.m_AeKeystrokes, s_apKeystrokesChildren, EEditorAction::NONE},
@@ -5593,13 +6362,13 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		{AetherMusic::EAetherFeatureId::THREE_D_PARTICLES, EAetherPage::VISUALS, ESection::VISUALS, "3D Particles", &g_Config.m_Ae3DParticles, s_apThreeDParticlesChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::LOADING_THEME_BACKGROUND, EAetherPage::VISUALS, ESection::VISUALS, "Loading Theme Background", &g_Config.m_AeLoadingThemeBackground, s_apLoadingThemeChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::CLIENT_BADGES, EAetherPage::VISUALS, ESection::VISUALS, "Client Badges", &g_Config.m_AeBadges, s_apBadgesChildren, EEditorAction::NONE},
+		{AetherMusic::EAetherFeatureId::FAST_INPUT, EAetherPage::GAMEPLAY, ESection::GAMEPLAY, "Aether Fast Input", &g_Config.m_AeFastInput, s_apFastInputChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::PING_WHEEL, EAetherPage::GAMEPLAY, ESection::GAMEPLAY, "Ping Wheel", &g_Config.m_AePings, s_apPingChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::CHAT_BUBBLES, EAetherPage::VISUALS, ESection::VISUALS, "Chat Bubbles", &g_Config.m_AeChatBubbles, s_apChatBubblesChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::BLOCK_AWARENESS, EAetherPage::GAMEPLAY, ESection::GAMEPLAY, "Block Awareness", &g_Config.m_AeBlockAwareness, s_apBlockAwarenessChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::FOCUS_MODE, EAetherPage::GAMEPLAY, ESection::GAMEPLAY, "Focus Mode", &g_Config.m_AeFocusMode, s_apFocusModeChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::SNAP_TAP, EAetherPage::GAMEPLAY, ESection::GAMEPLAY, "Snap Tap", &g_Config.m_AeSnapTap, s_apSnapTapChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::GORES_MODE, EAetherPage::GAMEPLAY, ESection::GAMEPLAY, "Gores Mode", &g_Config.m_AeGoresMode, s_apGoresModeChildren, EEditorAction::NONE},
-		{AetherMusic::EAetherFeatureId::FAST_INPUT, EAetherPage::GAMEPLAY, ESection::GAMEPLAY, "Aether Fast Input", &g_Config.m_AeFastInput, s_apFastInputChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::FAST_SPEC, EAetherPage::GAMEPLAY, ESection::GAMEPLAY, "Fast Spec", &g_Config.m_AeFastSpec, s_apFastSpecChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::TRANSLATOR, EAetherPage::TOOLS, ESection::TOOLS, "Translator", nullptr, s_apTranslatorChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::SILENT_TYPING, EAetherPage::GAMEPLAY, ESection::GAMEPLAY, "Silent Typing", &g_Config.m_AeSilentTyping, s_apSilentTypingChildren, EEditorAction::NONE},
@@ -5611,6 +6380,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		{AetherMusic::EAetherFeatureId::DDRACE_CONFIGS, EAetherPage::TOOLS, ESection::TOOLS, "DDRace Configs", nullptr, s_apDdraceConfigsChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::HUD_EDITOR, EAetherPage::TOOLS, ESection::EDITORS, "HUD Editor", nullptr, s_apEditorChildren, EEditorAction::OPEN_HUD_EDITOR},
 		{AetherMusic::EAetherFeatureId::ASSETS_EDITOR, EAetherPage::TOOLS, ESection::EDITORS, "Assets Editor", nullptr, s_apAssetsEditorChildren, EEditorAction::OPEN_ASSETS_EDITOR},
+		{AetherMusic::EAetherFeatureId::MAP_BACKGROUND_BUILDER, EAetherPage::TOOLS, ESection::EDITORS, "Map Background Builder", nullptr, s_apMapBackgroundChildren, EEditorAction::OPEN_MAP_BACKGROUND_BUILDER},
 		{AetherMusic::EAetherFeatureId::GORES_MAPS, EAetherPage::TOOLS, ESection::TOOLS, "Gores Maps", nullptr, s_apGoresMapsChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::VAULT_CFG, EAetherPage::TOOLS, ESection::TOOLS, "Vault CFG Save", nullptr, s_apVaultCfgChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::CUSTOM_RESOLUTION, EAetherPage::TOOLS, ESection::TOOLS, "Custom Aspect Ratio", &g_Config.m_AeCustomResolution, s_apCustomResolutionChildren, EEditorAction::NONE},
@@ -5728,6 +6498,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 	static CButtonContainer s_aExpandButtons[64];
 	static CButtonContainer s_OpenEditorButton;
 	static CButtonContainer s_OpenAssetsEditorButton;
+	static CButtonContainer s_OpenMapBackgroundBuilderButton;
 	static std::array<float, 64> s_aBodyAnimations = {};
 	const float AnimationStep = g_Config.m_AeOptimizer && g_Config.m_AeOptimizerDisableMenuAnimations ? 1.0f : std::clamp(Client()->RenderFrameTime() * 18.0f, 0.0f, 1.0f);
 
@@ -5785,11 +6556,12 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		case AetherMusic::EAetherFeatureId::CLOUD_CLAN: return 430.0f * S;
 		case AetherMusic::EAetherFeatureId::GORES_MAPS: return 430.0f * S;
 		case AetherMusic::EAetherFeatureId::ASSETS_EDITOR: return 0.0f;
+		case AetherMusic::EAetherFeatureId::MAP_BACKGROUND_BUILDER: return 58.0f * S;
 		case AetherMusic::EAetherFeatureId::FOCUS_MODE: return 126.0f * S;
 		case AetherMusic::EAetherFeatureId::SNAP_TAP: return 46.0f * S;
 		case AetherMusic::EAetherFeatureId::GORES_MODE: return 86.0f * S;
 		case AetherMusic::EAetherFeatureId::DDRACE_CONFIGS: return 172.0f * S;
-		case AetherMusic::EAetherFeatureId::FAST_INPUT: return 430.0f * S;
+		case AetherMusic::EAetherFeatureId::FAST_INPUT: return 520.0f * S;
 		case AetherMusic::EAetherFeatureId::FAST_SPEC: return 104.0f * S;
 		case AetherMusic::EAetherFeatureId::TRANSLATOR: return 124.0f * S;
 		case AetherMusic::EAetherFeatureId::SILENT_TYPING: return 52.0f * S;
@@ -5882,6 +6654,9 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 			break;
 		case AetherMusic::EAetherFeatureId::ASSETS_EDITOR:
 			RenderSettingsAetherAssetsEditor(Body);
+			break;
+		case AetherMusic::EAetherFeatureId::MAP_BACKGROUND_BUILDER:
+			RenderSettingsAetherMapBackgroundBuilder(Body);
 			break;
 		case AetherMusic::EAetherFeatureId::FOCUS_MODE:
 			RenderSettingsAetherFocusMode(Body);
@@ -8026,6 +8801,11 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 						DoButton_Menu(&s_OpenAssetsEditorButton, Localize("Open"), 0, &OpenButton))
 					{
 						s_AetherAssetsEditorOpen = true;
+					}
+					else if(Feature.m_EditorAction == EEditorAction::OPEN_MAP_BACKGROUND_BUILDER &&
+						DoButton_Menu(&s_OpenMapBackgroundBuilderButton, Localize("Open"), 0, &OpenButton))
+					{
+						s_AetherMapBackgroundBuilderOpen = true;
 					}
 				}
 				else

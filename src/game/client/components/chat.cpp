@@ -156,8 +156,10 @@ void CChat::OpenLineContext(const CLine &Line, float X, float Y)
 	BuildLineContextText(Line, m_ChatContextPopup.m_aText, sizeof(m_ChatContextPopup.m_aText));
 	m_ChatContextPopup.m_aLink[0] = '\0';
 	AetherExtractFirstLink(m_ChatContextPopup.m_aText, m_ChatContextPopup.m_aLink, sizeof(m_ChatContextPopup.m_aLink));
+	if(m_ChatContextPopup.m_aLink[0] == '\0')
+		return;
 	const float PopupW = 112.0f;
-	const float PopupH = m_ChatContextPopup.m_aLink[0] ? 68.0f : 23.0f;
+	const float PopupH = 44.0f;
 	const float ScreenW = 300.0f * Graphics()->ScreenAspect();
 	const float ScreenH = 300.0f;
 	Ui()->DoPopupMenu(&m_ChatContextPopup, std::clamp(X, 0.0f, maximum(0.0f, ScreenW - PopupW)), std::clamp(Y, 0.0f, maximum(0.0f, ScreenH - PopupH)), PopupW, PopupH, &m_ChatContextPopup, CChatContextPopup::Render);
@@ -193,15 +195,6 @@ CUi::EPopupMenuFunctionResult CChat::CChatContextPopup::Render(void *pContext, C
 	CChatContextPopup *pPopup = static_cast<CChatContextPopup *>(pContext);
 	CChat *pChat = pPopup->m_pChat;
 	CUIRect Row;
-	View.HSplitTop(19.0f, &Row, &View);
-	if(pChat->Ui()->DoButton_PopupMenu(&pPopup->m_CopyTextButton, "Copy text", &Row, 10.0f, TEXTALIGN_MC))
-	{
-		pChat->Input()->SetClipboardText(pPopup->m_aText);
-		return CUi::POPUP_CLOSE_CURRENT;
-	}
-	if(pPopup->m_aLink[0] == '\0')
-		return CUi::POPUP_KEEP_OPEN;
-	View.HSplitTop(4.0f, nullptr, &View);
 	View.HSplitTop(19.0f, &Row, &View);
 	if(pChat->Ui()->DoButton_PopupMenu(&pPopup->m_CopyLinkButton, "Copy link", &Row, 10.0f, TEXTALIGN_MC))
 	{
@@ -323,6 +316,7 @@ void CChat::ClearLines()
 {
 	for(auto &Line : m_aLines)
 		Line.Reset(*this);
+	m_ChatScrollOffset = 0;
 	m_PrevScoreBoardShowed = false;
 	m_PrevShowChat = false;
 }
@@ -473,6 +467,19 @@ bool CChat::OnCursorMove(float x, float y, IInput::ECursorType CursorType)
 
 bool CChat::OnInput(const IInput::CEvent &Event)
 {
+	if(m_Mode != MODE_NONE && (Event.m_Flags & IInput::FLAG_PRESS) && (Event.m_Key == KEY_MOUSE_WHEEL_UP || Event.m_Key == KEY_MOUSE_WHEEL_DOWN))
+	{
+		int InitializedLines = 0;
+		for(const CLine &Line : m_aLines)
+		{
+			if(Line.m_Initialized)
+				++InitializedLines;
+		}
+		const int MaxOffset = maximum(0, InitializedLines - 1);
+		m_ChatScrollOffset = std::clamp(m_ChatScrollOffset + (Event.m_Key == KEY_MOUSE_WHEEL_UP ? 1 : -1), 0, MaxOffset);
+		return true;
+	}
+
 	if(m_Mode != MODE_NONE && (Event.m_Flags & IInput::FLAG_PRESS) && Event.m_Key == KEY_MOUSE_2)
 	{
 		const vec2 Mouse = Ui()->MousePos();
@@ -788,6 +795,7 @@ void CChat::EnableMode(int Team)
 		m_CompletionUsed = false;
 		m_Input.Activate(EInputPriority::CHAT);
 		m_ChatCursorInitialized = false;
+		m_ChatScrollOffset = 0;
 		if(g_Config.m_AeSaveUnsentMessages)
 			m_Input.Clear();
 		RestoreDraftForCurrentMode();
@@ -1323,7 +1331,8 @@ void CChat::OnPrepareLines(float y)
 	float TextBegin = Begin + RealMsgPaddingX / 2.0f;
 	int OffsetType = IsScoreBoardOpen ? 1 : 0;
 
-	for(int i = 0; i < MAX_LINES; i++)
+	const int ChatScrollOffset = m_Mode != MODE_NONE ? m_ChatScrollOffset : 0;
+	for(int i = ChatScrollOffset; i < MAX_LINES; i++)
 	{
 		CLine &Line = m_aLines[((m_CurrentLine - i) + MAX_LINES) % MAX_LINES];
 		if(!Line.m_Initialized)
@@ -1799,7 +1808,8 @@ void CChat::OnRender()
 		RealMsgPaddingTee = 0;
 	}
 
-	for(int i = 0; i < MAX_LINES; i++)
+	const int ChatScrollOffset = m_Mode != MODE_NONE ? m_ChatScrollOffset : 0;
+	for(int i = ChatScrollOffset; i < MAX_LINES; i++)
 	{
 		CLine &Line = m_aLines[((m_CurrentLine - i) + MAX_LINES) % MAX_LINES];
 		if(!Line.m_Initialized)

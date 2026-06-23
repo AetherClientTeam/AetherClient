@@ -701,6 +701,17 @@ void CMenus::RenderDemoPlayer(CUIRect MainView)
 	}
 	GameClient()->m_Tooltips.DoToolTip(&s_SliceSaveButton, &Button, Localize("Export cut as a separate demo"));
 
+	// settings button
+	ButtonBar.VSplitRight(ButtonbarHeight, &ButtonBar, &Button);
+	static CButtonContainer s_SettingsButton;
+	if(Ui()->DoButton_FontIcon(&s_SettingsButton, FontIcon::GEAR, 0, &Button, BUTTONFLAG_LEFT))
+	{
+		m_GamePage = PAGE_SETTINGS;
+	}
+	GameClient()->m_Tooltips.DoToolTip(&s_SettingsButton, &Button, Localize("Open settings"));
+
+	ButtonBar.VSplitRight(Margins, &ButtonBar, nullptr);
+
 	// close button
 	ButtonBar.VSplitRight(ButtonbarHeight, &ButtonBar, &Button);
 	static CButtonContainer s_ExitButton;

@@ -34,7 +34,7 @@ int process_id()
 }
 
 #if !defined(CONF_PLATFORM_ANDROID)
-PROCESS process_execute(const char *file, EShellExecuteWindowState window_state, const char **arguments, const size_t num_arguments)
+PROCESS process_execute(const char *file, EShellExecuteWindowState window_state, const char **arguments, const size_t num_arguments, const char *working_directory)
 {
 	dbg_assert((arguments == nullptr) == (num_arguments == 0), "Invalid number of arguments");
 #if defined(CONF_FAMILY_WINDOWS)
@@ -43,6 +43,7 @@ PROCESS process_execute(const char *file, EShellExecuteWindowState window_state,
 
 	const std::wstring wide_file = windows_utf8_to_wide(file);
 	std::wstring wide_arguments = windows_args_to_wide(arguments, num_arguments);
+	const std::wstring wide_working_directory = working_directory != nullptr ? windows_utf8_to_wide(working_directory) : std::wstring();
 
 	SHELLEXECUTEINFOW info;
 	mem_zero(&info, sizeof(SHELLEXECUTEINFOW));
@@ -50,6 +51,7 @@ PROCESS process_execute(const char *file, EShellExecuteWindowState window_state,
 	info.lpVerb = L"open";
 	info.lpFile = wide_file.c_str();
 	info.lpParameters = num_arguments > 0 ? wide_arguments.c_str() : nullptr;
+	info.lpDirectory = working_directory != nullptr ? wide_working_directory.c_str() : nullptr;
 	switch(window_state)
 	{
 	case EShellExecuteWindowState::FOREGROUND:
@@ -86,6 +88,8 @@ PROCESS process_execute(const char *file, EShellExecuteWindowState window_state,
 	}
 	if(pid == 0)
 	{
+		if(working_directory != nullptr)
+			chdir(working_directory);
 		execvp(file, argv);
 		_exit(1);
 	}

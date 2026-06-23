@@ -112,6 +112,7 @@ class CChat : public CComponent
 
 	CLine m_aLines[MAX_LINES];
 	int m_CurrentLine;
+	int m_ChatScrollOffset = 0;
 
 	enum
 	{

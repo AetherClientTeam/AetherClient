@@ -41,7 +41,7 @@ ColorRGBA AetherGradientNicknameColor(int ClientId, float Alpha, const CAetherBa
 	{
 		T = 0.5f + 0.5f * std::sin(Seconds * (0.25f + Style.m_Speed / 45.0f) + ClientId * 0.73f);
 	}
-	float Glow = Style.m_Glow / 100.0f;
+	float Glow = 0.0f;
 	if(Style.m_Style == 1)
 	{
 		const float Shine = std::pow(0.5f + 0.5f * std::sin(Seconds * (1.0f + Style.m_Speed / 30.0f) + ClientId * 0.37f), 3.0f);
@@ -83,29 +83,11 @@ ColorRGBA AetherGradientNicknameColor(int ClientId, float Alpha, const CAetherBa
 
 bool AetherGradientNicknameGlow(const CAetherBadges::SGradientNicknameStyle &Style, const ColorRGBA &TextColor, ColorRGBA &GlowColor, float &GlowRadius)
 {
-	float Strength = Style.m_Glow / 100.0f;
-	if(Style.m_Style == 1)
-		Strength = maximum(Strength, 0.48f);
-	else if(Style.m_Style == 2)
-		Strength = maximum(Strength, 0.30f);
-	if(Strength <= 0.001f)
-		return false;
+	(void)Style;
 	GlowColor = TextColor;
-	GlowColor.a = TextColor.a * Strength * (Style.m_Style == 1 ? 0.52f : Style.m_Style == 2 ? 0.34f : 0.26f);
-	if(Style.m_Style == 1)
-	{
-		GlowColor.r = minimum(1.0f, GlowColor.r * 1.45f + 0.22f);
-		GlowColor.g = minimum(1.0f, GlowColor.g * 1.35f + 0.16f);
-		GlowColor.b = minimum(1.0f, GlowColor.b * 1.18f + 0.04f);
-	}
-	else if(Style.m_Style == 2)
-	{
-		GlowColor.r = minimum(1.0f, GlowColor.r * 1.22f + 0.08f);
-		GlowColor.g = minimum(1.0f, GlowColor.g * 1.22f + 0.08f);
-		GlowColor.b = minimum(1.0f, GlowColor.b * 1.22f + 0.08f);
-	}
-	GlowRadius = 0.5f + Strength * (Style.m_Style == 1 ? 2.2f : Style.m_Style == 2 ? 1.6f : 1.1f);
-	return true;
+	GlowColor.a = 0.0f;
+	GlowRadius = 0.0f;
+	return false;
 }
 
 bool AetherScoreboardIsKogServer(IClient *pClient)

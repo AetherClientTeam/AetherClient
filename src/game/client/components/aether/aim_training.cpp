@@ -16,6 +16,7 @@
 #include <game/client/gameclient.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 vec2 CAetherAimTraining::CenterWorld() const
@@ -38,6 +39,18 @@ vec2 CAetherAimTraining::CurrentAimWorld() const
 	if(Client()->State() == IClient::STATE_ONLINE && GameClient()->m_Snap.m_SpecInfo.m_Active && GameClient()->m_Snap.m_SpecInfo.m_UsePosition)
 		return GameClient()->m_Snap.m_SpecInfo.m_Position + GameClient()->m_Controls.m_aMousePos[g_Config.m_ClDummy];
 	return GameClient()->m_Camera.m_Center;
+}
+
+vec2 CAetherAimTraining::NativeMouseWorld() const
+{
+	const vec2 WindowSize(std::max(1.0f, (float)Graphics()->WindowWidth()), std::max(1.0f, (float)Graphics()->WindowHeight()));
+	const vec2 NativeMouse = Input()->NativeMousePos();
+	const float X = std::clamp(NativeMouse.x / WindowSize.x, 0.0f, 1.0f);
+	const float Y = std::clamp(NativeMouse.y / WindowSize.y, 0.0f, 1.0f);
+	const vec2 Center = GameClient()->m_Camera.m_Center;
+	float aPoints[4];
+	Graphics()->MapScreenToWorld(Center.x, Center.y, 100.0f, 100.0f, 100.0f, 0, 0, Graphics()->ScreenAspect(), GameClient()->m_Camera.m_Zoom, aPoints);
+	return vec2(mix(aPoints[0], aPoints[2], X), mix(aPoints[1], aPoints[3], Y));
 }
 
 float CAetherAimTraining::BaseRadius() const
@@ -126,14 +139,33 @@ void CAetherAimTraining::TryHit()
 	EnsureTargets();
 
 	const vec2 Center = CenterWorld();
-	const vec2 Aim = CurrentAimWorld();
+	std::array<vec2, 5> aAimCandidates{};
+	int NumAimCandidates = 0;
+	aAimCandidates[NumAimCandidates++] = CurrentAimWorld();
+	aAimCandidates[NumAimCandidates++] = GameClient()->m_Controls.m_aTargetPos[g_Config.m_ClDummy];
+	aAimCandidates[NumAimCandidates++] = NativeMouseWorld();
+	if(GameClient()->m_Controls.m_aMousePosOnAction[g_Config.m_ClDummy] != vec2(0.0f, 0.0f))
+	{
+		const vec2 MousePos = GameClient()->m_Controls.m_aMousePosOnAction[g_Config.m_ClDummy];
+		if(Client()->State() == IClient::STATE_ONLINE && GameClient()->m_Snap.m_pLocalCharacter)
+		{
+			vec2 DyncamOffsetDelta = GameClient()->m_Camera.m_DyncamTargetCameraOffset - GameClient()->m_Camera.m_aDyncamCurrentCameraOffset[g_Config.m_ClDummy];
+			const float Zoom = GameClient()->m_Camera.m_Zoom;
+			aAimCandidates[NumAimCandidates++] = GameClient()->m_LocalCharacterPos + MousePos - DyncamOffsetDelta + DyncamOffsetDelta / Zoom;
+		}
+		else if(Client()->State() == IClient::STATE_ONLINE && GameClient()->m_Snap.m_SpecInfo.m_Active && GameClient()->m_Snap.m_SpecInfo.m_UsePosition)
+			aAimCandidates[NumAimCandidates++] = GameClient()->m_Snap.m_SpecInfo.m_Position + MousePos;
+	}
 	int Best = -1;
 	float BestDist = 1e9f;
 	for(size_t i = 0; i < m_vTargets.size(); ++i)
 	{
 		const vec2 Pos = Center + m_vTargets[i].m_Offset;
-		const float Dist = distance(Aim, Pos);
-		if(Dist <= m_vTargets[i].m_Radius && Dist < BestDist)
+		const float HitRadius = m_vTargets[i].m_Radius + std::max(6.0f, m_vTargets[i].m_Radius * 0.12f);
+		float Dist = 1e9f;
+		for(int AimIndex = 0; AimIndex < NumAimCandidates; ++AimIndex)
+			Dist = std::min(Dist, distance(aAimCandidates[AimIndex], Pos));
+		if(Dist <= HitRadius && Dist < BestDist)
 		{
 			Best = (int)i;
 			BestDist = Dist;

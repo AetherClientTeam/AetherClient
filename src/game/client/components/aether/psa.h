@@ -34,6 +34,7 @@ private:
 	void AutoCancelInternal();
 	void AutoBeginLowPhase();
 	void AutoBeginHighPhase();
+	void AutoStopForPick();
 
 public:
 	int Sizeof() const override { return sizeof(*this); }

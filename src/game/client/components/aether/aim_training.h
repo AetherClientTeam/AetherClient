@@ -35,6 +35,7 @@ class CAetherAimTraining : public CComponent
 
 	vec2 CenterWorld() const;
 	vec2 CurrentAimWorld() const;
+	vec2 NativeMouseWorld() const;
 	float BaseRadius() const;
 	float MaxDistance() const;
 	float DespawnSeconds() const;

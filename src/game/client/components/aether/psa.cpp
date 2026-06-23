@@ -66,6 +66,15 @@ void CAetherPsa::AutoBeginHighPhase()
 	m_AutoPhaseEnd = (double)LocalTime() + (double)std::clamp(m_AutoPhaseSeconds, 1, 3600);
 }
 
+void CAetherPsa::AutoStopForPick()
+{
+	ApplyBase();
+	AutoCancelInternal();
+	m_AutoPhase = AUTO_WAIT_PICK;
+	m_TimerActive = false;
+	m_TimerDone = true;
+}
+
 void CAetherPsa::OnReset()
 {
 	m_TimerActive = false;
@@ -212,7 +221,10 @@ bool CAetherPsa::OnInput(const IInput::CEvent &Event)
 		return false;
 	if((Event.m_Flags & IInput::FLAG_PRESS) && Event.m_Key == KEY_ESCAPE)
 	{
-		AutoCancel();
+		if(m_AutoPhase == AUTO_LOW || m_AutoPhase == AUTO_HIGH)
+			AutoStopForPick();
+		else
+			AutoCancel();
 		return true;
 	}
 	if((Event.m_Key == KEY_MOUSE_1 || Event.m_Key == KEY_MOUSE_2) && (Event.m_Flags & IInput::FLAG_PRESS) && m_AutoPhase == AUTO_WAIT_START_CLICK)

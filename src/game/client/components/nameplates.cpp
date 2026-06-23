@@ -362,7 +362,7 @@ static ColorRGBA AetherGradientNicknameColor(int ClientId, float Alpha, const CA
 	{
 		T = 0.5f + 0.5f * std::sin(Seconds * (0.25f + Style.m_Speed / 45.0f) + ClientId * 0.73f);
 	}
-	float Glow = Style.m_Glow / 100.0f;
+	float Glow = 0.0f;
 	if(Style.m_Style == 1)
 	{
 		const float Shine = std::pow(0.5f + 0.5f * std::sin(Seconds * (1.0f + Style.m_Speed / 30.0f) + ClientId * 0.37f), 3.0f);
@@ -404,29 +404,11 @@ static ColorRGBA AetherGradientNicknameColor(int ClientId, float Alpha, const CA
 
 static bool AetherGradientNicknameGlow(const CAetherBadges::SGradientNicknameStyle &Style, const ColorRGBA &TextColor, ColorRGBA &GlowColor, float &GlowRadius)
 {
-	float Strength = Style.m_Glow / 100.0f;
-	if(Style.m_Style == 1)
-		Strength = maximum(Strength, 0.52f);
-	else if(Style.m_Style == 2)
-		Strength = maximum(Strength, 0.36f);
-	if(Strength <= 0.001f)
-		return false;
+	(void)Style;
 	GlowColor = TextColor;
-	GlowColor.a = TextColor.a * Strength * (Style.m_Style == 1 ? 0.72f : Style.m_Style == 2 ? 0.48f : 0.38f);
-	if(Style.m_Style == 1)
-	{
-		GlowColor.r = minimum(1.0f, GlowColor.r * 1.45f + 0.25f);
-		GlowColor.g = minimum(1.0f, GlowColor.g * 1.38f + 0.18f);
-		GlowColor.b = minimum(1.0f, GlowColor.b * 1.20f + 0.05f);
-	}
-	else if(Style.m_Style == 2)
-	{
-		GlowColor.r = minimum(1.0f, GlowColor.r * 1.28f + 0.10f);
-		GlowColor.g = minimum(1.0f, GlowColor.g * 1.28f + 0.10f);
-		GlowColor.b = minimum(1.0f, GlowColor.b * 1.28f + 0.10f);
-	}
-	GlowRadius = 0.7f + Strength * (Style.m_Style == 1 ? 3.4f : Style.m_Style == 2 ? 2.2f : 1.7f);
-	return true;
+	GlowColor.a = 0.0f;
+	GlowRadius = 0.0f;
+	return false;
 }
 
 class CNamePlatePartName : public CNamePlatePartText
@@ -494,7 +476,7 @@ protected:
 	}
 	void Render(CGameClient &This, vec2 Pos) const override
 	{
-		if(m_UseGradientGlow && m_GradientStyle == 2)
+		if(m_GradientStyle == 2)
 		{
 			const float Seconds = time_get() / (float)time_freq();
 			const float Width = maximum(Size().x, 8.0f);
@@ -508,8 +490,8 @@ protected:
 				const float X = Pos.x - Width * 0.52f + Phase * Width * 1.04f;
 				const float Y = Pos.y - Height * 0.70f + Wave * Height * 0.28f + (i % 2 ? Height * 0.90f : 0.0f);
 				const float Size = 1.2f + 1.5f * (0.5f + 0.5f * std::sin(Seconds * 2.1f + i));
-				ColorRGBA Spark = m_GlowColor;
-				Spark.a = minimum(0.55f, m_GlowColor.a * (0.55f + 0.45f * std::sin(Seconds * 2.7f + i * 0.8f)));
+				ColorRGBA Spark = m_Color;
+				Spark.a = minimum(0.34f, m_Color.a * (0.18f + 0.16f * std::sin(Seconds * 2.7f + i * 0.8f)));
 				This.Graphics()->SetColor(Spark);
 				This.Graphics()->DrawCircle(X, Y, Size, 8);
 			}

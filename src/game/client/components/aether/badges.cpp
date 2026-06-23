@@ -101,6 +101,31 @@ float JsonFloatValue(const json_value *pValue, float Fallback = 0.0f)
 	return Fallback;
 }
 
+void ApplyGradientFields(CAetherBadges::SChessOnlinePlayer &Entry, const json_value *pPlayer)
+{
+	const json_value *pGradient = pPlayer && pPlayer->type == json_object ? json_object_get(pPlayer, "gradient") : nullptr;
+	const json_value *pSource = pGradient && pGradient->type == json_object ? pGradient : pPlayer;
+	if(!pSource || pSource->type != json_object)
+	{
+		Entry.m_GradientEnabled = false;
+		Entry.m_GradientStartColor = 0x64C8FF;
+		Entry.m_GradientEndColor = 0xFF7BDA;
+		Entry.m_GradientGlow = 0;
+		Entry.m_GradientAnimated = false;
+		Entry.m_GradientSpeed = 35;
+		Entry.m_GradientStyle = 0;
+		return;
+	}
+
+	Entry.m_GradientEnabled = JsonBoolValue(json_object_get(pSource, pGradient ? "enabled" : "gradient_nicknames"));
+	Entry.m_GradientStartColor = JsonIntValue(json_object_get(pSource, pGradient ? "start_color" : "gradient_start_color"), 0x64C8FF);
+	Entry.m_GradientEndColor = JsonIntValue(json_object_get(pSource, pGradient ? "end_color" : "gradient_end_color"), 0xFF7BDA);
+	Entry.m_GradientGlow = std::clamp(JsonIntValue(json_object_get(pSource, pGradient ? "glow" : "gradient_glow"), 0), 0, 100);
+	Entry.m_GradientAnimated = JsonBoolValue(json_object_get(pSource, pGradient ? "animated" : "gradient_animated"));
+	Entry.m_GradientSpeed = std::clamp(JsonIntValue(json_object_get(pSource, pGradient ? "speed" : "gradient_speed"), 35), 1, 200);
+	Entry.m_GradientStyle = std::clamp(JsonIntValue(json_object_get(pSource, pGradient ? "style" : "gradient_style"), 0), 0, 2);
+}
+
 std::string JsonStringLiteral(const char *pValue)
 {
 	CJsonStringWriter Json;
@@ -275,6 +300,12 @@ void CAetherBadges::Clear()
 	m_LastClanMineTime = 0;
 	m_LastClanDirectoryTime = 0;
 	m_ChessInviteExpireTime = 0;
+	m_LastGradientNicknames = -1;
+	m_LastGradientStartColor = -1;
+	m_LastGradientEndColor = -1;
+	m_LastGradientAnimated = -1;
+	m_LastGradientSpeed = -1;
+	m_LastGradientStyle = -1;
 	m_ChessOnlineCount = 0;
 	m_AetherOnlineCount = 0;
 	m_LastPingSeq = 0;
@@ -370,7 +401,9 @@ bool CAetherBadges::CurrentServerKey(char *pOut, int OutSize) const
 	if(!pOut || OutSize <= 0)
 		return false;
 	pOut[0] = '\0';
-	if(Client()->State() != IClient::STATE_ONLINE && Client()->State() != IClient::STATE_DEMOPLAYBACK)
+	if(Client()->State() != IClient::STATE_ONLINE)
+		return false;
+	if((Client()->ServerAddress().type & NETTYPE_ALL) == 0)
 		return false;
 	net_addr_str(&Client()->ServerAddress(), pOut, OutSize, true);
 	if(pOut[0] == '\0' && Client()->ConnectAddressString())
@@ -386,13 +419,13 @@ bool CAetherBadges::BuildPresencePayload(std::string &Payload) const
 
 	CServerInfo ServerInfo;
 	mem_zero(&ServerInfo, sizeof(ServerInfo));
-	const bool InServer = Client()->State() == IClient::STATE_ONLINE || Client()->State() == IClient::STATE_DEMOPLAYBACK;
+	const bool InServer = Client()->State() == IClient::STATE_ONLINE;
 	if(InServer)
 		Client()->GetServerInfo(&ServerInfo);
 
 	char aServerAddress[NETADDR_MAXSTRSIZE];
 	aServerAddress[0] = '\0';
-	if(InServer)
+	if(InServer && (Client()->ServerAddress().type & NETTYPE_ALL) != 0)
 		net_addr_str(&Client()->ServerAddress(), aServerAddress, sizeof(aServerAddress), true);
 	if(InServer && aServerAddress[0] == '\0' && Client()->ConnectAddressString())
 		str_copy(aServerAddress, Client()->ConnectAddressString(), sizeof(aServerAddress));
@@ -436,7 +469,7 @@ bool CAetherBadges::BuildPresencePayload(std::string &Payload) const
 	Json.WriteAttribute("gradient_end_color");
 	Json.WriteIntValue(g_Config.m_AeGradientNicknameEndColor);
 	Json.WriteAttribute("gradient_glow");
-	Json.WriteIntValue(g_Config.m_AeGradientNicknameGlow);
+	Json.WriteIntValue(0);
 	Json.WriteAttribute("gradient_animated");
 	Json.WriteBoolValue(g_Config.m_AeGradientNicknameAnimated != 0);
 	Json.WriteAttribute("gradient_speed");
@@ -2138,27 +2171,7 @@ void CAetherBadges::ApplyChessOnlineUpdate(const json_value *pPlayer)
 	Entry.m_Spectator = JsonBoolValue(json_object_get(pPlayer, "spectator"));
 	Entry.m_InServer = JsonStringValue(json_object_get(pPlayer, "server_key"))[0] != '\0' ||
 			   JsonStringValue(json_object_get(pPlayer, "server_address"))[0] != '\0';
-	const json_value *pGradient = json_object_get(pPlayer, "gradient");
-	if(pGradient && pGradient->type == json_object)
-	{
-		Entry.m_GradientEnabled = JsonBoolValue(json_object_get(pGradient, "enabled"));
-		Entry.m_GradientStartColor = JsonIntValue(json_object_get(pGradient, "start_color"), 0x64C8FF);
-		Entry.m_GradientEndColor = JsonIntValue(json_object_get(pGradient, "end_color"), 0xFF7BDA);
-		Entry.m_GradientGlow = std::clamp(JsonIntValue(json_object_get(pGradient, "glow"), 20), 0, 100);
-		Entry.m_GradientAnimated = JsonBoolValue(json_object_get(pGradient, "animated"));
-		Entry.m_GradientSpeed = std::clamp(JsonIntValue(json_object_get(pGradient, "speed"), 35), 1, 200);
-		Entry.m_GradientStyle = std::clamp(JsonIntValue(json_object_get(pGradient, "style"), 0), 0, 2);
-	}
-	else
-	{
-		Entry.m_GradientEnabled = false;
-		Entry.m_GradientStartColor = 0x64C8FF;
-		Entry.m_GradientEndColor = 0xFF7BDA;
-		Entry.m_GradientGlow = 20;
-		Entry.m_GradientAnimated = false;
-		Entry.m_GradientSpeed = 35;
-		Entry.m_GradientStyle = 0;
-	}
+	ApplyGradientFields(Entry, pPlayer);
 }
 
 void CAetherBadges::ApplyChessOnlineLeft(const char *pName)
@@ -2220,6 +2233,7 @@ void CAetherBadges::ApplyAetherOnlineUpdate(const json_value *pPlayer)
 	Entry.m_Spectator = JsonBoolValue(json_object_get(pPlayer, "spectator"));
 	Entry.m_InServer = JsonStringValue(json_object_get(pPlayer, "server_key"))[0] != '\0' ||
 			   JsonStringValue(json_object_get(pPlayer, "server_address"))[0] != '\0';
+	ApplyGradientFields(Entry, pPlayer);
 }
 
 void CAetherBadges::ApplyAetherOnlineLeft(const char *pName)
@@ -2623,6 +2637,30 @@ void CAetherBadges::OnUpdate()
 		m_Realtime.SetEndpointFromHttpBase(g_Config.m_AeBadgesApiUrl);
 	}
 
+	const int GradientNicknames = g_Config.m_AeGradientNicknames;
+	const int GradientStartColor = g_Config.m_AeGradientNicknameStartColor;
+	const int GradientEndColor = g_Config.m_AeGradientNicknameEndColor;
+	const int GradientAnimated = g_Config.m_AeGradientNicknameAnimated;
+	const int GradientSpeed = g_Config.m_AeGradientNicknameSpeed;
+	const int GradientStyle = g_Config.m_AeGradientNicknameStyle == 2 ? 2 : 0;
+	if(m_LastGradientNicknames != GradientNicknames ||
+		m_LastGradientStartColor != GradientStartColor ||
+		m_LastGradientEndColor != GradientEndColor ||
+		m_LastGradientAnimated != GradientAnimated ||
+		m_LastGradientSpeed != GradientSpeed ||
+		m_LastGradientStyle != GradientStyle)
+	{
+		m_LastGradientNicknames = GradientNicknames;
+		m_LastGradientStartColor = GradientStartColor;
+		m_LastGradientEndColor = GradientEndColor;
+		m_LastGradientAnimated = GradientAnimated;
+		m_LastGradientSpeed = GradientSpeed;
+		m_LastGradientStyle = GradientStyle;
+		m_LastHeartbeatTime = 0;
+		m_LastRealtimeHelloTime = 0;
+		m_LastAetherOnlineRequestTime = 0;
+	}
+
 	std::string PresencePayload;
 	if(BuildPresencePayload(PresencePayload))
 	{
@@ -2643,6 +2681,8 @@ void CAetherBadges::OnUpdate()
 	RequestHeartbeat(false);
 	if(g_Config.m_AeBadges)
 		RequestResolve(false);
+	if(Client()->State() == IClient::STATE_ONLINE)
+		RequestAetherOnline(false);
 	RequestChessRoomSnapshot(false);
 	RequestPingPoll(false);
 	RequestClanMine(false);

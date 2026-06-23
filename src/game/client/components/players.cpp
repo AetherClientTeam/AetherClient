@@ -1105,7 +1105,7 @@ void CPlayers::RenderPlayer(
 		return;
 
 	if(Player.m_PlayerFlags & PLAYERFLAG_IN_MENU)
-		RenderMenuStatusIcon(Position + vec2(0.0f, -56.0f), Alpha);
+		RenderMenuStatusIcon(BodyPos + vec2(0.0f, -2.0f), Alpha * 0.95f);
 
 	int QuadOffsetToEmoticon = NUM_WEAPONS * 2 + 2 + 2;
 	if((Player.m_PlayerFlags & PLAYERFLAG_CHATTING) && !GameClient()->m_aClients[ClientId].m_Afk)
