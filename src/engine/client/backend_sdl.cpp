@@ -1711,7 +1711,10 @@ int CGraphicsBackend_SDL_GL::WindowActive()
 
 int CGraphicsBackend_SDL_GL::WindowOpen()
 {
-	return m_pWindow && SDL_GetWindowFlags(m_pWindow) & SDL_WINDOW_SHOWN;
+	if(!m_pWindow)
+		return 0;
+	const uint32_t WindowFlags = SDL_GetWindowFlags(m_pWindow);
+	return (WindowFlags & SDL_WINDOW_SHOWN) && !(WindowFlags & (SDL_WINDOW_HIDDEN | SDL_WINDOW_MINIMIZED));
 }
 
 void CGraphicsBackend_SDL_GL::SetWindowGrab(bool Grab)

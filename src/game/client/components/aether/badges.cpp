@@ -301,6 +301,7 @@ void CAetherBadges::Clear()
 	m_LastChessRoomPollTime = 0;
 	m_LastPingPollTime = 0;
 	m_LastOraclePollTime = 0;
+	m_OracleUnavailableUntil = 0;
 	m_LastClanMineTime = 0;
 	m_LastClanDirectoryTime = 0;
 	m_ChessInviteExpireTime = 0;
@@ -548,6 +549,8 @@ void CAetherBadges::RequestOracleEvents(bool Force)
 		return;
 
 	const int64_t Now = time_get();
+	if(!Force && m_OracleUnavailableUntil != 0 && Now < m_OracleUnavailableUntil)
+		return;
 	const int PollMilliseconds = m_Realtime.Connected() ? ORACLE_POLL_SLOW_MILLISECONDS : ORACLE_POLL_FAST_MILLISECONDS;
 	if(!Force && m_LastOraclePollTime != 0 && Now - m_LastOraclePollTime < time_freq() * PollMilliseconds / 1000)
 		return;
@@ -569,7 +572,8 @@ void CAetherBadges::RequestOracleEvents(bool Force)
 	BuildUrl(aUrl, sizeof(aUrl), aPath);
 	m_pOracleEventsRequest = std::make_shared<CHttpRequest>(aUrl);
 	m_pOracleEventsRequest->MaxResponseSize(512 * 1024);
-	m_pOracleEventsRequest->LogProgress(HTTPLOG::FAILURE);
+	m_pOracleEventsRequest->FailOnErrorStatus(false);
+	m_pOracleEventsRequest->LogProgress(HTTPLOG::NONE);
 	Http()->Run(m_pOracleEventsRequest);
 	m_LastOraclePollTime = Now;
 }
@@ -582,8 +586,10 @@ void CAetherBadges::PumpOracleEventsRequest()
 	if(HttpState != EHttpState::DONE && HttpState != EHttpState::ERROR && HttpState != EHttpState::ABORTED)
 		return;
 
-	if(HttpState == EHttpState::DONE && m_pOracleEventsRequest->StatusCode() >= 200 && m_pOracleEventsRequest->StatusCode() < 400)
+	const int StatusCode = HttpState == EHttpState::DONE ? m_pOracleEventsRequest->StatusCode() : 0;
+	if(HttpState == EHttpState::DONE && StatusCode >= 200 && StatusCode < 400)
 	{
+		m_OracleUnavailableUntil = 0;
 		json_value *pJson = m_pOracleEventsRequest->ResultJson();
 		if(pJson && pJson->type == json_object)
 		{
@@ -604,9 +610,21 @@ void CAetherBadges::PumpOracleEventsRequest()
 		if(!m_Realtime.Connected())
 			str_copy(m_aStatus, "HTTP Oracle fallback active.", sizeof(m_aStatus));
 	}
-	else if(!m_Realtime.Connected())
+	else
 	{
-		str_copy(m_aStatus, "HTTP Oracle fallback unavailable.", sizeof(m_aStatus));
+		const int64_t Now = time_get();
+		if(HttpState == EHttpState::DONE && StatusCode == 404)
+		{
+			m_OracleUnavailableUntil = Now + 300 * time_freq();
+			if(!m_Realtime.Connected())
+				str_copy(m_aStatus, "HTTP Oracle fallback not deployed.", sizeof(m_aStatus));
+		}
+		else
+		{
+			m_OracleUnavailableUntil = Now + 30 * time_freq();
+			if(!m_Realtime.Connected())
+				str_copy(m_aStatus, "HTTP Oracle fallback unavailable.", sizeof(m_aStatus));
+		}
 	}
 
 	m_pOracleEventsRequest = nullptr;
@@ -2046,7 +2064,7 @@ bool CAetherBadges::ScoreboardClanForClient(int ClientId, bool KogServer, char *
 		return false;
 
 	const char *pPreferredType = KogServer ? "kog" : "general";
-	const SPublicClanMembership *pFallback = nullptr;
+	const SPublicClanMembership *pGeneralFallback = nullptr;
 	for(const SPublicClanMembership &Entry : m_vPublicClanMemberships)
 	{
 		if(str_comp_nocase(Entry.m_aPlayer, pName) != 0 || Entry.m_aClan[0] == '\0')
@@ -2056,12 +2074,12 @@ bool CAetherBadges::ScoreboardClanForClient(int ClientId, bool KogServer, char *
 			str_copy(pOut, Entry.m_aClan, OutSize);
 			return true;
 		}
-		if(!pFallback)
-			pFallback = &Entry;
+		if(KogServer && !pGeneralFallback && str_comp_nocase(Entry.m_aType, "general") == 0)
+			pGeneralFallback = &Entry;
 	}
-	if(pFallback)
+	if(pGeneralFallback)
 	{
-		str_copy(pOut, pFallback->m_aClan, OutSize);
+		str_copy(pOut, pGeneralFallback->m_aClan, OutSize);
 		return true;
 	}
 
@@ -2736,6 +2754,7 @@ void CAetherBadges::OnUpdate()
 		m_LastHeartbeatTime = 0;
 		m_LastRealtimeHelloTime = 0;
 		m_LastOraclePollTime = 0;
+		m_OracleUnavailableUntil = 0;
 		m_LastAetherOnlineRequestTime = 0;
 		m_LastAetherOnlineResponseTime = 0;
 		m_LastClanDirectoryTime = 0;
@@ -2965,7 +2984,10 @@ void CAetherBadges::RefreshNow()
 	m_LastResolveTime = 0;
 	m_LastHeartbeatTime = 0;
 	m_LastRealtimeHelloTime = 0;
+	m_LastOraclePollTime = 0;
+	m_OracleUnavailableUntil = 0;
 	RequestHeartbeat(true);
+	RequestOracleEvents(true);
 	RequestResolve(true);
 }
 

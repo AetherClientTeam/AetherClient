@@ -852,6 +852,7 @@ int CInput::Update()
 					m_InputGrabbed = true;
 				}
 				break;
+			case SDL_WINDOWEVENT_HIDDEN:
 			case SDL_WINDOWEVENT_MINIMIZED:
 #if defined(CONF_PLATFORM_ANDROID) // Save the config when minimized on Android.
 				m_pConfigManager->Save();
@@ -865,8 +866,15 @@ int CInput::Update()
 				MouseModeRelative();
 #endif
 				[[fallthrough]];
+			case SDL_WINDOWEVENT_SHOWN:
 			case SDL_WINDOWEVENT_RESTORED:
 				Graphics()->WindowCreateNtf(Event.window.windowID);
+#if defined(CONF_FAMILY_WINDOWS)
+				// Win+D minimizes borderless windows differently from a normal taskbar minimize on some Windows setups.
+				// Re-apply borderless window params after restore so SDL refreshes the drawable size and viewport.
+				if(g_Config.m_GfxFullscreen == 0 && g_Config.m_GfxBorderless)
+					Graphics()->SetWindowParams(0, true);
+#endif
 				break;
 			}
 			break;

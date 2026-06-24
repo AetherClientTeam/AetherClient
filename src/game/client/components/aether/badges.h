@@ -194,6 +194,7 @@ private:
 	int64_t m_LastChessRoomPollTime = 0;
 	int64_t m_LastPingPollTime = 0;
 	int64_t m_LastOraclePollTime = 0;
+	int64_t m_OracleUnavailableUntil = 0;
 	int64_t m_LastClanMineTime = 0;
 	int64_t m_LastClanDirectoryTime = 0;
 	int64_t m_ChessInviteExpireTime = 0;

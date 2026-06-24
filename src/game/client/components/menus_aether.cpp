@@ -419,7 +419,6 @@ const char *AetherControlTooltip(const char *pLabel)
 		{"Show client badges only", "Only shows Aether/Vera/Via/Vex client identity badges and hides role badges."},
 		{"Show friend heart", "Shows the normal friend heart as the right-most badge slot."},
 		{"Show Aether pings", "Enables Aether ping markers from the ping wheel and cloud ping events."},
-		{"Auto help on frozen ally", "Automatically sends a Help marker when an ally/helper freezes, with dedupe protection."},
 		{"Bubble duration", "How long chat bubbles stay above tees."},
 		{"Bubble opacity", "Transparency of chat bubble panels."},
 		{"Bubble width", "Maximum width of each chat bubble before wrapping."},
@@ -2507,27 +2506,26 @@ void CMenus::RenderSettingsAetherPings(CUIRect Body)
 	static CButtonContainer s_PingComeClear;
 	static CButtonContainer s_PingWaitReader;
 	static CButtonContainer s_PingWaitClear;
-	static std::array<CButtonContainer, 3> s_aPingVisibilityButtons;
 	const float S = AetherSettingsScale();
 	Body.Draw(AetherPanelColor(0.34f), IGraphics::CORNER_ALL, 6.0f);
 	Body.Margin(12.0f * S, &Body);
 
 	CUIRect Row;
 	Body.HSplitTop(24.0f * S, &Row, &Body);
-	const char *apTabs[] = {"General", "Keys", "Visibility"};
+	const char *apTabs[] = {"General", "Keys"};
 	const float TabGap = 3.0f * S;
-	const float TabW = (Row.w - TabGap * 2.0f) / 3.0f;
-	for(int i = 0; i < 3; ++i)
+	const float TabW = (Row.w - TabGap) / 2.0f;
+	for(int i = 0; i < 2; ++i)
 	{
 		CUIRect Tab;
 		Row.VSplitLeft(TabW, &Tab, &Row);
 		if(DoButton_Menu(&s_aPingTabs[i], apTabs[i], s_AetherPingTab == i, &Tab, BUTTONFLAG_LEFT, nullptr,
-			   i == 0 ? IGraphics::CORNER_L : (i == 2 ? IGraphics::CORNER_R : IGraphics::CORNER_NONE)))
+			   i == 0 ? IGraphics::CORNER_L : IGraphics::CORNER_R))
 			s_AetherPingTab = i;
-		if(i != 2)
+		if(i != 1)
 			Row.VSplitLeft(TabGap, nullptr, &Row);
 	}
-	s_AetherPingTab = std::clamp(s_AetherPingTab, 0, 2);
+	s_AetherPingTab = std::clamp(s_AetherPingTab, 0, 1);
 	Body.HSplitTop(8.0f * S, nullptr, &Body);
 
 	if(s_AetherPingTab == 0)
@@ -2536,10 +2534,6 @@ void CMenus::RenderSettingsAetherPings(CUIRect Body)
 		if(DoButton_CheckBox(&g_Config.m_AePings, "Show Aether pings", g_Config.m_AePings, &Row))
 			g_Config.m_AePings ^= 1;
 		AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AePings, Row, "Show Aether pings");
-		Body.HSplitTop(22.0f * S, &Row, &Body);
-		if(DoButton_CheckBox(&g_Config.m_AePingAutoHelp, "Auto help on frozen ally", g_Config.m_AePingAutoHelp, &Row))
-			g_Config.m_AePingAutoHelp ^= 1;
-		AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AePingAutoHelp, Row, "Auto help on frozen ally");
 		return;
 	}
 
@@ -2557,22 +2551,7 @@ void CMenus::RenderSettingsAetherPings(CUIRect Body)
 	}
 
 	Body.HSplitTop(24.0f * S, &Row, &Body);
-	g_Config.m_AePingHelpVisibility = std::clamp(g_Config.m_AePingHelpVisibility, 0, 2);
-	CUIRect Label, Buttons;
-	Row.VSplitLeft(150.0f * S, &Label, &Buttons);
-	Ui()->DoLabel(&Label, "Auto help visible to", 12.0f * S, TEXTALIGN_ML);
-	const char *apVisibility[] = {"Team", "Team + warlist", "All"};
-	for(int i = 0; i < 3; ++i)
-	{
-		CUIRect Button;
-		const float ButtonW = std::max(72.0f * S, (Buttons.w - (2 - i) * 4.0f * S) / (3 - i));
-		Buttons.VSplitLeft(ButtonW, &Button, &Buttons);
-		if(DoButton_Menu(&s_aPingVisibilityButtons[i], apVisibility[i], g_Config.m_AePingHelpVisibility == i, &Button, BUTTONFLAG_LEFT, nullptr,
-			   i == 0 ? IGraphics::CORNER_L : (i == 2 ? IGraphics::CORNER_R : IGraphics::CORNER_NONE)))
-			g_Config.m_AePingHelpVisibility = i;
-		if(i != 2)
-			Buttons.VSplitLeft(4.0f * S, nullptr, &Buttons);
-	}
+	Ui()->DoLabel(&Row, "Manual pings are shared with Aether clients.", 12.0f * S, TEXTALIGN_ML);
 }
 
 void CMenus::RenderSettingsAetherClan(CUIRect Body)

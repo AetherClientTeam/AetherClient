@@ -135,7 +135,7 @@ MACRO_CONFIG_STR(AeClanGeneralSecret, ae_clan_general_secret, 128, "", CFGFLAG_C
 MACRO_CONFIG_STR(AeClanKogId, ae_clan_kog_id, 96, "", CFGFLAG_CLIENT | CFGFLAG_SAVE, "Stored Aether KoG clan id")
 MACRO_CONFIG_STR(AeClanKogSecret, ae_clan_kog_secret, 128, "", CFGFLAG_CLIENT | CFGFLAG_SAVE, "Stored Aether KoG clan membership secret")
 MACRO_CONFIG_INT(AePings, ae_pings, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Enable Aether HTTP pings")
-MACRO_CONFIG_INT(AePingAutoHelp, ae_ping_auto_help, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Auto-send help pings when allies freeze")
+MACRO_CONFIG_INT(AePingAutoHelp, ae_ping_auto_help, 0, 0, 0, CFGFLAG_CLIENT, "Deprecated: auto-send help pings when allies freeze")
 MACRO_CONFIG_INT(AePingHelpVisibility, ae_ping_help_visibility, 1, 0, 2, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Help ping trigger filter: 0 same team, 1 team and warlist allies/helpers, 2 all Aether players")
 MACRO_CONFIG_INT(AeChatBubbles, ae_chat_bubbles, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Show player chat messages above tees")
 MACRO_CONFIG_INT(AeChatBubblesDuration, ae_chat_bubbles_duration, 4, 2, 8, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Seconds to show chat bubbles")

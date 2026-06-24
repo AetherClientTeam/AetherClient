@@ -525,6 +525,7 @@ void CScoreboard::RenderScoreboard(CUIRect Scoreboard, int Team, int CountStart,
 	bool Race7 = Client()->IsSixup() && pGameInfoObj && pGameInfoObj->m_GameFlags & protocol7::GAMEFLAG_RACE;
 
 	const bool UseTime = Race7 || TimeScore || MillisecondScore;
+	const bool KogServer = AetherScoreboardIsKogServer(Client());
 
 	// calculate measurements
 	float LineHeight;
@@ -984,7 +985,7 @@ void CScoreboard::RenderScoreboard(CUIRect Scoreboard, int Team, int CountStart,
 				char aAetherClan[64];
 				const char *pClanName = ClientData.m_aClan;
 				bool AetherClan = false;
-				if(GameClient()->m_AetherBadges.ScoreboardClanForClient(pInfo->m_ClientId, AetherScoreboardIsKogServer(Client()), aAetherClan, sizeof(aAetherClan)))
+				if(GameClient()->m_AetherBadges.ScoreboardClanForClient(pInfo->m_ClientId, KogServer, aAetherClan, sizeof(aAetherClan)))
 				{
 					pClanName = aAetherClan;
 					AetherClan = true;
