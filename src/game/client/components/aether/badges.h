@@ -178,6 +178,7 @@ private:
 	std::shared_ptr<CHttpRequest> m_pChessLeaderboardMonthlyRequest;
 	std::shared_ptr<CHttpRequest> m_pPingSendRequest;
 	std::shared_ptr<CHttpRequest> m_pPingPollRequest;
+	std::shared_ptr<CHttpRequest> m_pOracleEventsRequest;
 	std::shared_ptr<CHttpRequest> m_pClanRequest;
 	EChessHttpAction m_ChessAction = EChessHttpAction::NONE;
 	EClanHttpAction m_ClanAction = EClanHttpAction::NONE;
@@ -192,6 +193,7 @@ private:
 	int64_t m_LastAetherOnlineResponseTime = 0;
 	int64_t m_LastChessRoomPollTime = 0;
 	int64_t m_LastPingPollTime = 0;
+	int64_t m_LastOraclePollTime = 0;
 	int64_t m_LastClanMineTime = 0;
 	int64_t m_LastClanDirectoryTime = 0;
 	int64_t m_ChessInviteExpireTime = 0;
@@ -206,6 +208,7 @@ private:
 	int m_ChessOnlineCount = 0;
 	int m_AetherOnlineCount = 0;
 	int m_LastPingSeq = 0;
+	int m_OracleCursor = 0;
 	SChessRoomState m_ChessRoom;
 	SClanState m_Clan;
 	SClanState m_GeneralClan;
@@ -251,8 +254,11 @@ private:
 	void RestartRealtime();
 	void RequestHeartbeat(bool Force);
 	void PumpHeartbeatRequest();
+	void RequestOracleEvents(bool Force);
+	void PumpOracleEventsRequest();
 	void RequestResolve(bool Force);
 	void PumpResolveRequest();
+	void DispatchRealtimeEvent(const json_value *pJson, const char *pRawMessage = nullptr);
 	void PumpRealtimeMessages();
 	void LoadIconTextures();
 	void UnloadIconTextures();

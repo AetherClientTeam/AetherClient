@@ -3,7 +3,7 @@ param(
 	[string]$BuildRoot = "build-vs2026",
 	[string]$ReleaseDir = "Release",
 	[string]$OutRoot = "portable",
-	[string]$Version = "1.0.4",
+	[string]$Version = "1.0.5",
 	[string]$Name = "",
 	[switch]$SkipBuild
 )

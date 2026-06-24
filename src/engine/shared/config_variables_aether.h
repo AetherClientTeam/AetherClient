@@ -152,7 +152,7 @@ MACRO_CONFIG_INT(AeSnapTap, ae_snap_tap, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE,
 MACRO_CONFIG_INT(AeGoresMode, ae_gores_mode, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Enable Aether Gores Mode")
 MACRO_CONFIG_INT(AeGoresModeDisableIfWeapons, ae_gores_mode_disable_weapons, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Disable Gores Mode while holding shotgun, grenade or laser")
 MACRO_CONFIG_INT(AeFastInput, ae_fast_input, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Enable Aether fast input prediction")
-MACRO_CONFIG_INT(AeFastInputMode, ae_fast_input_mode, 1, 0, 2, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Aether fast input mode: 0/1 adaptive, 2 saiko plus")
+MACRO_CONFIG_INT(AeFastInputMode, ae_fast_input_mode, 1, 0, 3, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Aether fast input mode: 0/1 adaptive, 2 saiko plus, 3 tclient")
 MACRO_CONFIG_INT(AeFastInputMovementAmount, ae_fast_input_movement_amount, 30, 0, 50, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Aether fast input movement prediction amount")
 MACRO_CONFIG_INT(AeFastInputActionAmount, ae_fast_input_action_amount, 38, 0, 50, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Aether fast input hook and fire prediction amount")
 MACRO_CONFIG_INT(AeSaikoPlusAmount, ae_saiko_plus_amount, 0, 0, 500, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Saiko plus amount in 0.01 ticks")

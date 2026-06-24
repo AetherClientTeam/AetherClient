@@ -30,6 +30,8 @@ namespace
 constexpr int CLIENT_HEARTBEAT_SECONDS = 10;
 constexpr int CLIENT_REALTIME_HELLO_SECONDS = 10;
 constexpr int PING_POLL_MILLISECONDS = 650;
+constexpr int ORACLE_POLL_FAST_MILLISECONDS = 1500;
+constexpr int ORACLE_POLL_SLOW_MILLISECONDS = 10000;
 constexpr int PING_LOCAL_TTL_SECONDS = 8;
 
 struct SBadgeIconDef
@@ -283,6 +285,7 @@ void CAetherBadges::Clear()
 	m_pChessActionRequest = nullptr;
 	m_pPingSendRequest = nullptr;
 	m_pPingPollRequest = nullptr;
+	m_pOracleEventsRequest = nullptr;
 	m_pClanRequest = nullptr;
 	m_ChessAction = EChessHttpAction::NONE;
 	m_ClanAction = EClanHttpAction::NONE;
@@ -297,6 +300,7 @@ void CAetherBadges::Clear()
 	m_LastAetherOnlineResponseTime = 0;
 	m_LastChessRoomPollTime = 0;
 	m_LastPingPollTime = 0;
+	m_LastOraclePollTime = 0;
 	m_LastClanMineTime = 0;
 	m_LastClanDirectoryTime = 0;
 	m_ChessInviteExpireTime = 0;
@@ -309,6 +313,7 @@ void CAetherBadges::Clear()
 	m_ChessOnlineCount = 0;
 	m_AetherOnlineCount = 0;
 	m_LastPingSeq = 0;
+	m_OracleCursor = 0;
 	m_ChessRoom = SChessRoomState();
 	m_Clan = SClanState();
 	m_GeneralClan = SClanState();
@@ -535,6 +540,76 @@ void CAetherBadges::PumpHeartbeatRequest()
 		str_copy(m_aStatus, "Client badge heartbeat failed.", sizeof(m_aStatus));
 
 	m_pHeartbeatRequest = nullptr;
+}
+
+void CAetherBadges::RequestOracleEvents(bool Force)
+{
+	if(g_Config.m_AeBadgesApiUrl[0] == '\0' || m_pOracleEventsRequest)
+		return;
+
+	const int64_t Now = time_get();
+	const int PollMilliseconds = m_Realtime.Connected() ? ORACLE_POLL_SLOW_MILLISECONDS : ORACLE_POLL_FAST_MILLISECONDS;
+	if(!Force && m_LastOraclePollTime != 0 && Now - m_LastOraclePollTime < time_freq() * PollMilliseconds / 1000)
+		return;
+
+	char aPath[512];
+	char aServerKey[NETADDR_MAXSTRSIZE];
+	if(CurrentServerKey(aServerKey, sizeof(aServerKey)))
+	{
+		char aEscapedServer[NETADDR_MAXSTRSIZE * 3];
+		EscapeUrl(aEscapedServer, sizeof(aEscapedServer), aServerKey);
+		str_format(aPath, sizeof(aPath), "/v1/oracle/events?cursor=%d&server_key=%s", m_OracleCursor, aEscapedServer);
+	}
+	else
+	{
+		str_format(aPath, sizeof(aPath), "/v1/oracle/events?cursor=%d", m_OracleCursor);
+	}
+
+	char aUrl[640];
+	BuildUrl(aUrl, sizeof(aUrl), aPath);
+	m_pOracleEventsRequest = std::make_shared<CHttpRequest>(aUrl);
+	m_pOracleEventsRequest->MaxResponseSize(512 * 1024);
+	m_pOracleEventsRequest->LogProgress(HTTPLOG::FAILURE);
+	Http()->Run(m_pOracleEventsRequest);
+	m_LastOraclePollTime = Now;
+}
+
+void CAetherBadges::PumpOracleEventsRequest()
+{
+	if(!m_pOracleEventsRequest)
+		return;
+	const EHttpState HttpState = m_pOracleEventsRequest->State();
+	if(HttpState != EHttpState::DONE && HttpState != EHttpState::ERROR && HttpState != EHttpState::ABORTED)
+		return;
+
+	if(HttpState == EHttpState::DONE && m_pOracleEventsRequest->StatusCode() >= 200 && m_pOracleEventsRequest->StatusCode() < 400)
+	{
+		json_value *pJson = m_pOracleEventsRequest->ResultJson();
+		if(pJson && pJson->type == json_object)
+		{
+			m_OracleCursor = std::max(m_OracleCursor, JsonIntValue(json_object_get(pJson, "cursor"), m_OracleCursor));
+			const json_value *pEvents = json_object_get(pJson, "events");
+			if(pEvents && pEvents->type == json_array)
+			{
+				for(int i = 0; i < json_array_length(pEvents); ++i)
+				{
+					const json_value *pEvent = json_array_get(pEvents, i);
+					if(pEvent && pEvent->type == json_object)
+						DispatchRealtimeEvent(pEvent);
+				}
+			}
+		}
+		if(pJson)
+			json_value_free(pJson);
+		if(!m_Realtime.Connected())
+			str_copy(m_aStatus, "HTTP Oracle fallback active.", sizeof(m_aStatus));
+	}
+	else if(!m_Realtime.Connected())
+	{
+		str_copy(m_aStatus, "HTTP Oracle fallback unavailable.", sizeof(m_aStatus));
+	}
+
+	m_pOracleEventsRequest = nullptr;
 }
 
 void CAetherBadges::RequestResolve(bool Force)
@@ -2348,6 +2423,62 @@ void CAetherBadges::ApplyChessMessage(const json_value *pRoot)
 	}
 }
 
+void CAetherBadges::DispatchRealtimeEvent(const json_value *pJson, const char *pRawMessage)
+{
+	if(!pJson || pJson->type != json_object)
+		return;
+	const char *pType = json_string_get(json_object_get(pJson, "type"));
+	if(pType && str_startswith(pType, "chess:"))
+	{
+		ApplyChessMessage(pJson);
+		if(pRawMessage && pRawMessage[0])
+		{
+			if(m_vChessMessages.size() >= 64)
+				m_vChessMessages.erase(m_vChessMessages.begin());
+			m_vChessMessages.push_back(pRawMessage);
+		}
+		return;
+	}
+	if(pType && str_comp(pType, "assets:update") == 0)
+	{
+		const char *pCategory = JsonStringValue(json_object_get(pJson, "category"), "");
+		str_copy(m_aPendingAssetsUpdateCategory, pCategory, sizeof(m_aPendingAssetsUpdateCategory));
+		m_AssetsUpdatePending = true;
+		return;
+	}
+	if(pType && str_comp(pType, "ping:update") == 0)
+	{
+		const json_value *pPing = json_object_get(pJson, "ping");
+		if(pPing && pPing->type == json_object)
+		{
+			SPingEvent Event;
+			Event.m_Seq = JsonIntValue(json_object_get(pPing, "seq"));
+			Event.m_Type = PingTypeFromName(JsonStringValue(json_object_get(pPing, "type"), "help"));
+			str_copy(Event.m_aPlayer, JsonStringValue(json_object_get(pPing, "player_name"), "-"), sizeof(Event.m_aPlayer));
+			Event.m_Pos = vec2(JsonFloatValue(json_object_get(pPing, "x")), JsonFloatValue(json_object_get(pPing, "y")));
+			Event.m_ExpireTime = time_get() + (int64_t)PING_LOCAL_TTL_SECONDS * time_freq();
+			Event.m_Auto = JsonBoolValue(json_object_get(pPing, "auto"));
+			m_LastPingSeq = std::max(m_LastPingSeq, Event.m_Seq);
+			AddOrMergePing(Event);
+		}
+		return;
+	}
+	if(pType && str_comp(pType, "clan:update") == 0)
+	{
+		m_LastClanDirectoryTime = 0;
+		m_LastClanMineTime = 0;
+		return;
+	}
+	if(pType && str_comp(pType, "error") == 0)
+	{
+		const char *pError = JsonStringValue(json_object_get(pJson, "error"), "unknown");
+		str_format(m_aStatus, sizeof(m_aStatus), "Realtime error: %s", pError);
+		str_format(m_aChessStatus, sizeof(m_aChessStatus), "Realtime error: %s", pError);
+		return;
+	}
+	ApplyPresenceBadgeObject(pJson);
+}
+
 void CAetherBadges::PumpRealtimeMessages()
 {
 	std::vector<std::string> vMessages;
@@ -2363,33 +2494,7 @@ void CAetherBadges::PumpRealtimeMessages()
 			log_debug("aether/badges", "realtime json parse failed: %s", aError);
 			continue;
 		}
-		const char *pType = pJson->type == json_object ? json_string_get(json_object_get(pJson, "type")) : nullptr;
-		if(pType && str_startswith(pType, "chess:"))
-		{
-			ApplyChessMessage(pJson);
-			if(m_vChessMessages.size() >= 64)
-				m_vChessMessages.erase(m_vChessMessages.begin());
-			m_vChessMessages.push_back(Message);
-			json_value_free(pJson);
-			continue;
-		}
-		if(pType && str_comp(pType, "assets:update") == 0)
-		{
-			const char *pCategory = JsonStringValue(json_object_get(pJson, "category"), "");
-			str_copy(m_aPendingAssetsUpdateCategory, pCategory, sizeof(m_aPendingAssetsUpdateCategory));
-			m_AssetsUpdatePending = true;
-			json_value_free(pJson);
-			continue;
-		}
-		if(pType && str_comp(pType, "error") == 0)
-		{
-			const char *pError = JsonStringValue(json_object_get(pJson, "error"), "unknown");
-			str_format(m_aStatus, sizeof(m_aStatus), "Realtime error: %s", pError);
-			str_format(m_aChessStatus, sizeof(m_aChessStatus), "Realtime error: %s", pError);
-			json_value_free(pJson);
-			continue;
-		}
-		ApplyPresenceBadgeObject(pJson);
+		DispatchRealtimeEvent(pJson, Message.c_str());
 		json_value_free(pJson);
 	}
 }
@@ -2613,6 +2718,7 @@ void CAetherBadges::OnUpdate()
 		LoadIconTextures();
 
 	PumpRealtimeMessages();
+	PumpOracleEventsRequest();
 	PumpResolveRequest();
 	PumpHeartbeatRequest();
 	PumpChessOnlineRequest();
@@ -2629,10 +2735,13 @@ void CAetherBadges::OnUpdate()
 		m_LastResolveTime = 0;
 		m_LastHeartbeatTime = 0;
 		m_LastRealtimeHelloTime = 0;
+		m_LastOraclePollTime = 0;
 		m_LastAetherOnlineRequestTime = 0;
 		m_LastAetherOnlineResponseTime = 0;
 		m_LastClanDirectoryTime = 0;
 		m_ClanManagementAvailable = true;
+		m_OracleCursor = 0;
+		m_pOracleEventsRequest = nullptr;
 		str_copy(m_aAetherOnlineStatus, "Aether online idle.", sizeof(m_aAetherOnlineStatus));
 		m_Realtime.SetEndpointFromHttpBase(g_Config.m_AeBadgesApiUrl);
 	}
@@ -2679,6 +2788,7 @@ void CAetherBadges::OnUpdate()
 	}
 
 	RequestHeartbeat(false);
+	RequestOracleEvents(false);
 	if(g_Config.m_AeBadges)
 		RequestResolve(false);
 	if(Client()->State() == IClient::STATE_ONLINE)
@@ -2900,6 +3010,8 @@ const CAetherBadges::SChessOnlinePlayer *CAetherBadges::AetherOnlinePlayer(int I
 
 bool CAetherBadges::GradientNicknameStyleForClient(int ClientId, SGradientNicknameStyle &Style) const
 {
+	if(!g_Config.m_AeGradientNicknames)
+		return false;
 	if(ClientId < 0 || ClientId >= MAX_CLIENTS)
 		return false;
 	const char *pName = GameClient()->m_aClients[ClientId].m_aName;
@@ -2908,8 +3020,6 @@ bool CAetherBadges::GradientNicknameStyleForClient(int ClientId, SGradientNickna
 	const bool Local = ClientId == GameClient()->m_Snap.m_LocalClientId || ClientId == GameClient()->m_aLocalIds[0] || ClientId == GameClient()->m_aLocalIds[1];
 	if(Local)
 	{
-		if(!g_Config.m_AeGradientNicknames)
-			return false;
 		Style.m_Enabled = true;
 		Style.m_StartColor = g_Config.m_AeGradientNicknameStartColor;
 		Style.m_EndColor = g_Config.m_AeGradientNicknameEndColor;

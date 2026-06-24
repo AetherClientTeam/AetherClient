@@ -15,6 +15,7 @@ class CAetherRealtimeClient
 	std::atomic<bool> m_Stop{false};
 	std::atomic<bool> m_Connected{false};
 	std::atomic<bool> m_LastFailureUnsupportedProtocol{false};
+	std::atomic<bool> m_UnsupportedProtocolLogged{false};
 	mutable std::mutex m_Mutex;
 	std::condition_variable m_Cv;
 	std::string m_Endpoint;
@@ -39,6 +40,7 @@ public:
 	void QueuePayload(const std::string &Payload);
 	void PumpMessages(std::vector<std::string> &vMessages);
 	bool Connected() const { return m_Connected.load(); }
+	bool UnsupportedProtocol() const { return m_LastFailureUnsupportedProtocol.load(); }
 	void Status(char *pOut, int OutSize) const;
 };
 

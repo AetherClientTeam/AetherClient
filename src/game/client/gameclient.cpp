@@ -2965,6 +2965,7 @@ enum
 	AETHER_FAST_MODE_ADAPTIVE_LEGACY = 0,
 	AETHER_FAST_MODE_ADAPTIVE = 1,
 	AETHER_FAST_MODE_SAIKO_PLUS = 2,
+	AETHER_FAST_MODE_TCLIENT = 3,
 };
 
 enum
@@ -2982,6 +2983,11 @@ static int AetherFastInputTicksFromMs(int Ms)
 static bool AetherFastInputSaikoPlusMode()
 {
 	return g_Config.m_AeFastInput && g_Config.m_AeFastInputMode == AETHER_FAST_MODE_SAIKO_PLUS;
+}
+
+static bool AetherFastInputTClientMode()
+{
+	return g_Config.m_AeFastInput && g_Config.m_AeFastInputMode == AETHER_FAST_MODE_TCLIENT;
 }
 
 static bool AetherFastInputAdaptiveMode()
@@ -3053,6 +3059,8 @@ static float AetherEffectiveFastInputOffsetTicks()
 {
 	if(g_Config.m_AeFastInput)
 	{
+		if(AetherFastInputTClientMode())
+			return g_Config.m_TcFastInputAmount / 20.0f;
 		if(AetherFastInputSaikoPlusMode())
 			return AetherFastInputSaikoPlusOffsetTicks();
 		return AetherFastInputOffsetTicksFromMs(g_Config.m_AeFastInputMovementAmount);
@@ -3072,6 +3080,7 @@ static float AetherEffectiveFastInputOffsetTicksForClient(const CGameClient *pGa
 static bool AetherFastInputOthersEnabled()
 {
 	return (!g_Config.m_AeFastInput && g_Config.m_TcFastInput && g_Config.m_TcFastInputOthers) ||
+	       (AetherFastInputTClientMode() && g_Config.m_TcFastInputOthers) ||
 	       (AetherFastInputSaikoPlusMode() && g_Config.m_AeSaikoPlusOthers) ||
 	       (AetherFastInputAdaptiveMode() && g_Config.m_AeFastInputAdaptiveOthers);
 }
@@ -3259,17 +3268,29 @@ void CGameClient::OnPredict()
 	// predict
 
 	const bool UseAetherFastInput = g_Config.m_AeFastInput != 0;
+	const bool UseAetherTClient = AetherFastInputTClientMode();
 	const bool UseAetherSaikoPlus = AetherFastInputSaikoPlusMode();
 	const bool UseAetherAdaptive = AetherFastInputAdaptiveMode();
-	const bool UseTcFastInput = !UseAetherFastInput && g_Config.m_TcFastInput != 0;
+	const bool UseTcFastInput = UseAetherTClient || (!UseAetherFastInput && g_Config.m_TcFastInput != 0);
 	int LocalTee = g_Config.m_ClDummy ^ m_IsDummySwapping;
 	int DummyTee = LocalTee ^ 1;
-	int FastInputMovementTicks = UseAetherFastInput ?
-		(UseAetherSaikoPlus ? AetherFastInputPredictionTicks(AetherFastInputSaikoPlusOffsetTicks()) : AetherFastInputTicksFromMs(g_Config.m_AeFastInputMovementAmount)) :
-		0;
-	const int FastInputActionTicks = UseAetherFastInput ?
-		(UseAetherSaikoPlus ? FastInputMovementTicks : AetherFastInputTicksFromMs(g_Config.m_AeFastInputActionAmount)) :
-		0;
+	int FastInputMovementTicks = UseAetherTClient ?
+		(g_Config.m_TcFastInputAmount + 19) / 20 :
+		(UseAetherFastInput ?
+				(UseAetherSaikoPlus ? AetherFastInputPredictionTicks(AetherFastInputSaikoPlusOffsetTicks()) : AetherFastInputTicksFromMs(g_Config.m_AeFastInputMovementAmount)) :
+				0);
+	int FastInputActionTicks = UseAetherTClient ?
+		FastInputMovementTicks :
+		(UseAetherFastInput ?
+				(UseAetherSaikoPlus ? FastInputMovementTicks : AetherFastInputTicksFromMs(g_Config.m_AeFastInputActionAmount)) :
+				0);
+	if(UseAetherAdaptive && FastInputMovementTicks > 0 && FastInputActionTicks <= 0)
+	{
+		const CNetObj_PlayerInput &FastInput = m_Controls.m_aFastInput[LocalTee];
+		const bool HasActionInput = FastInput.m_Hook || FastInput.m_Fire || FastInput.m_WantedWeapon || FastInput.m_NextWeapon || FastInput.m_PrevWeapon;
+		if(HasActionInput)
+			FastInputActionTicks = 1;
+	}
 	if(UseAetherAdaptive && (g_Config.m_AeFastInputBrakePriority || g_Config.m_AeFastInputBrakeReleasePriority))
 	{
 		const int Direction = std::clamp(m_Controls.m_aFastInput[LocalTee].m_Direction, -1, 1);
@@ -3291,12 +3312,16 @@ void CGameClient::OnPredict()
 		s_aAetherFastInputBrakeUntilTick[LocalTee] = -1;
 	}
 	int FastInputTicks = 0;
-	if(UseAetherFastInput)
+	if(UseAetherTClient)
+		FastInputTicks = FastInputMovementTicks;
+	else if(UseAetherFastInput)
 		FastInputTicks = maximum(FastInputMovementTicks, FastInputActionTicks);
 	else if(UseTcFastInput)
 		FastInputTicks = (g_Config.m_TcFastInputAmount + 19) / 20;
 	int FastInputOtherTicks = 0;
-	if(UseAetherFastInput)
+	if(UseAetherTClient)
+		FastInputOtherTicks = g_Config.m_TcFastInputOthers ? FastInputTicks : 0;
+	else if(UseAetherFastInput)
 	{
 		if(UseAetherSaikoPlus)
 			FastInputOtherTicks = g_Config.m_AeSaikoPlusOthers ? FastInputTicks : 0;
@@ -5050,7 +5075,7 @@ vec2 CGameClient::GetFastInputPos(int ClientId)
 		Pos = mix(m_aClients[ClientId].m_aPredPos[(PredTick - 1) % 200], m_aClients[ClientId].m_aPredPos[PredTick % 200], PredIntraTick);
 	}
 
-	if(g_Config.m_AeFastInput && !AetherFastInputSaikoPlusMode() && AetherFastInputIsLocal(this, ClientId))
+	if(AetherFastInputAdaptiveMode() && AetherFastInputIsLocal(this, ClientId))
 	{
 		CClientData &ClientData = m_aClients[ClientId];
 		const float Dt = std::clamp(Client()->RenderFrameTime(), 0.0f, 0.1f);

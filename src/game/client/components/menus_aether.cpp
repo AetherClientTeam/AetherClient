@@ -289,6 +289,333 @@ bool AetherFeatureAllowed(AetherMusic::EAetherFeatureId Id)
 	return true;
 }
 
+void AetherDoTooltip(CUi *pUi, CGameClient *pGameClient, const void *pId, const CUIRect &Rect, const char *pText, float Width = 310.0f)
+{
+	if(!pUi || !pGameClient || !pText || !pText[0])
+		return;
+	if(pUi->MouseHovered(&Rect) && (!pUi->ActiveItem() || pUi->ActiveItem() == pId))
+		pUi->SetHotItem(pId);
+	pGameClient->m_Tooltips.DoToolTip(pId, &Rect, pText, Width);
+	pGameClient->m_Tooltips.SetFadeTime(pId, 0.35f);
+}
+
+const char *AetherFeatureTooltip(AetherMusic::EAetherFeatureId Id)
+{
+	using AetherMusic::EAetherFeatureId;
+	switch(Id)
+	{
+	case EAetherFeatureId::GRADIENT_TEAM_COLORS:
+		return "Adds local and synced color effects to names and team colors.";
+	case EAetherFeatureId::MUSIC_PLAYER:
+		return "In-game music controls, playlist playback and visualizer HUD.";
+	case EAetherFeatureId::KEYSTROKES:
+		return "Shows movement, jump, hook and fire inputs as a movable HUD.";
+	case EAetherFeatureId::INPUT_VISUALIZER:
+		return "Draws a small input graph so you can see recent key and mouse timing.";
+	case EAetherFeatureId::STABILITY_TRAINER:
+		return "Training overlay for practicing stable movement and controlled inputs.";
+	case EAetherFeatureId::SESSION_STATS:
+		return "Compact HUD for current session deaths, time and run information.";
+	case EAetherFeatureId::REAL_HITBOX:
+		return "Shows the real tee collision box for practice and debugging.";
+	case EAetherFeatureId::NINJA_TEE_PREVIEW:
+		return "Previews the ninja tee state without changing gameplay.";
+	case EAetherFeatureId::NINJA_TIMER:
+		return "Shows remaining DDRace ninja time while ninja is active.";
+	case EAetherFeatureId::SWEAT_WEAPON:
+		return "Adds a visual sweat-style weapon effect.";
+	case EAetherFeatureId::ORBIT_AURA:
+		return "Draws a configurable aura effect around your tee.";
+	case EAetherFeatureId::JELLY_TEE:
+		return "Adds a soft visual jelly motion to your tee.";
+	case EAetherFeatureId::FINISH_PREDICTION:
+		return "Estimates finish time and progress for the current run.";
+	case EAetherFeatureId::THREE_D_PARTICLES:
+		return "Adds stylized 3D-like particle visuals.";
+	case EAetherFeatureId::LOADING_THEME_BACKGROUND:
+		return "Uses Aether themed backgrounds on loading screens.";
+	case EAetherFeatureId::CLIENT_BADGES:
+		return "Shows Aether family, founder, tester, chess and friend badges.";
+	case EAetherFeatureId::FAST_INPUT:
+		return "Predicts selected inputs ahead locally to reduce input delay feel.";
+	case EAetherFeatureId::PING_WHEEL:
+		return "Radial wheel for place, help, danger, come and wait pings.";
+	case EAetherFeatureId::CHAT_BUBBLES:
+		return "Shows chat messages above tees for easier in-game reading.";
+	case EAetherFeatureId::BLOCK_AWARENESS:
+		return "Colors, scales and labels players by enemy, ally, helper or natural state.";
+	case EAetherFeatureId::FOCUS_MODE:
+		return "Hides selected UI parts so gameplay stays clean while focusing.";
+	case EAetherFeatureId::SNAP_TAP:
+		return "Resolves opposite movement key presses more cleanly.";
+	case EAetherFeatureId::GORES_MODE:
+		return "Legacy Aether gores helper behavior for hammer/gun flow.";
+	case EAetherFeatureId::FAST_SPEC:
+		return "Queues a quick spec and return flow for DDRace strong/weak handling.";
+	case EAetherFeatureId::TRANSLATOR:
+		return "Translates chat manually or automatically using the embedded backend.";
+	case EAetherFeatureId::SILENT_TYPING:
+		return "Reduces visible typing indicators for privacy.";
+	case EAetherFeatureId::FAIL_SOUND:
+		return "Plays custom sounds for freeze fail and related events.";
+	case EAetherFeatureId::SOUND:
+		return "Extra gameplay sound controls for hooks, hammers, jumps and kills.";
+	case EAetherFeatureId::KEYBOARD_SOUND:
+		return "Plays configurable typing sounds while using chat.";
+	case EAetherFeatureId::AUTO_TEAM_LOCK:
+		return "Automatically handles team lock preference after joining teams.";
+	case EAetherFeatureId::SAVE_UNSENT_MESSAGES:
+		return "Keeps unsent chat drafts across close or map change situations.";
+	case EAetherFeatureId::DDRACE_CONFIGS:
+		return "One-key DDRace config toggles such as show others, super and deep-fly.";
+	case EAetherFeatureId::HUD_EDITOR:
+		return "Opens the editor for movable Aether and HUD elements.";
+	case EAetherFeatureId::ASSETS_EDITOR:
+		return "Opens the visual editor for skins, game, particles, emoticons and entities.";
+	case EAetherFeatureId::MAP_BACKGROUND_BUILDER:
+		return "Opens the builder for creating or recoloring simple background maps.";
+	case EAetherFeatureId::GORES_MAPS:
+		return "Downloads and manages gores map packs.";
+	case EAetherFeatureId::VAULT_CFG:
+		return "Exports selected configs while excluding sensitive login details.";
+	case EAetherFeatureId::CUSTOM_RESOLUTION:
+		return "Applies a custom aspect ratio or resolution helper.";
+	case EAetherFeatureId::OPTIMIZER:
+		return "Performance toggles and diagnostics for lower frame-time spikes.";
+	case EAetherFeatureId::BROWSER_UTILS:
+		return "Small server browser helpers such as refresh and shorter names.";
+	case EAetherFeatureId::ROLLBACK_DEMO:
+		return "Keeps replay buffer controls for quick demo rollback clips.";
+	case EAetherFeatureId::AIM_TRAINING:
+		return "Local aim training targets for mouse accuracy practice.";
+	case EAetherFeatureId::PSA:
+		return "Practice Sensitivity Analyzer for comparing low and high values.";
+	case EAetherFeatureId::CLOUD_CLAN:
+		return "Cloud clan membership, members and warlist sharing for general clans.";
+	default:
+		return nullptr;
+	}
+}
+
+const char *AetherControlTooltip(const char *pLabel)
+{
+	if(!pLabel || !pLabel[0])
+		return nullptr;
+
+	struct SHint
+	{
+		const char *m_pLabel;
+		const char *m_pText;
+	};
+	static constexpr SHint s_aHints[] = {
+		{"Lock delay after joining team", "How long Aether waits before sending the automatic team lock command after you join a DDNet team."},
+		{"Disable if you have shotgun, grenade or laser", "Turns Gores Mode off while you have stronger weapons, so it does not fight weapon-specific gameplay."},
+		{"Focus Mode key", "Assign a key that toggles Focus Mode without opening the settings menu."},
+		{"Hide all UI", "Hides most HUD/UI elements while Focus Mode is active. The crosshair stays visible."},
+		{"Hide nameplates", "Hides player names separately from the rest of Focus Mode."},
+		{"Keep music player visible", "Keeps the music player HUD visible even while Focus Mode hides other UI."},
+		{"Show in nameplates", "Draws Aether badges beside player names in-world."},
+		{"Show in scoreboard", "Draws Aether badges inside the scoreboard rows."},
+		{"Show client badges only", "Only shows Aether/Vera/Via/Vex client identity badges and hides role badges."},
+		{"Show friend heart", "Shows the normal friend heart as the right-most badge slot."},
+		{"Show Aether pings", "Enables Aether ping markers from the ping wheel and cloud ping events."},
+		{"Auto help on frozen ally", "Automatically sends a Help marker when an ally/helper freezes, with dedupe protection."},
+		{"Bubble duration", "How long chat bubbles stay above tees."},
+		{"Bubble opacity", "Transparency of chat bubble panels."},
+		{"Bubble width", "Maximum width of each chat bubble before wrapping."},
+		{"Max stacked messages", "How many bubbles can stack over one tee."},
+		{"Only visible tees", "Only shows bubbles for tees currently visible on your screen."},
+		{"Colored team/mention text", "Colors team chat and mention-like text inside bubbles."},
+		{"Show whisper bubbles", "Shows whisper/private messages as bubbles."},
+		{"Show my live draft", "Shows your own typed but not-yet-sent chat draft as a local bubble."},
+		{"Show my sent messages", "Shows bubbles for your own sent messages too."},
+		{"TClient amount", "Classic TClient input amount used when Fast Input is set to TClient mode."},
+		{"Fast input others", "Predicts other tees in TClient mode to make drag/hook response look more immediate."},
+		{"Saiko+ input others", "Applies Saiko+ style prediction to other tees too."},
+		{"Movement amount", "How far A/D and jump input are predicted ahead in Adaptive mode."},
+		{"Hook/fire amount", "How far hook, fire and weapon input are predicted. Very low values are guarded so hook/fire does not drop."},
+		{"Correction sharpness", "How strongly prediction snaps back toward the server result after correction."},
+		{"A/D reverse", "Prioritizes direct A-to-D or D-to-A direction changes for a sharper brake feel."},
+		{"A/D to none", "Prioritizes releasing A or D to neutral for a cleaner stop feel."},
+		{"Brake amount", "Extra prediction amount used by the enabled A/D brake priority behavior."},
+		{"Adaptive input other tees", "Predicts other tees forward in Adaptive mode so hook and drag feel less delayed."},
+		{"Other tees feel", "Chooses how direct other-tee prediction feels: smooth, balanced precision, or aggressive."},
+		{"Other tees amount", "How far other tees are predicted in Adaptive mode. 135 means about 1.35 ticks."},
+		{"Ping assist", "Adds a small safe margin based on your ping so prediction stays stable."},
+		{"Interaction assist", "Adds a little extra help around close tee interaction such as dragging."},
+		{"Interaction strength", "Controls how strong interaction assist feels when enabled."},
+		{"Apply to dummy", "Also applies Aether Fast Input to dummy prediction where possible."},
+		{"Sub-Tick aiming", "Samples mouse aim closer to hook/fire time for better aim timing."},
+		{"Auto margin", "Keeps a small safety margin to avoid unstable over-prediction."},
+		{"Show debug info", "Shows tuning/debug numbers for Fast Input testing."},
+		{"Enable Fast Spec", "Enables the quick spec/return helper used for DDRace strong/weak handling."},
+		{"Auto translate incoming messages", "Automatically translates incoming chat when the translator feature is enabled."},
+		{"Translate my messages before sending", "Translates your outgoing chat before it is sent."},
+		{"Local tee and dummy", "Plays the freeze fail sound for your own tee and dummy."},
+		{"Other tees in my DDNet team", "Plays freeze fail sounds for teammates."},
+		{"Last unfrozen tee warning", "Warns when the team is close to a full freeze situation."},
+		{"Local volume", "Volume for local freeze fail sounds."},
+		{"Team volume", "Volume for teammate freeze fail sounds."},
+		{"Last volume", "Volume for the last-unfrozen warning sound."},
+		{"Local hook sounds", "Enables or disables hook sounds from your own tee."},
+		{"Hook sounds from other players", "Enables or disables hook sounds caused by other players."},
+		{"Hammer sounds from other players", "Enables or disables hammer sounds caused by other players."},
+		{"Local hammer sounds", "Enables or disables your own hammer sounds."},
+		{"Local weapon switch sounds", "Enables or disables your own weapon switch sound."},
+		{"Weapon switch sounds from other players", "Enables or disables weapon switch sounds from other players."},
+		{"Double jump sounds", "Enables or disables air-jump/double-jump sounds."},
+		{"Local kill/respawn sounds", "Enables or disables kill and respawn sounds for your own tee."},
+		{"Kill/respawn sounds from other players", "Enables or disables kill and respawn sounds from other players."},
+		{"Color player tees", "Colors tees using Block Awareness enemy/ally/helper/natural groups."},
+		{"Allies keep real skins", "Keeps ally/helper real skins instead of replacing them with the default colored tee."},
+		{"Color nameplates and scoreboard", "Applies the same group colors to nameplates and scoreboard rows."},
+		{"Color natural tees", "Colors players that are not marked enemy, ally or helper."},
+		{"Naturals keep real skins", "Keeps natural players' real skins while still allowing name/color settings."},
+		{"Color natural names", "Colors natural player names using the natural color."},
+		{"Enlarge enemies", "Legacy quick enemy scale toggle. Fine tuning is in the Scale tab."},
+		{"Large self freeze timer", "Shows a larger HUD timer when your own tee is frozen."},
+		{"Ally/helper freeze alert", "Shows a stronger alert when an ally or helper freezes."},
+		{"Enemy count HUD", "Shows nearby enemies and their names inside the scan radius."},
+		{"Hide enemy emotes", "Hides overhead emotes from enemies only."},
+		{"Force enemy eyes", "Forces enemy eyes to a neutral/default look."},
+		{"Enemy scan range", "World radius used by the enemy count HUD."},
+		{"Enemy scale", "Visual-only tee scale for enemies. Hitbox and prediction are unchanged."},
+		{"Helper scale", "Visual-only tee scale for helpers. Hitbox and prediction are unchanged."},
+		{"Ally scale", "Visual-only tee scale for allies. Hitbox and prediction are unchanged."},
+		{"Natural scale", "Visual-only tee scale for natural players. Hitbox and prediction are unchanged."},
+		{"Enemy name opacity", "Nameplate/scoreboard opacity for enemies."},
+		{"Helper name opacity", "Nameplate/scoreboard opacity for helpers."},
+		{"Ally name opacity", "Nameplate/scoreboard opacity for allies."},
+		{"Natural name opacity", "Nameplate/scoreboard opacity for natural players."},
+		{"Horizontal layout", "Draws the keystrokes HUD horizontally instead of vertically."},
+		{"Show jump key", "Adds the jump key to the keystrokes HUD."},
+		{"Show M1 key", "Adds the left mouse/fire key to the keystrokes HUD."},
+		{"Keyboard typing sound", "Plays a typing sound while writing chat messages."},
+		{"Typing sound volume", "Volume of the keyboard typing sound."},
+		{"Flow speed", "How quickly input history moves through the visualizer."},
+		{"Show local input", "Shows your own input in the input visualizer."},
+		{"Hook markers", "Marks hook moments in the input visualizer."},
+		{"Include mouse buttons", "Adds mouse buttons to the input visualizer."},
+		{"Show jump lane", "Shows a separate jump input lane."},
+		{"Show M1 lane", "Shows a separate fire/M1 input lane."},
+		{"Show key names", "Labels input lanes with key names."},
+		{"Use spectated/demo player input", "Uses spectated or demo player input instead of only local input."},
+		{"Vertical layout", "Draws this HUD vertically instead of horizontally."},
+		{"Panel background", "Draws a background behind the HUD panel."},
+		{"Sharp corners", "Uses sharper panel corners for a cleaner rectangular look."},
+		{"Panel length", "Length of the input visualizer panel."},
+		{"Lane thickness", "Thickness of each input lane."},
+		{"Overlay opacity", "Opacity of the input visualizer overlay."},
+		{"Show velocity bar", "Shows the stability/velocity training bar."},
+		{"Use spectated/demo player", "Uses spectated or demo player data for the trainer."},
+		{"Colorize by quality", "Colors the trainer display based on movement quality."},
+		{"Average ticks", "How many ticks are averaged for a smoother trainer readout."},
+		{"Bar glide", "How smoothly the trainer bar moves."},
+		{"Minimum speed", "Minimum speed threshold before trainer feedback becomes active."},
+		{"Velocity scale", "Scales the trainer speed display."},
+		{"Bar thickness", "Thickness of the trainer bar."},
+		{"Track width", "Width of the trainer track."},
+		{"Block width", "Width of the highlighted center block."},
+		{"Show session time", "Shows elapsed time in the session stats HUD."},
+		{"HUD scale", "Size of this HUD element."},
+		{"Vertical offset", "Moves this HUD element up or down."},
+		{"Custom rifle/shotgun colors", "Uses custom colors for the sweat weapon effect."},
+		{"Shine animation", "Adds an animated shine pass."},
+		{"Electric arcs", "Adds electric arc details to the weapon effect."},
+		{"Entities laser override", "Uses the effect even when entities laser visuals are active."},
+		{"Glow strength", "Strength of the glow around the effect."},
+		{"Laser thickness", "Thickness of the custom laser beam."},
+		{"Sparkle intensity", "How many sparkle details the effect draws."},
+		{"Electric arc density", "How dense electric arcs appear."},
+		{"Electric arc opacity", "Transparency of electric arcs."},
+		{"Shine speed", "Speed of the animated shine."},
+		{"Enable in idle mode only", "Shows orbit aura only after you stop actively moving for a moment."},
+		{"Idle delay", "Delay before idle-only aura activates."},
+		{"Fade duration", "How long the aura takes to fade in or out."},
+		{"Aura radius", "Distance of aura particles from your tee."},
+		{"Particles", "Number of aura particles."},
+		{"Aura alpha", "Transparency of the aura."},
+		{"Aura speed", "Rotation or movement speed of aura particles."},
+		{"Particle size", "Size of individual aura particles."},
+		{"Jelly others", "Applies jelly tee visuals to other players too."},
+		{"Jelly strength", "How strong the jelly deformation looks."},
+		{"Jelly duration", "How long the jelly motion takes to settle."},
+		{"Show time", "Shows finish prediction time information."},
+		{"Show milliseconds", "Adds milliseconds to finish prediction display."},
+		{"Show percentage", "Shows progress percentage when the prediction source is reliable."},
+		{"Show always", "Shows the prediction HUD even when preview/fallback data is limited."},
+		{"Particles count", "Number of particles drawn by this effect."},
+		{"Size", "Size of the particles."},
+		{"Speed", "Movement speed of particles."},
+		{"Rotation speed", "Rotation speed of particles."},
+		{"Alpha", "Particle transparency."},
+		{"Glow", "Adds a glow pass to the particle effect."},
+		{"Auto refresh server list", "Refreshes the server list automatically in the browser."},
+		{"Refresh interval", "How often the server list auto-refreshes."},
+		{"Shorten KoG server names", "Makes KoG server names shorter in the browser list."},
+		{"Aether settings page size", "Legacy page scale control. Newer builds mostly use automatic responsive sizing."},
+		{"Team background gradient (local)", "Applies a local-only gradient to team color visuals."},
+		{"Nickname gradient", "Enables gradient coloring for supported nickname render paths."},
+		{"Sparkle effect", "Adds small sparkle particles around gradient nicknames."},
+		{"Animate nickname blend", "Animates the gradient colors over time."},
+		{"Animation speed", "Speed of the nickname gradient animation."},
+		{"Angle", "Direction angle for the generated background gradient."},
+		{"Brightness", "Brightness adjustment for the generated/imported background."},
+		{"Contrast", "Contrast adjustment for the generated/imported background."},
+		{"Saturation", "Color saturation adjustment for the generated/imported background."},
+		{"Vignette", "Darkens the edges of the background for more depth."},
+		{"High process priority", "Asks Windows to give the client higher process priority."},
+		{"Discord priority: Below Normal", "Lowers Discord process priority while playing."},
+		{"Disable in-game particles", "Turns off some gameplay particles for performance."},
+		{"High detail map render", "Controls DDNet high-detail map rendering."},
+		{"Disable menu animations", "Reduces animated menu effects."},
+		{"FPS fog", "Limits map visibility around the camera to reduce draw cost."},
+		{"Cull map tiles outside FPS fog", "Skips drawing map tiles outside the FPS fog area."},
+		{"Render FPS fog rectangle", "Draws the visible FPS fog rectangle overlay."},
+		{"Radius (tiles)", "Radius of the FPS fog area measured in map tiles."},
+		{"Clip length", "Length of rollback demo clips."},
+		{"Targets", "Number of aim-training targets."},
+		{"Target size", "Size of aim-training targets."},
+		{"Target distance", "How far aim-training targets spawn from the center."},
+		{"Background dim", "Darkens the background while aim training is active."},
+		{"Shrink targets", "Makes targets shrink over time."},
+		{"Shrink duration", "How long a target takes to shrink."},
+		{"Respawn missed targets", "Respawns targets after a miss instead of ending immediately."},
+		{"Respawn delay", "Delay before a missed target respawns."},
+		{"Trial duration", "How long the analyzer/training trial runs."},
+		{"Selected only", "Shows only selected gores map categories."},
+		{"Delete mode", "Enables delete mode for selected gores map entries."},
+		{"Show Grid", "Shows a grid overlay in the Assets Editor preview."},
+		{"Use donor part", "Uses a selected donor part for this mixed asset slot."},
+		{"Tint color", "Applies a tint to the selected asset part."},
+		{"Only colored pixels", "Limits tinting to colored pixels and keeps neutral pixels cleaner."},
+		{"Full bright", "Exports the selected part as full-bright where supported."},
+		{"Keep black outline, fill inside", "Keeps dark outlines while recoloring the inside area."},
+		{"Opacity", "Opacity of the selected asset part."},
+		{"Dynamic cover color", "Tints the music player with colors sampled from cover art."},
+		{"Panel opacity", "Transparency of the music player panel."},
+		{"Visualizer", "Shows the music visualizer in the player panel."},
+		{"Visualizer sensitivity", "How strongly audio affects visualizer height."},
+		{"Visualizer glow", "Glow amount around the visualizer."},
+		{"Only enabled", "Filters the feature list to only show enabled features."},
+		{"Show legal moves", "Shows legal chess moves for the selected piece."},
+		{"Wrap through walls", "Lets Snake wrap through the board edges."},
+	};
+
+	for(const SHint &Hint : s_aHints)
+	{
+		if(str_comp(Hint.m_pLabel, pLabel) == 0)
+			return Hint.m_pText;
+	}
+
+	return "Aether-specific option. Hover the feature title for the main purpose; this setting adjusts one part of that feature.";
+}
+
+void AetherDoLabelTooltip(CUi *pUi, CGameClient *pGameClient, const void *pId, const CUIRect &Rect, const char *pLabel, float Width = 310.0f)
+{
+	AetherDoTooltip(pUi, pGameClient, pId, Rect, AetherControlTooltip(pLabel), Width);
+}
+
 ColorRGBA AetherThemeColor(float Alpha)
 {
 	return color_cast<ColorRGBA>(ColorHSLA(g_Config.m_UiColor, true)).WithAlpha(Alpha);
@@ -1966,6 +2293,7 @@ void CMenus::RenderSettingsAetherAutoTeamLock(CUIRect Body)
 	CUIRect Control;
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeAutoTeamLockDelay, &g_Config.m_AeAutoTeamLockDelay, &Control, "Lock delay after joining team", 0, 60, &CUi::ms_LinearScrollbarScale, 0, "s");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeAutoTeamLockDelay, Control, "Lock delay after joining team");
 	Body.HSplitTop(4.0f * S, nullptr, &Body);
 	Body.HSplitTop(18.0f * S, &Control, &Body);
 	TextRender()->TextColor(0.75f, 0.80f, 0.88f, 1.0f);
@@ -1983,6 +2311,7 @@ void CMenus::RenderSettingsAetherGoresMode(CUIRect Body)
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeGoresModeDisableIfWeapons, "Disable if you have shotgun, grenade or laser", g_Config.m_AeGoresModeDisableIfWeapons, &Control))
 		g_Config.m_AeGoresModeDisableIfWeapons ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeGoresModeDisableIfWeapons, Control, "Disable if you have shotgun, grenade or laser");
 
 	Body.HSplitTop(6.0f * S, nullptr, &Body);
 	Body.HSplitTop(18.0f * S, &Control, &Body);
@@ -2008,14 +2337,17 @@ void CMenus::RenderSettingsAetherFocusMode(CUIRect Body)
 	Body.HSplitTop(20.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeFocusModeHideAllUi, "Hide all UI", g_Config.m_AeFocusModeHideAllUi, &Control))
 		g_Config.m_AeFocusModeHideAllUi ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeFocusModeHideAllUi, Control, "Hide all UI");
 	Body.HSplitTop(4.0f * S, nullptr, &Body);
 	Body.HSplitTop(20.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeFocusModeHideNameplates, "Hide nameplates", g_Config.m_AeFocusModeHideNameplates, &Control))
 		g_Config.m_AeFocusModeHideNameplates ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeFocusModeHideNameplates, Control, "Hide nameplates");
 	Body.HSplitTop(4.0f * S, nullptr, &Body);
 	Body.HSplitTop(20.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeFocusModeKeepMusicPlayer, "Keep music player visible", g_Config.m_AeFocusModeKeepMusicPlayer, &Control))
 		g_Config.m_AeFocusModeKeepMusicPlayer ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeFocusModeKeepMusicPlayer, Control, "Keep music player visible");
 }
 
 void CMenus::RenderSettingsAetherDdraceConfigs(CUIRect Body)
@@ -2132,12 +2464,15 @@ void CMenus::RenderSettingsAetherBadges(CUIRect Body)
 	Body.HSplitTop(22.0f * S, &Row, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeBadgesNameplates, "Show in nameplates", g_Config.m_AeBadgesNameplates, &Row))
 		g_Config.m_AeBadgesNameplates ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeBadgesNameplates, Row, "Show in nameplates");
 	Body.HSplitTop(22.0f * S, &Row, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeBadgesScoreboard, "Show in scoreboard", g_Config.m_AeBadgesScoreboard, &Row))
 		g_Config.m_AeBadgesScoreboard ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeBadgesScoreboard, Row, "Show in scoreboard");
 	Body.HSplitTop(22.0f * S, &Row, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeBadgesClientOnly, "Show client badges only", g_Config.m_AeBadgesClientOnly, &Row))
 		g_Config.m_AeBadgesClientOnly ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeBadgesClientOnly, Row, "Show client badges only");
 	Body.HSplitTop(22.0f * S, &Row, &Body);
 	const int FriendHeart = g_Config.m_ClNamePlatesFriendMark || g_Config.m_ClMessageFriend;
 	if(DoButton_CheckBox(&s_FriendHeartButton, "Show friend heart", FriendHeart, &Row))
@@ -2200,9 +2535,11 @@ void CMenus::RenderSettingsAetherPings(CUIRect Body)
 		Body.HSplitTop(22.0f * S, &Row, &Body);
 		if(DoButton_CheckBox(&g_Config.m_AePings, "Show Aether pings", g_Config.m_AePings, &Row))
 			g_Config.m_AePings ^= 1;
+		AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AePings, Row, "Show Aether pings");
 		Body.HSplitTop(22.0f * S, &Row, &Body);
 		if(DoButton_CheckBox(&g_Config.m_AePingAutoHelp, "Auto help on frozen ally", g_Config.m_AePingAutoHelp, &Row))
 			g_Config.m_AePingAutoHelp ^= 1;
+		AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AePingAutoHelp, Row, "Auto help on frozen ally");
 		return;
 	}
 
@@ -2555,27 +2892,36 @@ void CMenus::RenderSettingsAetherChatBubbles(CUIRect Body)
 	CUIRect Control;
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeChatBubblesDuration, &g_Config.m_AeChatBubblesDuration, &Control, "Bubble duration", 2, 8, &CUi::ms_LinearScrollbarScale, 0, "s");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeChatBubblesDuration, Control, "Bubble duration");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeChatBubblesOpacity, &g_Config.m_AeChatBubblesOpacity, &Control, "Bubble opacity", 20, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeChatBubblesOpacity, Control, "Bubble opacity");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeChatBubblesWidth, &g_Config.m_AeChatBubblesWidth, &Control, "Bubble width", 80, 220);
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeChatBubblesWidth, Control, "Bubble width");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeChatBubblesStackCount, &g_Config.m_AeChatBubblesStackCount, &Control, "Max stacked messages", 1, 4);
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeChatBubblesStackCount, Control, "Max stacked messages");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeChatBubblesVisibleOnly, "Only visible tees", g_Config.m_AeChatBubblesVisibleOnly, &Control))
 		g_Config.m_AeChatBubblesVisibleOnly ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeChatBubblesVisibleOnly, Control, "Only visible tees");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeChatBubblesColoredMessages, "Colored team/mention text", g_Config.m_AeChatBubblesColoredMessages, &Control))
 		g_Config.m_AeChatBubblesColoredMessages ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeChatBubblesColoredMessages, Control, "Colored team/mention text");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeChatBubblesWhispers, "Show whisper bubbles", g_Config.m_AeChatBubblesWhispers, &Control))
 		g_Config.m_AeChatBubblesWhispers ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeChatBubblesWhispers, Control, "Show whisper bubbles");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeChatBubblesShowOwnLive, "Show my live draft", g_Config.m_AeChatBubblesShowOwnLive, &Control))
 		g_Config.m_AeChatBubblesShowOwnLive ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeChatBubblesShowOwnLive, Control, "Show my live draft");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeChatBubblesShowOwnSent, "Show my sent messages", g_Config.m_AeChatBubblesShowOwnSent, &Control))
 		g_Config.m_AeChatBubblesShowOwnSent ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeChatBubblesShowOwnSent, Control, "Show my sent messages");
 	Body.HSplitTop(4.0f * S, nullptr, &Body);
 	Body.HSplitTop(18.0f * S, &Control, &Body);
 	TextRender()->TextColor(0.75f, 0.80f, 0.88f, 1.0f);
@@ -2594,9 +2940,9 @@ void CMenus::RenderSettingsAetherFastInput(CUIRect Body)
 
 	CUIRect Control;
 	Body.HSplitTop(24.0f * S, &Control, &Body);
-	if(g_Config.m_AeFastInputMode > 2)
+	if(g_Config.m_AeFastInputMode > 3)
 		g_Config.m_AeFastInputMode = 1;
-	const int ActiveMode = g_Config.m_AeFastInput ? (g_Config.m_AeFastInputMode == 2 ? 3 : 2) : (g_Config.m_TcFastInput ? 1 : 0);
+	const int ActiveMode = g_Config.m_AeFastInputMode == 3 ? 1 : (g_Config.m_AeFastInputMode == 2 ? 3 : 2);
 	CUIRect B1, B2, B3, Rest;
 	const float Spacing = 2.0f * S;
 	const float SlotW = (Control.w - Spacing * 2.0f) / 3.0f;
@@ -2608,23 +2954,21 @@ void CMenus::RenderSettingsAetherFastInput(CUIRect Body)
 
 	if(DoButton_Menu(&s_ModeTClient, "TClient", ActiveMode == 1, &B1, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_L))
 	{
-		g_Config.m_AeFastInput = 0;
-		g_Config.m_TcFastInput = 1;
+		g_Config.m_AeFastInputMode = 3;
 	}
+	AetherDoTooltip(Ui(), GameClient(), &s_ModeTClient, B1, "Uses the classic TClient fast input values. Good if you want the old direct feel.");
 	if(DoButton_Menu(&s_ModeAdaptive, "Adaptive", ActiveMode == 2, &B2, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_NONE))
 	{
-		g_Config.m_AeFastInput = 1;
-		g_Config.m_TcFastInput = 0;
 		g_Config.m_AeFastInputMode = 1;
 	}
+	AetherDoTooltip(Ui(), GameClient(), &s_ModeAdaptive, B2, "Aether's balanced mode. Movement and hook/fire can use separate timing.");
 	if(DoButton_Menu(&s_ModeSaikoPlus, "Saiko+", ActiveMode == 3, &B3, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_R))
 	{
-		g_Config.m_AeFastInput = 1;
-		g_Config.m_TcFastInput = 0;
 		g_Config.m_AeFastInputMode = 2;
 		if(g_Config.m_AeSaikoPlusAmount <= 0)
 			g_Config.m_AeSaikoPlusAmount = std::clamp(g_Config.m_AeFastInputMovementAmount * 5, 0, 500);
 	}
+	AetherDoTooltip(Ui(), GameClient(), &s_ModeSaikoPlus, B3, "Sharper Saiko-style prediction. Stronger and more direct than Adaptive.");
 
 	Body.HSplitTop(8.0f * S, nullptr, &Body);
 
@@ -2632,9 +2976,11 @@ void CMenus::RenderSettingsAetherFastInput(CUIRect Body)
 	{
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		Ui()->DoScrollbarOption(&g_Config.m_TcFastInputAmount, &g_Config.m_TcFastInputAmount, &Control, "TClient amount", 1, 40, &CUi::ms_LinearScrollbarScale, CUi::SCROLLBAR_OPTION_NOCLAMPVALUE, "ms");
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_TcFastInputAmount, Control, "How far TClient mode predicts local input ahead.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		if(DoButton_CheckBox(&g_Config.m_TcFastInputOthers, "Fast input others", g_Config.m_TcFastInputOthers, &Control))
 			g_Config.m_TcFastInputOthers ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_TcFastInputOthers, Control, "Also predicts other tees in TClient mode. Helps drag/hook feel more responsive.");
 	}
 	else if(ActiveMode == 3)
 	{
@@ -2646,32 +2992,41 @@ void CMenus::RenderSettingsAetherFastInput(CUIRect Body)
 		Ui()->DoLabel(&Label, aBuf, Label.h * CUi::ms_FontmodHeight * 0.8f, TEXTALIGN_ML);
 		const float Relative = std::clamp(g_Config.m_AeSaikoPlusAmount, 0, 500) / 500.0f;
 		g_Config.m_AeSaikoPlusAmount = std::clamp(round_to_int(Ui()->DoScrollbarH(&g_Config.m_AeSaikoPlusAmount, &ScrollBar, Relative) * 500.0f), 0, 500);
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeSaikoPlusAmount, Control, "Saiko+ prediction amount. Higher feels sharper but can look more aggressive.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		if(DoButton_CheckBox(&g_Config.m_AeSaikoPlusOthers, "Saiko+ input others", g_Config.m_AeSaikoPlusOthers, &Control))
 			g_Config.m_AeSaikoPlusOthers ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeSaikoPlusOthers, Control, "Applies Saiko+ prediction to other tees too.");
 	}
 	else if(ActiveMode == 2)
 	{
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		Ui()->DoScrollbarOption(&g_Config.m_AeFastInputMovementAmount, &g_Config.m_AeFastInputMovementAmount, &Control, "Movement amount", 0, 50, &CUi::ms_LinearScrollbarScale, 0, "ms");
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeFastInputMovementAmount, Control, "How far movement keys are predicted ahead. This mostly affects A/D and jump feel.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		Ui()->DoScrollbarOption(&g_Config.m_AeFastInputActionAmount, &g_Config.m_AeFastInputActionAmount, &Control, "Hook/fire amount", 0, 50, &CUi::ms_LinearScrollbarScale, 0, "ms");
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeFastInputActionAmount, Control, "How far hook, fire and weapon input are predicted. Very low values are guarded so hook/fire does not drop during prediction.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		Ui()->DoScrollbarOption(&g_Config.m_AeFastInputSmoothCorrections, &g_Config.m_AeFastInputSmoothCorrections, &Control, "Correction sharpness", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeFastInputSmoothCorrections, Control, "How strongly prediction correction snaps back to the server result.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		if(DoButton_CheckBox(&g_Config.m_AeFastInputBrakePriority, "A/D reverse", g_Config.m_AeFastInputBrakePriority, &Control))
 			g_Config.m_AeFastInputBrakePriority ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeFastInputBrakePriority, Control, "Gives a short priority boost when switching directly from A to D or D to A.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		if(DoButton_CheckBox(&g_Config.m_AeFastInputBrakeReleasePriority, "A/D to none", g_Config.m_AeFastInputBrakeReleasePriority, &Control))
 			g_Config.m_AeFastInputBrakeReleasePriority ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeFastInputBrakeReleasePriority, Control, "Gives a short priority boost when releasing A or D to neutral.");
 		if(g_Config.m_AeFastInputBrakePriority || g_Config.m_AeFastInputBrakeReleasePriority)
 		{
 			Body.HSplitTop(22.0f * S, &Control, &Body);
 			Ui()->DoScrollbarOption(&g_Config.m_AeFastInputBrakeAmount, &g_Config.m_AeFastInputBrakeAmount, &Control, "Brake amount", 0, 50, &CUi::ms_LinearScrollbarScale, 0, "ms");
+			AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeFastInputBrakeAmount, Control, "Extra one-tap brake prediction amount used only on the enabled A/D edges.");
 		}
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		if(DoButton_CheckBox(&g_Config.m_AeFastInputAdaptiveOthers, "Adaptive input other tees", g_Config.m_AeFastInputAdaptiveOthers, &Control))
 			g_Config.m_AeFastInputAdaptiveOthers ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeFastInputAdaptiveOthers, Control, "Predicts other tees forward so hooks and drags feel less delayed.");
 		if(g_Config.m_AeFastInputAdaptiveOthers)
 		{
 			static CButtonContainer s_OthersSmooth;
@@ -2694,10 +3049,13 @@ void CMenus::RenderSettingsAetherFastInput(CUIRect Body)
 			B2 = Rest;
 			if(DoButton_Menu(&s_OthersSmooth, "Smooth", g_Config.m_AeFastInputAdaptiveOthersStyle == 0, &B0, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_L))
 				g_Config.m_AeFastInputAdaptiveOthersStyle = 0;
+			AetherDoTooltip(Ui(), GameClient(), &s_OthersSmooth, B0, "Safer other-tee prediction with less snap.");
 			if(DoButton_Menu(&s_OthersPrecision, "Precision", g_Config.m_AeFastInputAdaptiveOthersStyle == 1, &B1, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_NONE))
 				g_Config.m_AeFastInputAdaptiveOthersStyle = 1;
+			AetherDoTooltip(Ui(), GameClient(), &s_OthersPrecision, B1, "Balanced direct feel, close to the old Precision/Star style.");
 			if(DoButton_Menu(&s_OthersAggressive, "Aggressive", g_Config.m_AeFastInputAdaptiveOthersStyle == 2, &B2, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_R))
 				g_Config.m_AeFastInputAdaptiveOthersStyle = 2;
+			AetherDoTooltip(Ui(), GameClient(), &s_OthersAggressive, B2, "Stronger Saiko-like other-tee prediction for very direct hooks.");
 
 			Body.HSplitTop(22.0f * S, &Control, &Body);
 			char aBuf[64];
@@ -2707,18 +3065,23 @@ void CMenus::RenderSettingsAetherFastInput(CUIRect Body)
 			Ui()->DoLabel(&AmountLabel, aBuf, AmountLabel.h * CUi::ms_FontmodHeight * 0.78f, TEXTALIGN_ML);
 			const float Relative = std::clamp(g_Config.m_AeFastInputAdaptiveOthersAmount, 0, 500) / 500.0f;
 			g_Config.m_AeFastInputAdaptiveOthersAmount = std::clamp(round_to_int(Ui()->DoScrollbarH(&g_Config.m_AeFastInputAdaptiveOthersAmount, &ScrollBar, Relative) * 500.0f), 0, 500);
+			AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeFastInputAdaptiveOthersAmount, Control, "Other tee prediction amount. 135 means roughly 1.35 ticks.");
 		}
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		if(DoButton_CheckBox(&g_Config.m_AeFastInputPingAssist, "Ping assist", g_Config.m_AeFastInputPingAssist, &Control))
 			g_Config.m_AeFastInputPingAssist ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeFastInputPingAssist, Control, "Lets Adaptive add a small safe margin based on your current ping.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		if(DoButton_CheckBox(&g_Config.m_AeFastInputInteractionAssist, "Interaction assist", g_Config.m_AeFastInputInteractionAssist, &Control))
 			g_Config.m_AeFastInputInteractionAssist ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeFastInputInteractionAssist, Control, "Adds extra help around close tee interaction such as dragging.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		Ui()->DoScrollbarOption(&g_Config.m_AeFastInputInteractionStrength, &g_Config.m_AeFastInputInteractionStrength, &Control, "Interaction strength", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeFastInputInteractionStrength, Control, "How strong the interaction assist should be when enabled.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		if(DoButton_CheckBox(&g_Config.m_AeFastInputDummy, "Apply to dummy", g_Config.m_AeFastInputDummy, &Control))
 			g_Config.m_AeFastInputDummy ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeFastInputDummy, Control, "Also applies Aether fast input to dummy prediction when possible.");
 	}
 
 	if(ActiveMode != 0)
@@ -2726,12 +3089,15 @@ void CMenus::RenderSettingsAetherFastInput(CUIRect Body)
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		if(DoButton_CheckBox(&g_Config.m_ClSubTickAiming, "Sub-Tick aiming", g_Config.m_ClSubTickAiming, &Control))
 			g_Config.m_ClSubTickAiming ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_ClSubTickAiming, Control, "Samples mouse aim closer to the real hook/fire time.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		if(DoButton_CheckBox(&g_Config.m_AeFastInputAutoMargin, "Auto margin", g_Config.m_AeFastInputAutoMargin, &Control))
 			g_Config.m_AeFastInputAutoMargin ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeFastInputAutoMargin, Control, "Keeps a small safety margin to avoid over-predicting unstable frames.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		if(DoButton_CheckBox(&g_Config.m_AeFastInputDebug, "Show debug info", g_Config.m_AeFastInputDebug, &Control))
 			g_Config.m_AeFastInputDebug ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeFastInputDebug, Control, "Shows debug numbers for tuning and testing fast input.");
 		Body.HSplitTop(4.0f * S, nullptr, &Body);
 		Body.HSplitTop(34.0f * S, &Control, &Body);
 		TextRender()->TextColor(0.72f, 0.78f, 0.86f, 1.0f);
@@ -2750,6 +3116,7 @@ void CMenus::RenderSettingsAetherFastSpec(CUIRect Body)
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeFastSpec, "Enable Fast Spec", g_Config.m_AeFastSpec, &Control))
 		g_Config.m_AeFastSpec ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeFastSpec, Control, "Enable Fast Spec");
 
 	Body.HSplitTop(18.0f * S, &Control, &Body);
 	char aStatus[64];
@@ -2779,9 +3146,11 @@ void CMenus::RenderSettingsAetherTranslator(CUIRect Body)
 	Body.HSplitTop(24.0f * S, &Row, &Body);
 	if(DoButton_CheckBox(&g_Config.m_TcTranslateAutoIncoming, "Auto translate incoming messages", g_Config.m_TcTranslateAutoIncoming, &Row))
 		g_Config.m_TcTranslateAutoIncoming ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_TcTranslateAutoIncoming, Row, "Auto translate incoming messages");
 	Body.HSplitTop(24.0f * S, &Row, &Body);
 	if(DoButton_CheckBox(&g_Config.m_TcTranslateOutgoing, "Translate my messages before sending", g_Config.m_TcTranslateOutgoing, &Row))
 		g_Config.m_TcTranslateOutgoing ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_TcTranslateOutgoing, Row, "Translate my messages before sending");
 
 	auto DoTextSetting = [&](const char *pLabel, CLineInput &Input) {
 		CUIRect Label, Edit;
@@ -2875,28 +3244,34 @@ void CMenus::RenderSettingsAetherFailSound(CUIRect Body)
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeFreezeFailSoundLocal, "Local tee and dummy", g_Config.m_AeFreezeFailSoundLocal, &Control))
 		g_Config.m_AeFreezeFailSoundLocal ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeFreezeFailSoundLocal, Control, "Local tee and dummy");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	RenderFileDropdown(Control, "Local sound", g_Config.m_AeFreezeFailSoundLocalFile, sizeof(g_Config.m_AeFreezeFailSoundLocalFile), s_LocalDropState, s_LocalDropScroll, s_LocalTestButton, g_Config.m_AeFreezeFailSoundLocalVol, s_LocalPreviewSample, s_aLocalPreviewFile, sizeof(s_aLocalPreviewFile));
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeFreezeFailSoundLocalVol, &g_Config.m_AeFreezeFailSoundLocalVol, &Control, "Local volume", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeFreezeFailSoundLocalVol, Control, "Local volume");
 
 	Body.HSplitTop(8.0f * S, nullptr, &Body);
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeFreezeFailSoundOthers, "Other tees in my DDNet team", g_Config.m_AeFreezeFailSoundOthers, &Control))
 		g_Config.m_AeFreezeFailSoundOthers ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeFreezeFailSoundOthers, Control, "Other tees in my DDNet team");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	RenderFileDropdown(Control, "Team sound", g_Config.m_AeFreezeFailSoundOthersFile, sizeof(g_Config.m_AeFreezeFailSoundOthersFile), s_OthersDropState, s_OthersDropScroll, s_OthersTestButton, g_Config.m_AeFreezeFailSoundOthersVol, s_OthersPreviewSample, s_aOthersPreviewFile, sizeof(s_aOthersPreviewFile));
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeFreezeFailSoundOthersVol, &g_Config.m_AeFreezeFailSoundOthersVol, &Control, "Team volume", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeFreezeFailSoundOthersVol, Control, "Team volume");
 
 	Body.HSplitTop(8.0f * S, nullptr, &Body);
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeFreezeFailSoundTeamLast, "Last unfrozen tee warning", g_Config.m_AeFreezeFailSoundTeamLast, &Control))
 		g_Config.m_AeFreezeFailSoundTeamLast ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeFreezeFailSoundTeamLast, Control, "Last unfrozen tee warning");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	RenderFileDropdown(Control, "Last sound", g_Config.m_AeFreezeFailSoundTeamLastFile, sizeof(g_Config.m_AeFreezeFailSoundTeamLastFile), s_TeamLastDropState, s_TeamLastDropScroll, s_TeamLastTestButton, g_Config.m_AeFreezeFailSoundTeamLastVol, s_TeamLastPreviewSample, s_aTeamLastPreviewFile, sizeof(s_aTeamLastPreviewFile));
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeFreezeFailSoundTeamLastVol, &g_Config.m_AeFreezeFailSoundTeamLastVol, &Control, "Last volume", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeFreezeFailSoundTeamLastVol, Control, "Last volume");
 
 	Body.HSplitTop(8.0f * S, nullptr, &Body);
 	Body.HSplitTop(24.0f * S, &Control, &Body);
@@ -2937,30 +3312,39 @@ void CMenus::RenderSettingsAetherSound(CUIRect Body)
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeSoundLocalHook, "Local hook sounds", g_Config.m_AeSoundLocalHook, &Control))
 		g_Config.m_AeSoundLocalHook ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeSoundLocalHook, Control, "Local hook sounds");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeSoundOthersHook, "Hook sounds from other players", g_Config.m_AeSoundOthersHook, &Control))
 		g_Config.m_AeSoundOthersHook ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeSoundOthersHook, Control, "Hook sounds from other players");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeSoundOthersHammer, "Hammer sounds from other players", g_Config.m_AeSoundOthersHammer, &Control))
 		g_Config.m_AeSoundOthersHammer ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeSoundOthersHammer, Control, "Hammer sounds from other players");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeSoundLocalHammer, "Local hammer sounds", g_Config.m_AeSoundLocalHammer, &Control))
 		g_Config.m_AeSoundLocalHammer ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeSoundLocalHammer, Control, "Local hammer sounds");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeSoundWeaponSwitch, "Local weapon switch sounds", g_Config.m_AeSoundWeaponSwitch, &Control))
 		g_Config.m_AeSoundWeaponSwitch ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeSoundWeaponSwitch, Control, "Local weapon switch sounds");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeSoundOthersWeaponSwitch, "Weapon switch sounds from other players", g_Config.m_AeSoundOthersWeaponSwitch, &Control))
 		g_Config.m_AeSoundOthersWeaponSwitch ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeSoundOthersWeaponSwitch, Control, "Weapon switch sounds from other players");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeSoundAirJump, "Double jump sounds", g_Config.m_AeSoundAirJump, &Control))
 		g_Config.m_AeSoundAirJump ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeSoundAirJump, Control, "Double jump sounds");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeSoundLocalKillRespawn, "Local kill/respawn sounds", g_Config.m_AeSoundLocalKillRespawn, &Control))
 		g_Config.m_AeSoundLocalKillRespawn ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeSoundLocalKillRespawn, Control, "Local kill/respawn sounds");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeSoundOthersKillRespawn, "Kill/respawn sounds from other players", g_Config.m_AeSoundOthersKillRespawn, &Control))
 		g_Config.m_AeSoundOthersKillRespawn ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeSoundOthersKillRespawn, Control, "Kill/respawn sounds from other players");
 }
 
 void CMenus::RenderSettingsAetherBlockAwareness(CUIRect Body)
@@ -3007,6 +3391,24 @@ void CMenus::RenderSettingsAetherBlockAwareness(CUIRect Body)
 		if(DoButton_Menu(&s_aTabs[i], apTabs[i], s_AetherBlockAwarenessTab == i, &Tab, BUTTONFLAG_LEFT, nullptr,
 			   i == 0 ? IGraphics::CORNER_L : (i == 4 ? IGraphics::CORNER_R : IGraphics::CORNER_NONE)))
 			s_AetherBlockAwarenessTab = i;
+		switch(i)
+		{
+		case 0:
+			AetherDoTooltip(Ui(), GameClient(), &s_aTabs[i], Tab, "Core Block Awareness toggles and HUD helpers.");
+			break;
+		case 1:
+			AetherDoTooltip(Ui(), GameClient(), &s_aTabs[i], Tab, "Enemy, helper, ally and natural color setup.");
+			break;
+		case 2:
+			AetherDoTooltip(Ui(), GameClient(), &s_aTabs[i], Tab, "Visual tee scale only. It does not change hitbox or prediction.");
+			break;
+		case 3:
+			AetherDoTooltip(Ui(), GameClient(), &s_aTabs[i], Tab, "Name opacity for each Block Awareness group.");
+			break;
+		case 4:
+			AetherDoTooltip(Ui(), GameClient(), &s_aTabs[i], Tab, "Export, import and manage warlist JSON files.");
+			break;
+		}
 		if(i != 4)
 			Tabs.VSplitLeft(TabGap, nullptr, &Tabs);
 	}
@@ -3018,41 +3420,54 @@ void CMenus::RenderSettingsAetherBlockAwareness(CUIRect Body)
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		if(DoButton_CheckBox(&s_ColorPlayers, "Color player tees", g_Config.m_AeBlockColorPlayers, &Control))
 			g_Config.m_AeBlockColorPlayers ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &s_ColorPlayers, Control, "Draws enemy, ally, helper and natural tees with Block Awareness colors.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		if(DoButton_CheckBox(&s_AlliesKeepRealSkins, "Allies keep real skins", g_Config.m_AeBlockAlliesKeepRealSkins, &Control))
 			g_Config.m_AeBlockAlliesKeepRealSkins ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &s_AlliesKeepRealSkins, Control, "Keeps ally/helper skins instead of replacing them with the default colored tee.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		if(DoButton_CheckBox(&s_ColorNames, "Color nameplates and scoreboard", g_Config.m_AeBlockColorNames, &Control))
 			g_Config.m_AeBlockColorNames ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &s_ColorNames, Control, "Uses the same group colors for nameplates and scoreboard rows.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		if(DoButton_CheckBox(&s_NeutralColorPlayers, "Color natural tees", g_Config.m_AeBlockNeutralColorPlayers, &Control))
 			g_Config.m_AeBlockNeutralColorPlayers ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &s_NeutralColorPlayers, Control, "Colors players that are not enemy, ally or helper.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		if(DoButton_CheckBox(&s_NeutralKeepRealSkins, "Naturals keep real skins", g_Config.m_AeBlockNeutralKeepRealSkins, &Control))
 			g_Config.m_AeBlockNeutralKeepRealSkins ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &s_NeutralKeepRealSkins, Control, "Keeps natural players' real skins while still allowing color/name options.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		if(DoButton_CheckBox(&s_NeutralColorNames, "Color natural names", g_Config.m_AeBlockNeutralColorNames, &Control))
 			g_Config.m_AeBlockNeutralColorNames ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &s_NeutralColorNames, Control, "Colors natural player names using the natural color setting.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		if(DoButton_CheckBox(&s_EnemySize, "Enlarge enemies", g_Config.m_AeBlockEnemySize, &Control))
 			g_Config.m_AeBlockEnemySize ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &s_EnemySize, Control, "Legacy quick enemy enlargement toggle. Fine scale is in the Scale tab.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		if(DoButton_CheckBox(&s_LocalFreezeOverlay, "Large self freeze timer", g_Config.m_AeBlockLocalFreezeOverlay, &Control))
 			g_Config.m_AeBlockLocalFreezeOverlay ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &s_LocalFreezeOverlay, Control, "Shows a larger local freeze timer HUD when you are frozen.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		if(DoButton_CheckBox(&s_AllyFreezeAlert, "Ally/helper freeze alert", g_Config.m_AeBlockAllyFreezeAlert, &Control))
 			g_Config.m_AeBlockAllyFreezeAlert ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &s_AllyFreezeAlert, Control, "Shows a stronger alert when an ally or helper freezes.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		if(DoButton_CheckBox(&s_EnemyCountHud, "Enemy count HUD", g_Config.m_AeBlockEnemyCountHud, &Control))
 			g_Config.m_AeBlockEnemyCountHud ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &s_EnemyCountHud, Control, "Shows nearby enemies and names inside the configured scan range.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		if(DoButton_CheckBox(&s_HideEnemyEmotes, "Hide enemy emotes", g_Config.m_AeBlockHideEnemyEmotes, &Control))
 			g_Config.m_AeBlockHideEnemyEmotes ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &s_HideEnemyEmotes, Control, "Hides overhead emoticons from enemies only.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		if(DoButton_CheckBox(&s_ForceEnemyEyes, "Force enemy eyes", g_Config.m_AeBlockForceEnemyEyes, &Control))
 			g_Config.m_AeBlockForceEnemyEyes ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &s_ForceEnemyEyes, Control, "Forces enemy eye expression to a neutral/default look.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		Ui()->DoScrollbarOption(&g_Config.m_AeBlockEnemyScanBlocks, &g_Config.m_AeBlockEnemyScanBlocks, &Control, "Enemy scan range", 5, 80, &CUi::ms_LinearScrollbarScale, 0, " blocks");
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeBlockEnemyScanBlocks, Control, "World radius used by the enemy count HUD.");
 		return;
 	}
 
@@ -3069,12 +3484,16 @@ void CMenus::RenderSettingsAetherBlockAwareness(CUIRect Body)
 	{
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		Ui()->DoScrollbarOption(&g_Config.m_AeBlockEnemyScale, &g_Config.m_AeBlockEnemyScale, &Control, "Enemy scale", 100, 150, &CUi::ms_LinearScrollbarScale, 0, "%");
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeBlockEnemyScale, Control, "Visual scale for enemies only. Hitbox stays unchanged.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		Ui()->DoScrollbarOption(&g_Config.m_AeBlockHelperScale, &g_Config.m_AeBlockHelperScale, &Control, "Helper scale", 100, 150, &CUi::ms_LinearScrollbarScale, 0, "%");
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeBlockHelperScale, Control, "Visual scale for helpers only. Hitbox stays unchanged.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		Ui()->DoScrollbarOption(&g_Config.m_AeBlockAllyScale, &g_Config.m_AeBlockAllyScale, &Control, "Ally scale", 100, 150, &CUi::ms_LinearScrollbarScale, 0, "%");
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeBlockAllyScale, Control, "Visual scale for allies only. Hitbox stays unchanged.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		Ui()->DoScrollbarOption(&g_Config.m_AeBlockNeutralScale, &g_Config.m_AeBlockNeutralScale, &Control, "Natural scale", 80, 150, &CUi::ms_LinearScrollbarScale, 0, "%");
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeBlockNeutralScale, Control, "Visual scale for natural players only. Hitbox stays unchanged.");
 		return;
 	}
 
@@ -3082,12 +3501,16 @@ void CMenus::RenderSettingsAetherBlockAwareness(CUIRect Body)
 	{
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		Ui()->DoScrollbarOption(&g_Config.m_AeBlockEnemyNameOpacity, &g_Config.m_AeBlockEnemyNameOpacity, &Control, "Enemy name opacity", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeBlockEnemyNameOpacity, Control, "Enemy name opacity for nameplates and scoreboard.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		Ui()->DoScrollbarOption(&g_Config.m_AeBlockHelperNameOpacity, &g_Config.m_AeBlockHelperNameOpacity, &Control, "Helper name opacity", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeBlockHelperNameOpacity, Control, "Helper name opacity for nameplates and scoreboard.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		Ui()->DoScrollbarOption(&g_Config.m_AeBlockAllyNameOpacity, &g_Config.m_AeBlockAllyNameOpacity, &Control, "Ally name opacity", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeBlockAllyNameOpacity, Control, "Ally name opacity for nameplates and scoreboard.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		Ui()->DoScrollbarOption(&g_Config.m_AeBlockNeutralNameOpacity, &g_Config.m_AeBlockNeutralNameOpacity, &Control, "Natural name opacity", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeBlockNeutralNameOpacity, Control, "Natural player name opacity for nameplates and scoreboard.");
 		return;
 	}
 
@@ -3183,12 +3606,15 @@ void CMenus::RenderSettingsAetherKeystrokes(CUIRect Body)
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeKeystrokesHorizontal, "Horizontal layout", g_Config.m_AeKeystrokesHorizontal, &Control))
 		g_Config.m_AeKeystrokesHorizontal ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeKeystrokesHorizontal, Control, "Horizontal layout");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeKeystrokesShowJump, "Show jump key", g_Config.m_AeKeystrokesShowJump, &Control))
 		g_Config.m_AeKeystrokesShowJump ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeKeystrokesShowJump, Control, "Show jump key");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeKeystrokesShowFire, "Show M1 key", g_Config.m_AeKeystrokesShowFire, &Control))
 		g_Config.m_AeKeystrokesShowFire ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeKeystrokesShowFire, Control, "Show M1 key");
 
 	Body.HSplitTop(24.0f * S, &Control, &Body);
 	CUIRect Label, Buttons, Button;
@@ -3238,6 +3664,7 @@ void CMenus::RenderSettingsAetherKeyboardSound(CUIRect Body)
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeKeyboardSound, "Keyboard typing sound", g_Config.m_AeKeyboardSound, &Control))
 		g_Config.m_AeKeyboardSound ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeKeyboardSound, Control, "Keyboard typing sound");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	CUIRect Label, Drop, Test;
 	Control.VSplitLeft(124.0f * S, &Label, &Drop);
@@ -3259,6 +3686,7 @@ void CMenus::RenderSettingsAetherKeyboardSound(CUIRect Body)
 		PreviewAetherUserSound(Storage(), Sound(), "keyboard", g_Config.m_AeKeyboardSoundFile, g_Config.m_AeKeyboardSoundVol, s_KeyboardPreviewSample, s_aKeyboardPreviewFile, sizeof(s_aKeyboardPreviewFile), CSounds::CHN_GUI);
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeKeyboardSoundVol, &g_Config.m_AeKeyboardSoundVol, &Control, "Typing sound volume", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeKeyboardSoundVol, Control, "Typing sound volume");
 
 	Body.HSplitTop(8.0f * S, nullptr, &Body);
 	Body.HSplitTop(24.0f * S, &Control, &Body);
@@ -3303,42 +3731,55 @@ void CMenus::RenderSettingsAetherInputVisualizer(CUIRect Body)
 	CUIRect Control;
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeInputVisualizerFlow, &g_Config.m_AeInputVisualizerFlow, &Control, "Flow speed", 40, 1000, &CUi::ms_LinearScrollbarScale, 0, "px/s");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeInputVisualizerFlow, Control, "Flow speed");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeInputVisualizerShowLocal, "Show local input", g_Config.m_AeInputVisualizerShowLocal, &Control))
 		g_Config.m_AeInputVisualizerShowLocal ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeInputVisualizerShowLocal, Control, "Show local input");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeInputVisualizerHookMarkers, "Hook markers", g_Config.m_AeInputVisualizerHookMarkers, &Control))
 		g_Config.m_AeInputVisualizerHookMarkers ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeInputVisualizerHookMarkers, Control, "Hook markers");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeInputVisualizerMouse, "Include mouse buttons", g_Config.m_AeInputVisualizerMouse, &Control))
 		g_Config.m_AeInputVisualizerMouse ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeInputVisualizerMouse, Control, "Include mouse buttons");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeInputVisualizerShowJump, "Show jump lane", g_Config.m_AeInputVisualizerShowJump, &Control))
 		g_Config.m_AeInputVisualizerShowJump ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeInputVisualizerShowJump, Control, "Show jump lane");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeInputVisualizerShowFire, "Show M1 lane", g_Config.m_AeInputVisualizerShowFire, &Control))
 		g_Config.m_AeInputVisualizerShowFire ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeInputVisualizerShowFire, Control, "Show M1 lane");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeInputVisualizerLabels, "Show key names", g_Config.m_AeInputVisualizerLabels, &Control))
 		g_Config.m_AeInputVisualizerLabels ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeInputVisualizerLabels, Control, "Show key names");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeInputVisualizerSpectatedInput, "Use spectated/demo player input", g_Config.m_AeInputVisualizerSpectatedInput, &Control))
 		g_Config.m_AeInputVisualizerSpectatedInput ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeInputVisualizerSpectatedInput, Control, "Use spectated/demo player input");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeInputVisualizerVertical, "Vertical layout", g_Config.m_AeInputVisualizerVertical, &Control))
 		g_Config.m_AeInputVisualizerVertical ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeInputVisualizerVertical, Control, "Vertical layout");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeInputVisualizerBackground, "Panel background", g_Config.m_AeInputVisualizerBackground, &Control))
 		g_Config.m_AeInputVisualizerBackground ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeInputVisualizerBackground, Control, "Panel background");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeInputVisualizerSharpCorners, "Sharp corners", g_Config.m_AeInputVisualizerSharpCorners, &Control))
 		g_Config.m_AeInputVisualizerSharpCorners ^= 1;
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeInputVisualizerLength, &g_Config.m_AeInputVisualizerLength, &Control, "Panel length", 50, 250, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeInputVisualizerLength, Control, "Panel length");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeInputVisualizerThickness, &g_Config.m_AeInputVisualizerThickness, &Control, "Lane thickness", 40, 200, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeInputVisualizerThickness, Control, "Lane thickness");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeInputVisualizerOpacity, &g_Config.m_AeInputVisualizerOpacity, &Control, "Overlay opacity", 10, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeInputVisualizerOpacity, Control, "Overlay opacity");
 	Body.HSplitTop(8.0f * S, nullptr, &Body);
 	Body.HSplitTop(18.0f * S, &Control, &Body);
 	TextRender()->TextColor(0.75f, 0.80f, 0.88f, 1.0f);
@@ -3366,12 +3807,15 @@ void CMenus::RenderSettingsAetherStabilityTrainer(CUIRect Body)
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeStabilityTrainerShowBar, "Show velocity bar", g_Config.m_AeStabilityTrainerShowBar, &Control))
 		g_Config.m_AeStabilityTrainerShowBar ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeStabilityTrainerShowBar, Control, "Show velocity bar");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeStabilityTrainerSpectate, "Use spectated/demo player", g_Config.m_AeStabilityTrainerSpectate, &Control))
 		g_Config.m_AeStabilityTrainerSpectate ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeStabilityTrainerSpectate, Control, "Use spectated/demo player");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeStabilityTrainerColorize, "Colorize by quality", g_Config.m_AeStabilityTrainerColorize, &Control))
 		g_Config.m_AeStabilityTrainerColorize ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeStabilityTrainerColorize, Control, "Colorize by quality");
 	if(!g_Config.m_AeStabilityTrainerColorize)
 		DoLine_ColorPicker(&s_TrainerColorReset, 25.0f * S, 13.0f * S, 4.0f * S, &Body, "Trainer color", &g_Config.m_AeStabilityTrainerColor, ColorRGBA(0.94f, 0.88f, 0.31f), false);
 	Body.HSplitTop(22.0f * S, &Control, &Body);
@@ -3379,18 +3823,25 @@ void CMenus::RenderSettingsAetherStabilityTrainer(CUIRect Body)
 		g_Config.m_AeStabilityTrainerSharpCorners ^= 1;
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeStabilityTrainerAverageTicks, &g_Config.m_AeStabilityTrainerAverageTicks, &Control, "Average ticks", 1, 40);
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeStabilityTrainerAverageTicks, Control, "Average ticks");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeStabilityTrainerBarGlide, &g_Config.m_AeStabilityTrainerBarGlide, &Control, "Bar glide", 8, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeStabilityTrainerBarGlide, Control, "Bar glide");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeStabilityTrainerMinSpeed, &g_Config.m_AeStabilityTrainerMinSpeed, &Control, "Minimum speed", 0, 600, &CUi::ms_LinearScrollbarScale, 0, "x0.01");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeStabilityTrainerMinSpeed, Control, "Minimum speed");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeStabilityTrainerVelocityScale, &g_Config.m_AeStabilityTrainerVelocityScale, &Control, "Velocity scale", 50, 800, &CUi::ms_LinearScrollbarScale, 0, "x0.01");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeStabilityTrainerVelocityScale, Control, "Velocity scale");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeStabilityTrainerBarThickness, &g_Config.m_AeStabilityTrainerBarThickness, &Control, "Bar thickness", 50, 200, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeStabilityTrainerBarThickness, Control, "Bar thickness");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeStabilityTrainerTrackWidth, &g_Config.m_AeStabilityTrainerTrackWidth, &Control, "Track width", 50, 200, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeStabilityTrainerTrackWidth, Control, "Track width");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeStabilityTrainerBlockWidth, &g_Config.m_AeStabilityTrainerBlockWidth, &Control, "Block width", 40, 150, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeStabilityTrainerBlockWidth, Control, "Block width");
 }
 
 void CMenus::RenderSettingsAetherSessionStats(CUIRect Body)
@@ -3402,6 +3853,7 @@ void CMenus::RenderSettingsAetherSessionStats(CUIRect Body)
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeSessionStatsShowTime, "Show session time", g_Config.m_AeSessionStatsShowTime, &Control))
 		g_Config.m_AeSessionStatsShowTime ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeSessionStatsShowTime, Control, "Show session time");
 	Body.HSplitTop(18.0f * S, &Control, &Body);
 	TextRender()->TextColor(0.75f, 0.80f, 0.88f, 1.0f);
 	Ui()->DoLabel(&Control, "Shows only session time and personal deaths.", 12.0f * S, TEXTALIGN_ML);
@@ -3451,8 +3903,10 @@ void CMenus::RenderSettingsAetherNinjaTimer(CUIRect Body)
 	CUIRect Control;
 	Body.HSplitTop(24.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeNinjaTimerScale, &g_Config.m_AeNinjaTimerScale, &Control, "HUD scale", 50, 200, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeNinjaTimerScale, Control, "HUD scale");
 	Body.HSplitTop(24.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeNinjaTimerOffsetY, &g_Config.m_AeNinjaTimerOffsetY, &Control, "Vertical offset", -1000, 1000);
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeNinjaTimerOffsetY, Control, "Vertical offset");
 	Body.HSplitTop(18.0f * S, &Control, &Body);
 	TextRender()->TextColor(0.75f, 0.80f, 0.88f, 1.0f);
 	Ui()->DoLabel(&Control, "HUD Editor can move and resize this compact ninja timer.", 12.0f * S, TEXTALIGN_ML);
@@ -3476,33 +3930,43 @@ void CMenus::RenderSettingsAetherSweatWeapon(CUIRect Body)
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeSweatWeaponCustomColors, "Custom rifle/shotgun colors", g_Config.m_AeSweatWeaponCustomColors, &Control))
 		g_Config.m_AeSweatWeaponCustomColors ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeSweatWeaponCustomColors, Control, "Custom rifle/shotgun colors");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeSweatWeaponShine, "Shine animation", g_Config.m_AeSweatWeaponShine, &Control))
 		g_Config.m_AeSweatWeaponShine ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeSweatWeaponShine, Control, "Shine animation");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeSweatWeaponElectric, "Electric arcs", g_Config.m_AeSweatWeaponElectric, &Control))
 		g_Config.m_AeSweatWeaponElectric ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeSweatWeaponElectric, Control, "Electric arcs");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeSweatWeaponEntitiesLaser, "Entities laser override", g_Config.m_AeSweatWeaponEntitiesLaser, &Control))
 		g_Config.m_AeSweatWeaponEntitiesLaser ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeSweatWeaponEntitiesLaser, Control, "Entities laser override");
 
 	Body.HSplitTop(24.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeSweatWeaponGlow, &g_Config.m_AeSweatWeaponGlow, &Control, "Glow strength", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeSweatWeaponGlow, Control, "Glow strength");
 	Body.HSplitTop(24.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeSweatWeaponThickness, &g_Config.m_AeSweatWeaponThickness, &Control, "Laser thickness", 60, 300, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeSweatWeaponThickness, Control, "Laser thickness");
 	Body.HSplitTop(24.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeSweatWeaponSparkles, &g_Config.m_AeSweatWeaponSparkles, &Control, "Sparkle intensity", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeSweatWeaponSparkles, Control, "Sparkle intensity");
 	if(g_Config.m_AeSweatWeaponElectric)
 	{
 		Body.HSplitTop(24.0f * S, &Control, &Body);
 		Ui()->DoScrollbarOption(&g_Config.m_AeSweatWeaponArcDensity, &g_Config.m_AeSweatWeaponArcDensity, &Control, "Electric arc density", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+		AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeSweatWeaponArcDensity, Control, "Electric arc density");
 		Body.HSplitTop(24.0f * S, &Control, &Body);
 		Ui()->DoScrollbarOption(&g_Config.m_AeSweatWeaponArcOpacity, &g_Config.m_AeSweatWeaponArcOpacity, &Control, "Electric arc opacity", 0, 200, &CUi::ms_LinearScrollbarScale, 0, "%");
+		AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeSweatWeaponArcOpacity, Control, "Electric arc opacity");
 	}
 	if(g_Config.m_AeSweatWeaponShine)
 	{
 		Body.HSplitTop(24.0f * S, &Control, &Body);
 		Ui()->DoScrollbarOption(&g_Config.m_AeSweatWeaponShineSpeed, &g_Config.m_AeSweatWeaponShineSpeed, &Control, "Shine speed", 10, 200, &CUi::ms_LinearScrollbarScale, 0, "%");
+		AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeSweatWeaponShineSpeed, Control, "Shine speed");
 	}
 
 	DoLine_ColorPicker(&s_CrystalGlowReset, 25.0f * S, 13.0f * S, 4.0f * S, &Body, "Crystal outline (glow)", &g_Config.m_AeSweatWeaponCrystalGlowColor, ColorRGBA(0.25f, 0.90f, 1.0f), false);
@@ -3550,13 +4014,16 @@ void CMenus::RenderSettingsAetherOrbitAura(CUIRect Body)
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeOrbitAuraIdleOnly, "Enable in idle mode only", g_Config.m_AeOrbitAuraIdleOnly, &Control))
 		g_Config.m_AeOrbitAuraIdleOnly ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeOrbitAuraIdleOnly, Control, "Enable in idle mode only");
 	if(g_Config.m_AeOrbitAuraIdleOnly)
 	{
 		Body.HSplitTop(24.0f * S, &Control, &Body);
 		Ui()->DoScrollbarOption(&g_Config.m_AeOrbitAuraIdleDelay, &g_Config.m_AeOrbitAuraIdleDelay, &Control, "Idle delay", 0, 3000, &CUi::ms_LinearScrollbarScale, 0, "ms");
+		AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeOrbitAuraIdleDelay, Control, "Idle delay");
 	}
 	Body.HSplitTop(24.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeOrbitAuraFadeMs, &g_Config.m_AeOrbitAuraFadeMs, &Control, "Fade duration", 0, 1500, &CUi::ms_LinearScrollbarScale, 0, "ms");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeOrbitAuraFadeMs, Control, "Fade duration");
 
 	Body.HSplitTop(28.0f * S, &Control, &Body);
 	CUIRect Label, StyleRow;
@@ -3586,14 +4053,19 @@ void CMenus::RenderSettingsAetherOrbitAura(CUIRect Body)
 
 	Body.HSplitTop(24.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeOrbitAuraRadius, &g_Config.m_AeOrbitAuraRadius, &Control, "Aura radius", 24, 140);
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeOrbitAuraRadius, Control, "Aura radius");
 	Body.HSplitTop(24.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeOrbitAuraParticles, &g_Config.m_AeOrbitAuraParticles, &Control, "Particles", 6, 96);
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeOrbitAuraParticles, Control, "Particles");
 	Body.HSplitTop(24.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeOrbitAuraAlpha, &g_Config.m_AeOrbitAuraAlpha, &Control, "Aura alpha", 5, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeOrbitAuraAlpha, Control, "Aura alpha");
 	Body.HSplitTop(24.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeOrbitAuraSpeed, &g_Config.m_AeOrbitAuraSpeed, &Control, "Aura speed", 10, 250, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeOrbitAuraSpeed, Control, "Aura speed");
 	Body.HSplitTop(24.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeOrbitAuraSize, &g_Config.m_AeOrbitAuraSize, &Control, "Particle size", 40, 220, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeOrbitAuraSize, Control, "Particle size");
 
 	DoLine_ColorPicker(&s_AuraColorReset, 25.0f * S, 13.0f * S, 4.0f * S, &Body, "Aura color", &g_Config.m_AeOrbitAuraColor, ColorRGBA(0.36f, 1.0f, 0.82f), false);
 	DoLine_ColorPicker(&s_AccentColorReset, 25.0f * S, 13.0f * S, 4.0f * S, &Body, "Accent color", &g_Config.m_AeOrbitAuraAccentColor, ColorRGBA(0.71f, 1.0f, 0.94f), false);
@@ -3612,8 +4084,10 @@ void CMenus::RenderSettingsAetherJellyTee(CUIRect Body)
 		g_Config.m_AeJellyTeeOthers ^= 1;
 	Body.HSplitTop(24.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeJellyTeeStrength, &g_Config.m_AeJellyTeeStrength, &Control, "Jelly strength", 0, 1000);
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeJellyTeeStrength, Control, "Jelly strength");
 	Body.HSplitTop(24.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeJellyTeeDuration, &g_Config.m_AeJellyTeeDuration, &Control, "Jelly duration", 20, 1000, &CUi::ms_LinearScrollbarScale, 0, "ms");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeJellyTeeDuration, Control, "Jelly duration");
 }
 
 void CMenus::RenderSettingsAetherFinishPrediction(CUIRect Body)
@@ -3628,6 +4102,7 @@ void CMenus::RenderSettingsAetherFinishPrediction(CUIRect Body)
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeFinishPredictionShowTime, "Show time", g_Config.m_AeFinishPredictionShowTime, &Control))
 		g_Config.m_AeFinishPredictionShowTime ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeFinishPredictionShowTime, Control, "Show time");
 
 	Body.HSplitTop(26.0f * S, &Control, &Body);
 	CUIRect Label, Buttons;
@@ -3646,12 +4121,15 @@ void CMenus::RenderSettingsAetherFinishPrediction(CUIRect Body)
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeFinishPredictionMilliseconds, "Show milliseconds", g_Config.m_AeFinishPredictionMilliseconds, &Control))
 		g_Config.m_AeFinishPredictionMilliseconds ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeFinishPredictionMilliseconds, Control, "Show milliseconds");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeFinishPredictionPercentage, "Show percentage", g_Config.m_AeFinishPredictionPercentage, &Control))
 		g_Config.m_AeFinishPredictionPercentage ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeFinishPredictionPercentage, Control, "Show percentage");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeFinishPredictionShowAlways, "Show always", g_Config.m_AeFinishPredictionShowAlways, &Control))
 		g_Config.m_AeFinishPredictionShowAlways ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeFinishPredictionShowAlways, Control, "Show always");
 
 	Body.HSplitTop(18.0f * S, &Control, &Body);
 	TextRender()->TextColor(0.75f, 0.80f, 0.88f, 1.0f);
@@ -3672,6 +4150,7 @@ void CMenus::RenderSettingsAetherThreeDParticles(CUIRect Body)
 	CUIRect Control;
 	Body.HSplitTop(24.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_Ae3DParticlesCount, &g_Config.m_Ae3DParticlesCount, &Control, "Particles count", 0, 180);
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_Ae3DParticlesCount, Control, "Particles count");
 
 	Body.HSplitTop(28.0f * S, &Control, &Body);
 	CUIRect Label, Buttons, Button;
@@ -3689,12 +4168,16 @@ void CMenus::RenderSettingsAetherThreeDParticles(CUIRect Body)
 
 	Body.HSplitTop(24.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_Ae3DParticlesSize, &g_Config.m_Ae3DParticlesSize, &Control, "Size", 2, 28);
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_Ae3DParticlesSize, Control, "Size");
 	Body.HSplitTop(24.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_Ae3DParticlesSpeed, &g_Config.m_Ae3DParticlesSpeed, &Control, "Speed", 0, 120);
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_Ae3DParticlesSpeed, Control, "Speed");
 	Body.HSplitTop(24.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_Ae3DParticlesRotationSpeed, &g_Config.m_Ae3DParticlesRotationSpeed, &Control, "Rotation speed", 0, 120);
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_Ae3DParticlesRotationSpeed, Control, "Rotation speed");
 	Body.HSplitTop(24.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_Ae3DParticlesAlpha, &g_Config.m_Ae3DParticlesAlpha, &Control, "Alpha", 1, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_Ae3DParticlesAlpha, Control, "Alpha");
 
 	Body.HSplitTop(28.0f * S, &Control, &Body);
 	AetherOptionRow(Control, S, &Label, &Buttons);
@@ -3714,6 +4197,7 @@ void CMenus::RenderSettingsAetherThreeDParticles(CUIRect Body)
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_Ae3DParticlesGlow, "Glow", g_Config.m_Ae3DParticlesGlow, &Control))
 		g_Config.m_Ae3DParticlesGlow ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_Ae3DParticlesGlow, Control, "Glow");
 }
 
 void CMenus::RenderSettingsAetherRealHitbox(CUIRect Body)
@@ -3742,9 +4226,11 @@ void CMenus::RenderSettingsAetherBrowserUtils(CUIRect Body)
 		g_Config.m_AeBrowserAutoRefresh ^= 1;
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeBrowserRefreshSeconds, &g_Config.m_AeBrowserRefreshSeconds, &Control, "Refresh interval", 15, 120, &CUi::ms_LinearScrollbarScale, 0, "s");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeBrowserRefreshSeconds, Control, "Refresh interval");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeBrowserShortKoGNames, "Shorten KoG server names", g_Config.m_AeBrowserShortKoGNames, &Control))
 		g_Config.m_AeBrowserShortKoGNames ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeBrowserShortKoGNames, Control, "Shorten KoG server names");
 	Body.HSplitTop(18.0f * S, &Control, &Body);
 	TextRender()->TextColor(0.75f, 0.80f, 0.88f, 1.0f);
 	Ui()->DoLabel(&Control, "Example: KoG GER4 Insane becomes GER4 - Insane.", 12.0f * S, TEXTALIGN_ML);
@@ -3759,6 +4245,7 @@ void CMenus::RenderSettingsAetherUiScale(CUIRect Body)
 	CUIRect Control;
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeSettingsScale, &g_Config.m_AeSettingsScale, &Control, "Aether settings page size", 80, 140, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeSettingsScale, Control, "Aether settings page size");
 }
 
 void CMenus::RenderSettingsAetherGradientTeamColors(CUIRect Body)
@@ -3776,14 +4263,17 @@ void CMenus::RenderSettingsAetherGradientTeamColors(CUIRect Body)
 	Body.HSplitTop(20.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&s_TeamToggle, "Team background gradient (local)", g_Config.m_AeGradientTeamColors, &Control))
 		g_Config.m_AeGradientTeamColors ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &s_TeamToggle, Control, "Team background gradient (local)");
 	Body.HSplitTop(4.0f * S, nullptr, &Body);
 	Body.HSplitTop(20.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&s_NicknameToggle, "Nickname gradient", g_Config.m_AeGradientNicknames, &Control))
 		g_Config.m_AeGradientNicknames ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &s_NicknameToggle, Control, "Nickname gradient");
 	Body.HSplitTop(4.0f * S, nullptr, &Body);
 	Body.HSplitTop(20.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&s_SparkleToggle, "Sparkle effect", g_Config.m_AeGradientNicknameStyle == 2, &Control))
 		g_Config.m_AeGradientNicknameStyle = g_Config.m_AeGradientNicknameStyle == 2 ? 0 : 2;
+	AetherDoLabelTooltip(Ui(), GameClient(), &s_SparkleToggle, Control, "Sparkle effect");
 	if(g_Config.m_AeGradientNicknameStyle != 2)
 		g_Config.m_AeGradientNicknameStyle = 0;
 	Body.HSplitTop(4.0f * S, nullptr, &Body);
@@ -3792,9 +4282,11 @@ void CMenus::RenderSettingsAetherGradientTeamColors(CUIRect Body)
 	Body.HSplitTop(20.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&s_AnimatedToggle, "Animate nickname blend", g_Config.m_AeGradientNicknameAnimated, &Control))
 		g_Config.m_AeGradientNicknameAnimated ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &s_AnimatedToggle, Control, "Animate nickname blend");
 	Body.HSplitTop(4.0f * S, nullptr, &Body);
 	Body.HSplitTop(20.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeGradientNicknameSpeed, &g_Config.m_AeGradientNicknameSpeed, &Control, "Animation speed", 1, 200, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeGradientNicknameSpeed, Control, "Animation speed");
 }
 
 void CMenus::RenderSettingsAetherMapBackgroundBuilder(CUIRect Body)
@@ -3944,21 +4436,26 @@ void CMenus::RenderSettingsAetherMapBackgroundBuilderPopup(CUIRect Screen)
 	Controls.HSplitTop(4.0f * S, nullptr, &Controls);
 	Controls.HSplitTop(20.0f * S, &Row, &Controls);
 	Ui()->DoScrollbarOption(&g_Config.m_AeMapBgAngle, &g_Config.m_AeMapBgAngle, &Row, "Angle", -180, 180, &CUi::ms_LinearScrollbarScale, 0, "");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeMapBgAngle, Row, "Angle");
 	Controls.HSplitTop(4.0f * S, nullptr, &Controls);
 	DoLine_ColorPicker(&s_TopColorReset, 22.0f * S, 12.0f * S, 3.0f * S, &Controls, "Top color", &g_Config.m_AeMapBgTopColor, ColorRGBA(0.04f, 0.18f, 0.32f), false);
 	DoLine_ColorPicker(&s_BottomColorReset, 22.0f * S, 12.0f * S, 3.0f * S, &Controls, "Bottom color", &g_Config.m_AeMapBgBottomColor, ColorRGBA(0.11f, 0.06f, 0.17f), false);
 	DoLine_ColorPicker(&s_AccentColorReset, 22.0f * S, 12.0f * S, 3.0f * S, &Controls, "Accent color", &g_Config.m_AeMapBgAccentColor, ColorRGBA(0.12f, 0.56f, 0.66f), false);
 	Controls.HSplitTop(20.0f * S, &Row, &Controls);
 	Ui()->DoScrollbarOption(&g_Config.m_AeMapBgBrightness, &g_Config.m_AeMapBgBrightness, &Row, "Brightness", 40, 160, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeMapBgBrightness, Row, "Brightness");
 	Controls.HSplitTop(4.0f * S, nullptr, &Controls);
 	Controls.HSplitTop(20.0f * S, &Row, &Controls);
 	Ui()->DoScrollbarOption(&g_Config.m_AeMapBgContrast, &g_Config.m_AeMapBgContrast, &Row, "Contrast", 40, 180, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeMapBgContrast, Row, "Contrast");
 	Controls.HSplitTop(4.0f * S, nullptr, &Controls);
 	Controls.HSplitTop(20.0f * S, &Row, &Controls);
 	Ui()->DoScrollbarOption(&g_Config.m_AeMapBgSaturation, &g_Config.m_AeMapBgSaturation, &Row, "Saturation", 0, 180, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeMapBgSaturation, Row, "Saturation");
 	Controls.HSplitTop(4.0f * S, nullptr, &Controls);
 	Controls.HSplitTop(20.0f * S, &Row, &Controls);
 	Ui()->DoScrollbarOption(&g_Config.m_AeMapBgVignette, &g_Config.m_AeMapBgVignette, &Row, "Vignette", 0, 80, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeMapBgVignette, Row, "Vignette");
 
 	Bottom.HSplitTop(8.0f * S, nullptr, &Bottom);
 	CUIRect NameRow;
@@ -4186,29 +4683,37 @@ void CMenus::RenderSettingsAetherOptimizer(CUIRect Body)
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeOptimizerHighPriority, "High process priority", g_Config.m_AeOptimizerHighPriority, &Control))
 		g_Config.m_AeOptimizerHighPriority ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeOptimizerHighPriority, Control, "High process priority");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeOptimizerDiscordBelowNormal, "Discord priority: Below Normal", g_Config.m_AeOptimizerDiscordBelowNormal, &Control))
 		g_Config.m_AeOptimizerDiscordBelowNormal ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeOptimizerDiscordBelowNormal, Control, "Discord priority: Below Normal");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeOptimizerDisableParticles, "Disable in-game particles", g_Config.m_AeOptimizerDisableParticles, &Control))
 		g_Config.m_AeOptimizerDisableParticles ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeOptimizerDisableParticles, Control, "Disable in-game particles");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_GfxHighDetail, "High detail map render", g_Config.m_GfxHighDetail, &Control))
 		g_Config.m_GfxHighDetail ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_GfxHighDetail, Control, "High detail map render");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeOptimizerDisableMenuAnimations, "Disable menu animations", g_Config.m_AeOptimizerDisableMenuAnimations, &Control))
 		g_Config.m_AeOptimizerDisableMenuAnimations ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeOptimizerDisableMenuAnimations, Control, "Disable menu animations");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeOptimizerFpsFog, "FPS fog", g_Config.m_AeOptimizerFpsFog, &Control))
 		g_Config.m_AeOptimizerFpsFog ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeOptimizerFpsFog, Control, "FPS fog");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeOptimizerFpsFogCullTiles, "Cull map tiles outside FPS fog", g_Config.m_AeOptimizerFpsFogCullTiles, &Control))
 		g_Config.m_AeOptimizerFpsFogCullTiles ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeOptimizerFpsFogCullTiles, Control, "Cull map tiles outside FPS fog");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeOptimizerFpsFogRenderRect, "Render FPS fog rectangle", g_Config.m_AeOptimizerFpsFogRenderRect, &Control))
 		g_Config.m_AeOptimizerFpsFogRenderRect ^= 1;
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeOptimizerFpsFogRadius, &g_Config.m_AeOptimizerFpsFogRadius, &Control, "Radius (tiles)", 6, 160);
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeOptimizerFpsFogRadius, Control, "Radius (tiles)");
 }
 
 void CMenus::RenderSettingsAetherRollbackDemo(CUIRect Body)
@@ -4222,6 +4727,7 @@ void CMenus::RenderSettingsAetherRollbackDemo(CUIRect Body)
 	CUIRect Control;
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeRollbackDemoSeconds, &g_Config.m_AeRollbackDemoSeconds, &Control, "Clip length", 10, 600, &CUi::ms_LinearScrollbarScale, 0, "s");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeRollbackDemoSeconds, Control, "Clip length");
 	Body.HSplitTop(8.0f * S, nullptr, &Body);
 	DoLine_KeyReader(Body, s_RollbackReaderButton, s_RollbackClearButton, "Save rollback clip key", "ae_save_rollback_demo");
 	Body.HSplitTop(4.0f * S, nullptr, &Body);
@@ -4245,28 +4751,36 @@ void CMenus::RenderSettingsAetherAimTraining(CUIRect Body)
 		GameClient()->m_AetherAimTraining.Restart();
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeAimTrainingTargets, &g_Config.m_AeAimTrainingTargets, &Control, "Targets", 1, 8);
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeAimTrainingTargets, Control, "Targets");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeAimTrainingTargetSize, &g_Config.m_AeAimTrainingTargetSize, &Control, "Target size", 8, 96);
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeAimTrainingTargetSize, Control, "Target size");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeAimTrainingDistance, &g_Config.m_AeAimTrainingDistance, &Control, "Target distance", 64, 560);
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeAimTrainingDistance, Control, "Target distance");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeAimTrainingDim, &g_Config.m_AeAimTrainingDim, &Control, "Background dim", 0, 75, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeAimTrainingDim, Control, "Background dim");
 	DoLine_ColorPicker(&s_TargetColorReset, 25.0f * S, 13.0f * S, 4.0f * S, &Body, "Target color", &g_Config.m_AeAimTrainingTargetColor, ColorRGBA(0.35f, 0.78f, 1.0f), false);
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeAimTrainingShrink, "Shrink targets", g_Config.m_AeAimTrainingShrink, &Control))
 		g_Config.m_AeAimTrainingShrink ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeAimTrainingShrink, Control, "Shrink targets");
 	if(g_Config.m_AeAimTrainingShrink)
 	{
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		Ui()->DoScrollbarOption(&g_Config.m_AeAimTrainingShrinkMs, &g_Config.m_AeAimTrainingShrinkMs, &Control, "Shrink duration", 150, 10000, &CUi::ms_LinearScrollbarScale, 0, "ms");
+		AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeAimTrainingShrinkMs, Control, "Shrink duration");
 	}
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeAimTrainingDespawn, "Respawn missed targets", g_Config.m_AeAimTrainingDespawn, &Control))
 		g_Config.m_AeAimTrainingDespawn ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeAimTrainingDespawn, Control, "Respawn missed targets");
 	if(g_Config.m_AeAimTrainingDespawn)
 	{
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		Ui()->DoScrollbarOption(&g_Config.m_AeAimTrainingDespawnMs, &g_Config.m_AeAimTrainingDespawnMs, &Control, "Respawn delay", 250, 10000, &CUi::ms_LinearScrollbarScale, 0, "ms");
+		AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeAimTrainingDespawnMs, Control, "Respawn delay");
 	}
 	Body.HSplitTop(8.0f * S, nullptr, &Body);
 	Body.HSplitTop(18.0f * S, &Control, &Body);
@@ -4303,6 +4817,7 @@ void CMenus::RenderSettingsAetherPsa(CUIRect Body)
 
 	Body.HSplitTop(24.0f * S, &Row, &Body);
 	Ui()->DoScrollbarOption(&s_TimerSeconds, &s_TimerSeconds, &Row, "Trial duration", 5, 900, &CUi::ms_LinearScrollbarScale, 0, "s");
+	AetherDoLabelTooltip(Ui(), GameClient(), &s_TimerSeconds, Row, "Trial duration");
 
 	Body.HSplitTop(6.0f * S, nullptr, &Body);
 	Body.HSplitTop(24.0f * S, &Row, &Body);
@@ -4575,10 +5090,12 @@ void CMenus::RenderSettingsAetherGoresMaps(CUIRect Body)
 	Row.VSplitLeft(SmallBtnW, &Btn, &Row);
 	if(DoButton_CheckBox(&s_FilterToggle, "Selected only", GameClient()->m_AetherGoresMaps.ShowOnlySelectedCategory(), &Btn))
 		GameClient()->m_AetherGoresMaps.ToggleShowOnlySelectedCategory();
+	AetherDoLabelTooltip(Ui(), GameClient(), &s_FilterToggle, Btn, "Selected only");
 	Row.VSplitLeft(Gap, nullptr, &Row);
 	Row.VSplitLeft(SmallBtnW, &Btn, nullptr);
 	if(DoButton_CheckBox(&s_DeleteToggle, "Delete mode", GameClient()->m_AetherGoresMaps.DeleteEnabled(), &Btn))
 		GameClient()->m_AetherGoresMaps.ToggleDeleteEnabled();
+	AetherDoLabelTooltip(Ui(), GameClient(), &s_DeleteToggle, Btn, "Delete mode");
 
 	if(GameClient()->m_AetherGoresMaps.DeleteEnabled())
 	{
@@ -5470,6 +5987,7 @@ void CMenus::RenderSettingsAetherAssetsEditorPopup(CUIRect Screen)
 			ExportCurrent();
 		if(DoButton_CheckBox(&s_ShowGridButton, "Show Grid", s_AetherAssetsEditorShowGrid, &Grid))
 			s_AetherAssetsEditorShowGrid = !s_AetherAssetsEditorShowGrid;
+		AetherDoLabelTooltip(Ui(), GameClient(), &s_ShowGridButton, Grid, "Show Grid");
 
 		Body.HSplitTop(8.0f * S, nullptr, &Body);
 		CUIRect Left, Right;
@@ -5869,6 +6387,7 @@ void CMenus::RenderSettingsAetherAssetsEditorPopup(CUIRect Screen)
 			Ui()->DoLabel(&PickHint, "Click an atlas pixel", 12.0f * S, TEXTALIGN_ML);
 			EditPanel.HSplitTop(22.0f * S, &Row, &EditPanel);
 			Ui()->DoScrollbarOption(&EditState.m_Opacity, &EditState.m_Opacity, &Row, "Opacity", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+			AetherDoLabelTooltip(Ui(), GameClient(), &EditState.m_Opacity, Row, "Opacity");
 			if(EditState.m_Color != PrevColor || EditState.m_Opacity != PrevOpacity)
 			{
 				EnsureEditableBaseSource();
@@ -5976,13 +6495,16 @@ void CMenus::RenderSettingsAetherMusicPlayer(CUIRect Body)
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeMusicDynamicColor, "Dynamic cover color", g_Config.m_AeMusicDynamicColor, &Control))
 		g_Config.m_AeMusicDynamicColor ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeMusicDynamicColor, Control, "Dynamic cover color");
 	if(!g_Config.m_AeMusicDynamicColor)
 		DoLine_ColorPicker(&s_BackgroundColorReset, 25.0f * S, 13.0f * S, 4.0f * S, &Body, "Background color", &g_Config.m_AeMusicBackgroundColor, ColorRGBA(0.10f, 0.10f, 0.10f), false);
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeMusicOpacity, &g_Config.m_AeMusicOpacity, &Control, "Panel opacity", 10, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeMusicOpacity, Control, "Panel opacity");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeMusicVisualizer, "Visualizer", g_Config.m_AeMusicVisualizer, &Control))
 		g_Config.m_AeMusicVisualizer ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeMusicVisualizer, Control, "Visualizer");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(g_Config.m_AeMusicVisualizerStyle > 1)
 		g_Config.m_AeMusicVisualizerStyle = 0;
@@ -5999,8 +6521,10 @@ void CMenus::RenderSettingsAetherMusicPlayer(CUIRect Body)
 		g_Config.m_AeMusicVisualizerStyle = 1;
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeMusicVisualizerSensitivity, &g_Config.m_AeMusicVisualizerSensitivity, &Control, "Visualizer sensitivity", 50, 1500, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeMusicVisualizerSensitivity, Control, "Visualizer sensitivity");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeMusicVisualizerGlow, &g_Config.m_AeMusicVisualizerGlow, &Control, "Visualizer glow", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeMusicVisualizerGlow, Control, "Visualizer glow");
 }
 
 void CMenus::RenderSettingsAether(CUIRect MainView)
@@ -6460,6 +6984,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		static CButtonContainer s_EnabledOnlyButton;
 		if(DoButton_CheckBox(&s_EnabledOnlyButton, "Only enabled", m_AetherShowEnabledOnly, &FilterButton))
 			m_AetherShowEnabledOnly = !m_AetherShowEnabledOnly;
+		AetherDoLabelTooltip(Ui(), GameClient(), &s_EnabledOnlyButton, FilterButton, "Only enabled");
 		MainView.HSplitTop(8.0f * S, nullptr, &MainView);
 	}
 
@@ -7988,6 +8513,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 				Card.HSplitTop(21.0f * S, &Row, &Card);
 				if(DoButton_CheckBox(&s_ChessShowMovesButton, "Show legal moves", g_Config.m_AeGameChessShowLegalMoves, &Row))
 					g_Config.m_AeGameChessShowLegalMoves ^= 1;
+				AetherDoLabelTooltip(Ui(), GameClient(), &s_ChessShowMovesButton, Row, "Show legal moves");
 			}
 			else if(Game == EGame::SNAKE)
 			{
@@ -7997,6 +8523,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 				Card.HSplitTop(21.0f * S, &Row, &Card);
 				if(DoButton_CheckBox(&s_SnakeWrapButton, "Wrap through walls", g_Config.m_AeGameSnakeWrap, &Row))
 					g_Config.m_AeGameSnakeWrap ^= 1;
+				AetherDoLabelTooltip(Ui(), GameClient(), &s_SnakeWrapButton, Row, "Wrap through walls");
 			}
 			else if(Game == EGame::MINESWEEPER)
 			{
@@ -8829,8 +9356,11 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 						else if(m_AetherExpandedFeature == Feature.m_Id)
 							m_AetherExpandedFeature = AetherMusic::EAetherFeatureId::NONE;
 					}
+					if(Feature.m_pEnabled)
+						AetherDoTooltip(Ui(), GameClient(), Feature.m_pEnabled, CheckBox, AetherFeatureTooltip(Feature.m_Id), 330.0f);
 					if(Ui()->DoButtonLogic(&s_aExpandButtons[Index], m_AetherExpandedFeature == Feature.m_Id, &ExpandButton, BUTTONFLAG_LEFT))
 						m_AetherExpandedFeature = AetherMusic::ToggleAccordion(m_AetherExpandedFeature, Feature.m_Id);
+					AetherDoTooltip(Ui(), GameClient(), &s_aExpandButtons[Index], ExpandButton, AetherFeatureTooltip(Feature.m_Id), 330.0f);
 					ExpandArea.VSplitLeft(8.0f * S, nullptr, &ExpandArea);
 					Ui()->DoLabel(&ExpandArea, Feature.m_pLabel, 16.0f * S, TEXTALIGN_ML);
 					TextRender()->SetFontPreset(EFontPreset::ICON_FONT);
@@ -8862,3 +9392,4 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 	}
 	s_ScrollRegion.End();
 }
+

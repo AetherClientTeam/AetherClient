@@ -25,6 +25,19 @@ constexpr int UNSUPPORTED_PROTOCOL_RECONNECT_DELAY_SECONDS = 60;
 constexpr int CONNECT_TIMEOUT_SECONDS = 8;
 constexpr int IDLE_HELLO_SECONDS = 10;
 
+bool CurlSupportsProtocol(const char *pProtocol)
+{
+	const curl_version_info_data *pInfo = curl_version_info(CURLVERSION_NOW);
+	if(!pInfo || !pInfo->protocols || !pProtocol)
+		return true;
+	for(const char *const *ppProtocol = pInfo->protocols; *ppProtocol; ++ppProtocol)
+	{
+		if(str_comp(*ppProtocol, pProtocol) == 0)
+			return true;
+	}
+	return false;
+}
+
 int SocketSelectReadable(curl_socket_t Socket, int TimeoutMs)
 {
 	if(Socket == CURL_SOCKET_BAD)
@@ -100,6 +113,8 @@ void CAetherRealtimeClient::SetEndpointFromHttpBase(const char *pHttpBaseUrl)
 			return;
 		m_Endpoint = aEndpoint;
 	}
+	m_LastFailureUnsupportedProtocol.store(false);
+	m_UnsupportedProtocolLogged.store(false);
 	m_Cv.notify_all();
 }
 
@@ -192,6 +207,18 @@ void CAetherRealtimeClient::ThreadMain()
 
 bool CAetherRealtimeClient::RunConnection(const std::string &Endpoint)
 {
+	const bool WantsWss = str_startswith(Endpoint.c_str(), "wss://");
+	const bool WantsWs = str_startswith(Endpoint.c_str(), "ws://");
+	if((WantsWss && !CurlSupportsProtocol("wss")) || (WantsWs && !CurlSupportsProtocol("ws")))
+	{
+		m_LastFailureUnsupportedProtocol.store(true);
+		SetStatus("Realtime unsupported; HTTP Oracle fallback active");
+		if(!m_UnsupportedProtocolLogged.exchange(true))
+			log_info("aether/realtime", "Realtime websocket unsupported; HTTP Oracle fallback active");
+		m_Connected.store(false);
+		return false;
+	}
+
 	CURL *pCurl = curl_easy_init();
 	if(!pCurl)
 	{
@@ -216,7 +243,8 @@ bool CAetherRealtimeClient::RunConnection(const std::string &Endpoint)
 		if(Code == CURLE_UNSUPPORTED_PROTOCOL)
 			m_LastFailureUnsupportedProtocol.store(true);
 		SetStatus(aStatus);
-		log_info("aether/realtime", "%s", aStatus);
+		if(Code != CURLE_UNSUPPORTED_PROTOCOL || !m_UnsupportedProtocolLogged.exchange(true))
+			log_info("aether/realtime", "%s", aStatus);
 		curl_easy_cleanup(pCurl);
 		m_Connected.store(false);
 		return false;
@@ -225,6 +253,7 @@ bool CAetherRealtimeClient::RunConnection(const std::string &Endpoint)
 	curl_socket_t Socket = CURL_SOCKET_BAD;
 	curl_easy_getinfo(pCurl, CURLINFO_ACTIVESOCKET, &Socket);
 	m_Connected.store(true);
+	m_UnsupportedProtocolLogged.store(false);
 	SetStatus("Realtime connected");
 
 	std::string LastSentHello;

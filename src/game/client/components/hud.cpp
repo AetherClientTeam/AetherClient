@@ -2613,7 +2613,9 @@ void CHud::OnRender()
 		if(g_Config.m_AeFastInput && g_Config.m_AeFastInputDebug)
 		{
 			char aBuf[192];
-			const char *pMode = g_Config.m_AeFastInputMode == 2 ? "Saiko+" : "Adaptive";
+			const bool TClientMode = g_Config.m_AeFastInputMode == 3;
+			const bool SaikoMode = g_Config.m_AeFastInputMode == 2;
+			const char *pMode = TClientMode ? "TClient" : (SaikoMode ? "Saiko+" : "Adaptive");
 			const char *pSharpnessLabel = g_Config.m_AeFastInputSmoothCorrections < 30 ? "soft" : (g_Config.m_AeFastInputSmoothCorrections < 70 ? "balanced" : "sharp");
 			const int LocalId = GameClient()->m_Snap.m_LocalClientId;
 			const int InteractionState = LocalId >= 0 ? GameClient()->m_aClients[LocalId].m_AetherFastInteractionState : 0;
@@ -2628,13 +2630,13 @@ void CHud::OnRender()
 				pInteraction = "snap";
 			str_format(aBuf, sizeof(aBuf), "Aether FI: %s | move %dms | action %dms | saiko %.2ft | sharp %d%% %s | margin %s | interaction %s",
 				pMode,
-				g_Config.m_AeFastInputMode == 2 ? (g_Config.m_AeSaikoPlusAmount + 2) / 5 : g_Config.m_AeFastInputMovementAmount,
-				g_Config.m_AeFastInputMode == 2 ? (g_Config.m_AeSaikoPlusAmount + 2) / 5 : g_Config.m_AeFastInputActionAmount,
+				TClientMode ? g_Config.m_TcFastInputAmount : (SaikoMode ? (g_Config.m_AeSaikoPlusAmount + 2) / 5 : g_Config.m_AeFastInputMovementAmount),
+				TClientMode ? g_Config.m_TcFastInputAmount : (SaikoMode ? (g_Config.m_AeSaikoPlusAmount + 2) / 5 : g_Config.m_AeFastInputActionAmount),
 				g_Config.m_AeSaikoPlusAmount / 100.0f,
 				g_Config.m_AeFastInputSmoothCorrections,
 				pSharpnessLabel,
 				g_Config.m_AeFastInputAutoMargin ? "auto" : "manual",
-				(g_Config.m_AeFastInputMode != 2 && g_Config.m_AeFastInputInteractionAssist) ? pInteraction : "off");
+				(!TClientMode && !SaikoMode && g_Config.m_AeFastInputInteractionAssist) ? pInteraction : "off");
 			TextRender()->TextColor(0.72f, 0.88f, 1.0f, 0.9f);
 			TextRender()->Text(5.0f, 96.0f, 6.0f, aBuf, -1.0f);
 			TextRender()->TextColor(TextRender()->DefaultTextColor());
