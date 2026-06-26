@@ -36,6 +36,9 @@ AetherMusic::SColor MixColor(const AetherMusic::SColor &Current, const AetherMus
 		Current.m_G + (Target.m_G - Current.m_G) * Amount,
 		Current.m_B + (Target.m_B - Current.m_B) * Amount};
 }
+
+constexpr AetherMusic::SColor VERA_IDLE_BACKGROUND{0.075f, 0.052f, 0.088f};
+constexpr AetherMusic::SColor VERA_IDLE_ACCENT{0.93f, 0.62f, 0.96f};
 }
 
 float CAetherMusicPlayer::PanelScale() const
@@ -146,9 +149,9 @@ void CAetherMusicPlayer::RenderFallbackMonogram(const AetherMusic::SRect &Artwor
 	Graphics()->DrawRect(ArtworkRect.m_X, ArtworkRect.m_Y, ArtworkRect.m_W, ArtworkRect.m_H, ColorRGBA(0.16f, 0.18f, 0.22f, Alpha), IGraphics::CORNER_ALL, 3.0f * Scale);
 	if(!m_FallbackLogoTried)
 	{
-		m_FallbackLogoTexture = Graphics()->LoadTexture("core/logos/aether_512.png", IStorage::TYPE_ALL);
+		m_FallbackLogoTexture = Graphics()->LoadTexture("core/logos/aether_vera_logo.png", IStorage::TYPE_ALL);
 		if(!m_FallbackLogoTexture.IsValid())
-			m_FallbackLogoTexture = Graphics()->LoadTexture("core/logos/aether_512.png", IStorage::TYPE_ALL);
+			m_FallbackLogoTexture = Graphics()->LoadTexture("core/logos/vera_512.png", IStorage::TYPE_ALL);
 		m_FallbackLogoTried = true;
 	}
 	if(m_FallbackLogoTexture.IsValid())
@@ -317,6 +320,8 @@ void CAetherMusicPlayer::RenderPanel(const CAetherMediaBackend::SSnapshot &Snaps
 	m_LastPanelRect = AetherMusic::ClampTopCenter(ScreenWidth, ScreenHeight, PanelWidth, PanelHeight, g_Config.m_AeMusicOffsetX, g_Config.m_AeMusicOffsetY);
 	UpdateColors();
 
+	const int64_t ArtworkActivityMs = std::max(Snapshot.m_LastPlayingMs, Snapshot.m_ArtworkReceivedMs);
+	const auto ArtworkState = AetherMusic::ArtworkState(Snapshot.m_PlaybackState, m_HasArtwork, ArtworkActivityMs, SteadyMilliseconds());
 	AetherMusic::SColor Background = m_DynamicColor;
 	AetherMusic::SColor Accent = m_ArtworkAccent;
 	if(!g_Config.m_AeMusicDynamicColor)
@@ -325,8 +330,11 @@ void CAetherMusicPlayer::RenderPanel(const CAetherMediaBackend::SSnapshot &Snaps
 		Background = {StaticColor.r, StaticColor.g, StaticColor.b};
 		Accent = Background;
 	}
-	const int64_t ArtworkActivityMs = std::max(Snapshot.m_LastPlayingMs, Snapshot.m_ArtworkReceivedMs);
-	const auto ArtworkState = AetherMusic::ArtworkState(Snapshot.m_PlaybackState, m_HasArtwork, ArtworkActivityMs, SteadyMilliseconds());
+	else if(ArtworkState == AetherMusic::EArtworkState::FALLBACK)
+	{
+		Background = VERA_IDLE_BACKGROUND;
+		Accent = VERA_IDLE_ACCENT;
+	}
 	const float ContentAlpha = Opacity * (ArtworkState == AetherMusic::EArtworkState::DIMMED ? 0.42f : 1.0f);
 	Graphics()->DrawRect(m_LastPanelRect.m_X, m_LastPanelRect.m_Y, m_LastPanelRect.m_W, m_LastPanelRect.m_H,
 		ColorRGBA(Background.m_R, Background.m_G, Background.m_B, Opacity), IGraphics::CORNER_ALL, 4.0f * Scale);

@@ -1011,7 +1011,7 @@ void CScoreboard::RenderScoreboard(CUIRect Scoreboard, int Team, int CountStart,
 				{
 					const float TextWidth = TextRender()->TextWidth(ClanFontSize, pClanName);
 					if(TextWidth > ClanLength && TextWidth > 0.0f)
-						ClanFontSize = std::clamp(ClanFontSize * ClanLength / TextWidth, FontSize * 0.70f, FontSize);
+						ClanFontSize = std::clamp(ClanFontSize * ClanLength / TextWidth, FontSize * 0.50f, FontSize);
 				}
 				CTextCursor Cursor;
 				Cursor.SetPosition(vec2(ClanOffset + (ClanLength - minimum(TextRender()->TextWidth(ClanFontSize, pClanName), ClanLength)) / 2.0f, Row.y + (Row.h - ClanFontSize) / 2.0f));

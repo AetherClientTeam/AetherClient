@@ -577,23 +577,44 @@ void CMenus::RenderMenubar(CUIRect Box, IClient::EClientState ClientState)
 
 		GotNewsOrUpdate |= (bool)g_Config.m_UiUnreadNews;
 
-		ColorRGBA HomeButtonColorAlert(0, 1, 0, 0.25f);
-		ColorRGBA HomeButtonColorAlertHover(0, 1, 0, 0.5f);
-		ColorRGBA *pHomeButtonColor = nullptr;
-		ColorRGBA *pHomeButtonColorHover = nullptr;
+		ColorRGBA HomeButtonColor(0.56f, 0.24f, 0.68f, GotNewsOrUpdate ? 0.42f : 0.26f);
+		ColorRGBA HomeButtonColorHover(0.66f, 0.34f, 0.78f, GotNewsOrUpdate ? 0.58f : 0.42f);
 
-		const char *pHomeScreenButtonLabel = FontIcon::HOUSE;
-		if(GotNewsOrUpdate)
+		static bool s_HomeClientLogoLoaded = false;
+		static IGraphics::CTextureHandle s_HomeClientLogoTexture;
+		if(!s_HomeClientLogoLoaded)
 		{
-			pHomeScreenButtonLabel = FontIcon::NEWSPAPER;
-			pHomeButtonColor = &HomeButtonColorAlert;
-			pHomeButtonColorHover = &HomeButtonColorAlertHover;
+			s_HomeClientLogoTexture = Graphics()->LoadTexture("core/logos/vera_icon_small_256.png", IStorage::TYPE_ALL);
+			if(!s_HomeClientLogoTexture.IsValid())
+				s_HomeClientLogoTexture = Graphics()->LoadTexture("aether/logos/vera_icon_small_256.png", IStorage::TYPE_ALL);
+			s_HomeClientLogoLoaded = true;
 		}
+		const bool HomeLogoReady = s_HomeClientLogoTexture.IsValid();
+		const char *pHomeScreenButtonLabel = HomeLogoReady ? "" : (GotNewsOrUpdate ? FontIcon::NEWSPAPER : FontIcon::HOUSE);
 
 		static CButtonContainer s_StartButton;
-		if(DoButton_MenuTab(&s_StartButton, pHomeScreenButtonLabel, false, &Button, IGraphics::CORNER_T, &m_aAnimatorsSmallPage[SMALL_TAB_HOME], pHomeButtonColor, pHomeButtonColor, pHomeButtonColorHover, 10.0f))
+		if(DoButton_MenuTab(&s_StartButton, pHomeScreenButtonLabel, false, &Button, IGraphics::CORNER_T, &m_aAnimatorsSmallPage[SMALL_TAB_HOME], &HomeButtonColor, &HomeButtonColor, &HomeButtonColorHover, 10.0f))
 		{
 			m_ShowStart = true;
+		}
+		if(HomeLogoReady)
+		{
+			CUIRect Icon = Button;
+			Icon.Margin(6.0f, &Icon);
+			const float Size = minimum(Icon.w, Icon.h);
+			Icon.x += (Icon.w - Size) * 0.5f;
+			Icon.y += (Icon.h - Size) * 0.5f;
+			Icon.w = Size;
+			Icon.h = Size;
+			Graphics()->TextureSet(s_HomeClientLogoTexture);
+			Graphics()->WrapClamp();
+			Graphics()->QuadsBegin();
+			Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f);
+			Graphics()->QuadsSetSubset(0, 0, 1, 1);
+			IGraphics::CQuadItem Quad(Icon.x, Icon.y, Icon.w, Icon.h);
+			Graphics()->QuadsDrawTL(&Quad, 1);
+			Graphics()->QuadsEnd();
+			Graphics()->WrapNormal();
 		}
 		GameClient()->m_Tooltips.DoToolTip(&s_StartButton, &Button, Localize("Main menu"));
 
@@ -1078,10 +1099,14 @@ void CMenus::Render()
 		{
 			RenderBackground();
 		}
+		RenderAetherAnimatedBackdrop(*Ui()->Screen());
 		ms_ColorTabbarInactive = ms_ColorTabbarInactiveOutgame;
 		ms_ColorTabbarActive = ms_ColorTabbarActiveOutgame;
 		ms_ColorTabbarHover = ms_ColorTabbarHoverOutgame;
 	}
+
+	if(SettingsPageVisible && ClientState != IClient::STATE_OFFLINE)
+		RenderAetherAnimatedBackdrop(*Ui()->Screen());
 
 	CUIRect Screen = *Ui()->Screen();
 	if(Client()->State() != IClient::STATE_DEMOPLAYBACK || m_Popup != POPUP_NONE)
@@ -2654,6 +2679,64 @@ void CMenus::RenderBackground()
 
 	// restore screen
 	Ui()->MapScreen();
+}
+
+void CMenus::RenderAetherAnimatedBackdrop(const CUIRect &View)
+{
+	const bool Animate = !(g_Config.m_AeOptimizer && g_Config.m_AeOptimizerDisableMenuAnimations);
+	const float Time = Animate ? (float)(time_get() / (double)time_freq()) : 0.0f;
+	const float BaseAlpha = std::clamp(View.h / 900.0f, 0.55f, 1.0f);
+	const vec2 MouseRel(
+		std::clamp((Ui()->MouseX() - (View.x + View.w * 0.5f)) / maximum(View.w * 0.5f, 1.0f), -1.0f, 1.0f),
+		std::clamp((Ui()->MouseY() - (View.y + View.h * 0.5f)) / maximum(View.h * 0.5f, 1.0f), -1.0f, 1.0f));
+	const vec2 Parallax(MouseRel.x * View.w * 0.018f, MouseRel.y * View.h * 0.018f);
+
+	Graphics()->TextureClear();
+	Graphics()->QuadsBegin();
+	const vec2 GlowCenter0(View.x + View.w * (0.18f + 0.018f * std::sin(Time * 0.19f)) - Parallax.x * 0.55f, View.y + View.h * (0.24f + 0.014f * std::cos(Time * 0.15f)) - Parallax.y * 0.55f);
+	const vec2 GlowCenter1(View.x + View.w * (0.78f + 0.014f * std::cos(Time * 0.17f)) + Parallax.x * 0.35f, View.y + View.h * (0.70f + 0.018f * std::sin(Time * 0.13f)) + Parallax.y * 0.35f);
+	Graphics()->SetColor(0.98f, 0.44f, 1.0f, 0.055f * BaseAlpha);
+	Graphics()->DrawCircle(GlowCenter0.x, GlowCenter0.y, View.w * 0.26f, 64);
+	Graphics()->SetColor(0.46f, 0.58f, 1.0f, 0.042f * BaseAlpha);
+	Graphics()->DrawCircle(GlowCenter1.x, GlowCenter1.y, View.w * 0.30f, 64);
+	Graphics()->QuadsEnd();
+
+	Graphics()->TextureClear();
+	Graphics()->QuadsBegin();
+	for(int i = 0; i < 10; ++i)
+	{
+		const float Seed = (float)i;
+		const float BaseX = std::fmod(0.07f + Seed * 0.137f, 1.0f);
+		const float BaseY = std::fmod(0.11f + Seed * 0.173f, 1.0f);
+		const float DriftX = std::sin(Time * (0.055f + Seed * 0.003f) + Seed * 2.1f) * 28.0f;
+		const float DriftY = std::cos(Time * (0.049f + Seed * 0.002f) + Seed * 1.7f) * 22.0f;
+		const float Depth = 0.45f + std::fmod(Seed * 0.19f, 0.85f);
+		const float X = View.x + View.w * BaseX + DriftX - Parallax.x * Depth;
+		const float Y = View.y + View.h * BaseY + DriftY - Parallax.y * Depth;
+		const float Size = 8.0f + std::fmod(Seed * 9.0f, 18.0f);
+		const float Pulse = 0.55f + 0.45f * std::sin(Time * 0.7f + Seed);
+		Graphics()->SetColor(0.93f, 0.58f, 1.0f, (0.045f + Pulse * 0.038f) * BaseAlpha);
+		Graphics()->QuadsSetRotation(0.7853982f + Time * 0.018f + Seed * 0.21f);
+		IGraphics::CQuadItem Diamond(X - Size * 0.5f, Y - Size * 0.5f, Size, Size);
+		Graphics()->QuadsDrawTL(&Diamond, 1);
+	}
+	Graphics()->QuadsSetRotation(0.0f);
+	Graphics()->QuadsEnd();
+
+	Graphics()->TextureClear();
+	Graphics()->QuadsBegin();
+	for(int i = 0; i < 3; ++i)
+	{
+		const float Seed = (float)i;
+		const float X = View.x - View.w * 0.45f + std::sin(Time * (0.055f + Seed * 0.012f) + Seed * 1.8f) * View.w * 0.12f - Parallax.x * (0.25f + Seed * 0.10f);
+		const float Y = View.y + View.h * (0.22f + Seed * 0.25f) + std::sin(Time * 0.18f + Seed) * 10.0f - Parallax.y * (0.18f + Seed * 0.08f);
+		Graphics()->SetColor(0.98f, 0.55f, 1.0f, (0.020f - Seed * 0.003f) * BaseAlpha);
+		Graphics()->QuadsSetRotation(-0.12f + Seed * 0.07f);
+		IGraphics::CQuadItem Wave(X, Y, View.w * 1.90f, 22.0f + Seed * 9.0f);
+		Graphics()->QuadsDrawTL(&Wave, 1);
+	}
+	Graphics()->QuadsSetRotation(0.0f);
+	Graphics()->QuadsEnd();
 }
 
 int CMenus::DoButton_CheckBox_Tristate(const void *pId, const char *pText, TRISTATE Checked, const CUIRect *pRect)

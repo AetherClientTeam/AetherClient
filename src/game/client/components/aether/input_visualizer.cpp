@@ -168,6 +168,22 @@ void CAetherInputVisualizer::ClearLaneHistory()
 	m_aLaneActive.fill(false);
 }
 
+void CAetherInputVisualizer::ShiftLaneHistory(double Delta)
+{
+	if(Delta <= 0.0)
+		return;
+	for(SSegment &Segment : m_vSegments)
+	{
+		Segment.m_Start += Delta;
+		Segment.m_End += Delta;
+	}
+	for(int i = 0; i < MAX_LANES; ++i)
+	{
+		if(m_aLaneActive[i])
+			m_aHoldStart[i] += Delta;
+	}
+}
+
 bool CAetherInputVisualizer::WantsRemoteInput() const
 {
 	return g_Config.m_AeInputVisualizerSpectatedInput &&
@@ -448,10 +464,24 @@ void CAetherInputVisualizer::RenderInternal(bool ForcePreview)
 
 	const bool WantRemote = WantsRemoteInput();
 	const bool WantDemoReplay = WantsDemoReplayInput();
-	const double Now = ForcePreview ? time_get() / (double)time_freq() : TimelineNow(WantRemote, WantDemoReplay);
-	if(!ForcePreview)
+	double Now = ForcePreview ? time_get() / (double)time_freq() : TimelineNow(WantRemote, WantDemoReplay);
+	if(!ForcePreview && g_Config.m_AeInputVisualizerPaused)
+	{
+		if(!m_PauseActive)
+		{
+			m_PauseNow = Now;
+			m_PauseActive = true;
+		}
+		Now = m_PauseNow;
+	}
+	else if(!ForcePreview && m_PauseActive)
+	{
+		ShiftLaneHistory(Now - m_PauseNow);
+		m_PauseActive = false;
+	}
+	if(!ForcePreview && !g_Config.m_AeInputVisualizerPaused)
 		UpdateInputState(Now, WantRemote, WantDemoReplay);
-	else if(m_vSegments.empty())
+	else if(ForcePreview && m_vSegments.empty())
 	{
 		m_vSegments.push_back({Now - 1.1, Now - 0.70, ELane::LEFT});
 		m_vSegments.push_back({Now - 0.80, Now - 0.25, ELane::RIGHT});

@@ -67,8 +67,6 @@ enum class EAetherPage
 static EAetherPage s_AetherActivePage = EAetherPage::VISUALS;
 static bool s_AetherOpenChessOnline = false;
 static int s_AetherBlockAwarenessTab = 0;
-static int s_AetherPingTab = 0;
-static bool s_AetherOrbitStyleDropdownOpen = false;
 constexpr const char *AETHER_WARLIST_DIR = "aether/warlists";
 constexpr int AETHER_CLOUD_LOCAL_MAX = 1024;
 constexpr int AETHER_CLOUD_REMOTE_MAX = 128;
@@ -289,13 +287,530 @@ bool AetherFeatureAllowed(AetherMusic::EAetherFeatureId Id)
 	return true;
 }
 
+struct SAetherTranslation
+{
+	const char *m_pEnglish;
+	const char *m_pTurkish;
+};
+
+const char *AetherLocalize(const char *pText)
+{
+	if(!pText || pText[0] == '\0')
+		return pText;
+
+	const char *pLocalized = Localize(pText);
+	if(pLocalized && str_comp(pLocalized, pText) != 0)
+		return pLocalized;
+
+	if(!str_find_nocase(g_Config.m_ClLanguagefile, "turkish"))
+		return pText;
+
+	static constexpr SAetherTranslation s_aTranslations[] = {
+		{"Aether Settings", "Aether Ayarları"},
+		{"Search features and settings...", "Özellik ve ayar ara..."},
+		{"Only enabled", "Sadece açık olanlar"},
+		{"Visuals", "Görseller"},
+		{"VISUALS", "GÖRSELLER"},
+		{"Gameplay", "Oynanış"},
+		{"GAMEPLAY", "OYNANIŞ"},
+		{"Tools", "Araçlar"},
+		{"TOOLS", "ARAÇLAR"},
+		{"EDITORS", "EDİTÖRLER"},
+		{"Assets", "Assetler"},
+		{"Clan", "Klan"},
+		{"Games", "Oyunlar"},
+		{"Info", "Bilgi"},
+		{"Open", "Aç"},
+		{"Close", "Kapat"},
+		{"Refresh", "Yenile"},
+		{"Refresh now", "Şimdi yenile"},
+		{"Refresh local", "Yereli yenile"},
+		{"Refresh cloud", "Cloud'u yenile"},
+		{"Open folder", "Klasörü aç"},
+		{"Export", "Dışa aktar"},
+		{"Import selected", "Seçileni içe aktar"},
+		{"Toggle", "Aç/Kapat"},
+		{"Reset", "Sıfırla"},
+		{"Save", "Kaydet"},
+		{"Load", "Yükle"},
+		{"Rename", "Yeniden adlandır"},
+		{"Delete", "Sil"},
+		{"Cancel", "İptal"},
+		{"Remove", "Kaldır"},
+		{"Copy", "Kopyala"},
+		{"Leave", "Ayrıl"},
+		{"Rotate", "Kodu yenile"},
+		{"Disband", "Klanı kapat"},
+		{"Join", "Katıl"},
+		{"Upload", "Yükle"},
+		{"Download", "İndir"},
+		{"Apply cloud", "Cloud'u uygula"},
+		{"Compact local", "Yereli daralt"},
+		{"Expand local", "Yereli genişlet"},
+		{"Start", "Başlat"},
+		{"Stop", "Durdur"},
+		{"Skip", "Atla"},
+		{"Back", "Geri"},
+		{"Restart", "Yeniden başlat"},
+		{"Test", "Test et"},
+		{"Folder", "Klasör"},
+		{"Reload", "Yenile"},
+		{"Show Grid", "Grid göster"},
+
+		{"Gradient Effects", "Gradient Efektleri"},
+		{"Music Player", "Müzik Çalar"},
+		{"Keystrokes", "Tuş Göstergesi"},
+		{"Input Visualizer", "Input Görselleştirici"},
+		{"Stability Trainer", "Stabilite Antrenörü"},
+		{"Session Stats", "Oturum İstatistikleri"},
+		{"Show Real Hitbox", "Gerçek Hitbox Göster"},
+		{"Ninja Tee Preview", "Ninja Tee Önizleme"},
+		{"Ninja Timer", "Ninja Zamanlayıcı"},
+		{"Sweat Weapon", "Sweat Weapon"},
+		{"Orbit Aura", "Orbit Aura"},
+		{"Jelly Tee", "Jelly Tee"},
+		{"Finish Prediction", "Finish Tahmini"},
+		{"3D Particles", "3D Parçacıklar"},
+		{"Loading Theme Background", "Yükleme Teması Arka Planı"},
+		{"Client Badges", "Client Rozetleri"},
+		{"Chat Bubbles", "Chat Balonları"},
+		{"Aether Fast Input", "Aether Fast Input"},
+		{"Fast Spec", "Fast Spec"},
+		{"Translator", "Çevirmen"},
+		{"Fail Sounds", "Fail Sesleri"},
+		{"Gameplay Sounds", "Oynanış Sesleri"},
+		{"Keyboard Sounds", "Klavye Sesleri"},
+		{"Block Awareness", "Block Awareness"},
+		{"Ping Wheel", "Ping Çarkı"},
+		{"Focus Mode", "Focus Mode"},
+		{"Snap Tap", "Snap Tap"},
+		{"Gores Mode", "Gores Mode"},
+		{"Gores Maps", "Gores Haritaları"},
+		{"DDRace Configs", "DDRace Configleri"},
+		{"Silent Typing", "Sessiz Yazma"},
+		{"Auto Team Lock", "Otomatik Team Lock"},
+		{"Save Unsent Messages", "Gönderilmemiş Mesajları Sakla"},
+		{"HUD Editor", "HUD Editörü"},
+		{"Assets Editor", "Assets Editörü"},
+		{"Background Builder", "Arka Plan Oluşturucu"},
+		{"Cloud Clan", "Cloud Klan"},
+		{"Chess", "Satranç"},
+		{"Snake", "Yılan"},
+		{"Minesweeper", "Mayın Tarlası"},
+		{"Browser Utils", "Tarayıcı Araçları"},
+		{"Rollback Demo", "Demo Geri Sarma"},
+		{"Aim Training", "Aim Antrenmanı"},
+		{"PSA", "PSA"},
+
+		{"Dynamic cover color", "Kapak rengine uyarla"},
+		{"Background color", "Arka plan rengi"},
+		{"Panel opacity", "Panel opaklığı"},
+		{"Visualizer", "Görselleştirici"},
+		{"Visualizer style", "Görselleştirici stili"},
+		{"Visualizer sensitivity", "Görselleştirici hassasiyeti"},
+		{"Visualizer glow", "Görselleştirici parlaması"},
+		{"Bars", "Çubuklar"},
+		{"Mountain", "Dağ"},
+		{"Horizontal layout", "Yatay düzen"},
+		{"Show jump key", "Zıplama tuşunu göster"},
+		{"Show M1 key", "M1 tuşunu göster"},
+		{"Pause / resume key", "Duraklat/devam tuşu"},
+		{"Pause key", "Duraklatma tuşu"},
+		{"Flow speed", "Akış hızı"},
+		{"Panel length", "Panel uzunluğu"},
+		{"Lane thickness", "Çizgi kalınlığı"},
+		{"Overlay opacity", "Overlay opaklığı"},
+		{"Jump label", "Zıplama etiketi"},
+		{"Line", "Çizgi"},
+		{"Jump", "Zıpla"},
+		{"Keyboard typing sound", "Klavye yazma sesi"},
+		{"Sound file", "Ses dosyası"},
+		{"Typing sound volume", "Yazma sesi seviyesi"},
+		{"Show in nameplates", "Nameplate'te göster"},
+		{"Show in scoreboard", "Scoreboard'da göster"},
+		{"Show client badges only", "Sadece client rozetlerini göster"},
+		{"Show friend heart", "Arkadaş kalbini göster"},
+		{"Show Aether pings", "Aether pinglerini göster"},
+		{"Ping wheel", "Ping çarkı"},
+		{"Place ping", "Yer pingi"},
+		{"Help ping", "Yardım pingi"},
+		{"Danger ping", "Tehlike pingi"},
+		{"Come ping", "Gel pingi"},
+		{"Wait ping", "Bekle pingi"},
+		{"Wheel", "Çark"},
+		{"Keys", "Tuşlar"},
+		{"Visibility", "Görünürlük"},
+		{"Place", "Yer"},
+		{"Help", "Yardım"},
+		{"Danger", "Tehlike"},
+		{"Come", "Gel"},
+		{"Wait", "Bekle"},
+		{"Hide all UI", "Tüm arayüzü gizle"},
+		{"Hide nameplates", "Nameplate'leri gizle"},
+		{"Keep music player visible", "Müzik çaları görünür tut"},
+		{"Disable if you have shotgun, grenade or laser", "Shotgun, grenade veya laser varken kapat"},
+		{"Lock delay after joining team", "Team'e girdikten sonra kilit gecikmesi"},
+
+		{"TClient", "TClient"},
+		{"Adaptive", "Adaptive"},
+		{"Control", "Control"},
+		{"Saiko+", "Saiko+"},
+		{"TClient amount", "TClient miktarı"},
+		{"Fast input others", "Diğer teelere fast input"},
+		{"Saiko+ input others", "Diğer teelere Saiko+"},
+		{"Response amount", "Tepki miktarı"},
+		{"Stability", "Stabilite"},
+		{"Correction", "Düzeltme"},
+		{"Control input other tees", "Diğer teelere Control input"},
+		{"Movement amount", "Hareket miktarı"},
+		{"Hook/fire amount", "Hook/fire miktarı"},
+		{"Correction sharpness", "Düzeltme sertliği"},
+		{"A/D reverse", "A/D ters geçiş"},
+		{"A/D to none", "A/D bırakma"},
+		{"Brake amount", "Fren miktarı"},
+		{"Adaptive input other tees", "Diğer teelere adaptive input"},
+		{"Other tees feel", "Diğer tee hissi"},
+		{"Smooth", "Smooth"},
+		{"Precision", "Precision"},
+		{"Aggressive", "Aggressive"},
+		{"Other tees amount", "Diğer tee miktarı"},
+		{"Ping assist", "Ping desteği"},
+		{"Interaction assist", "Etkileşim desteği"},
+		{"Interaction strength", "Etkileşim gücü"},
+		{"Apply to dummy", "Dummy'ye uygula"},
+		{"Sub-Tick aiming", "Sub-Tick nişan"},
+		{"Auto margin", "Otomatik güven payı"},
+		{"Show debug info", "Debug bilgisini göster"},
+		{"Enable Fast Spec", "Fast Spec'i aç"},
+		{"Fast Spec key", "Fast Spec tuşu"},
+		{"Grounded -> /spec -> /spec return.", "Yerdeyken -> /spec -> /spec dönüş."},
+
+		{"Color player tees", "Oyuncu teelerini renklendir"},
+		{"Allies keep real skins", "Ally'ler gerçek skinini korusun"},
+		{"Color nameplates and scoreboard", "Nameplate ve scoreboard'ı renklendir"},
+		{"Color natural tees", "Natural teeleri renklendir"},
+		{"Naturals keep real skins", "Natural'lar gerçek skinini korusun"},
+		{"Color natural names", "Natural isimleri renklendir"},
+		{"Enlarge enemies", "Düşmanları büyüt"},
+		{"Large self freeze timer", "Büyük kendi freeze sayacı"},
+		{"Ally/helper freeze alert", "Ally/helper freeze uyarısı"},
+		{"Enemy count HUD", "Düşman sayacı HUD"},
+		{"Hide enemy emotes", "Düşman emote'larını gizle"},
+		{"Force enemy eyes", "Düşman gözlerini sabitle"},
+		{"Enemy scan range", "Düşman tarama mesafesi"},
+		{"Enemy color", "Düşman rengi"},
+		{"Helper color", "Helper rengi"},
+		{"Ally color", "Ally rengi"},
+		{"Natural color", "Natural rengi"},
+		{"Enemy scale", "Düşman boyutu"},
+		{"Helper scale", "Helper boyutu"},
+		{"Ally scale", "Ally boyutu"},
+		{"Natural scale", "Natural boyutu"},
+		{"Enemy name opacity", "Düşman isim opaklığı"},
+		{"Helper name opacity", "Helper isim opaklığı"},
+		{"Ally name opacity", "Ally isim opaklığı"},
+		{"Natural name opacity", "Natural isim opaklığı"},
+		{"Export warlist", "Warlist dışa aktar"},
+		{"No JSON files.", "JSON dosyası yok."},
+
+		{"Clan name", "Klan adı"},
+		{"General", "General"},
+		{"KoG", "KoG"},
+		{"Invite code", "Davet kodu"},
+		{"Members", "Üyeler"},
+		{"General members", "General üyeleri"},
+		{"KoG members", "KoG üyeleri"},
+		{"Push warlist", "Warlist gönder"},
+		{"Pull warlist", "Warlist çek"},
+		{"Copy warlist", "Warlist kopyala"},
+		{"Join or create this clan type first.", "Önce bu klan tipine katıl veya oluştur."},
+		{"Loading members...", "Üyeler yükleniyor..."},
+		{"Clan management API unavailable.", "Klan yönetim API'si kullanılamıyor."},
+
+		{"Bubble duration", "Balon süresi"},
+		{"Bubble opacity", "Balon opaklığı"},
+		{"Bubble width", "Balon genişliği"},
+		{"Max stacked messages", "Maksimum üst üste mesaj"},
+		{"Only visible tees", "Sadece görünen teeler"},
+		{"Colored team/mention text", "Renkli team/mention yazısı"},
+		{"Show whisper bubbles", "Whisper balonlarını göster"},
+		{"Show my live draft", "Canlı taslağımı göster"},
+		{"Show my sent messages", "Gönderdiğim mesajları göster"},
+
+		{"Assets Cloud", "Assets Cloud"},
+		{"Skins", "Skinler"},
+		{"Game", "Game"},
+		{"Particles", "Parçacıklar"},
+		{"Emoticons", "Emoticonlar"},
+		{"Entities", "Entities"},
+		{"Search assets...", "Asset ara..."},
+		{"Local exports", "Yerel çıktılar"},
+		{"Cloud library", "Cloud kütüphanesi"},
+		{"No assets match this search.", "Bu aramayla eşleşen asset yok."},
+		{"No cloud assets in this category yet.", "Bu kategoride cloud asset yok."},
+		{"No local exports in this category yet.", "Bu kategoride yerel çıktı yok."},
+		{"Mode", "Mod"},
+		{"Donor (drag parts from left)", "Donor (parçaları soldan sürükle)"},
+		{"Frankenstein (drop parts on right)", "Frankenstein (parçaları sağa bırak)"},
+		{"Use donor part", "Donor parçasını kullan"},
+		{"Tint color", "Renk uygula"},
+		{"Only colored pixels", "Sadece renkli pikseller"},
+		{"Full bright", "Full bright"},
+		{"Keep black outline, fill inside", "Siyah çizgiyi koru, içi doldur"},
+		{"Color", "Renk"},
+		{"Pick color", "Renk seç"},
+		{"Picking...", "Seçiliyor..."},
+		{"Click an atlas pixel", "Atlas pikseline tıkla"},
+		{"Opacity", "Opaklık"},
+		{"Donor Asset", "Donor Asset"},
+		{"Main Asset", "Ana Asset"},
+		{"Reset All", "Hepsini sıfırla"},
+		{"Map Background Builder", "Map Arka Plan Oluşturucu"},
+		{"Open builder", "Builder'ı aç"},
+		{"Gradient type", "Gradient tipi"},
+		{"Vertical", "Dikey"},
+		{"Horizontal", "Yatay"},
+		{"Diagonal", "Çapraz"},
+		{"Radial", "Dairesel"},
+		{"Angle", "Açı"},
+		{"Top color", "Üst renk"},
+		{"Bottom color", "Alt renk"},
+		{"Accent color", "Vurgu rengi"},
+		{"Brightness", "Parlaklık"},
+		{"Contrast", "Kontrast"},
+		{"Saturation", "Doygunluk"},
+		{"Vignette", "Vinyet"},
+		{"Map name", "Map adı"},
+		{"Import map", "Map içe aktar"},
+		{"No maps found", "Map bulunamadı"},
+		{"Use layer", "Katmanı kullan"},
+		{"Export map", "Map dışa aktar"},
+		{"Export + apply", "Dışa aktar + uygula"},
+		{"Open maps", "Map klasörü"},
+		{"Core tuning is fixed to the stable default profile.", "Ana ayarlar sabit stabil varsayılan profile kilitli."},
+		{"HUD Editor can move and resize this compact ninja timer.", "Bu kompakt ninja zamanlayıcı HUD Editor ile taşınıp ölçeklenebilir."},
+
+		{"Adds local and synced color effects to names and team colors.", "İsimlere ve takım renklerine yerel veya senkron renk efektleri ekler."},
+		{"In-game music controls, playlist playback and visualizer HUD.", "Oyun içinde müzik kontrolü, playlist oynatma ve görselleştirici HUD sağlar."},
+		{"Shows movement, jump, hook and fire inputs as a movable HUD.", "Hareket, zıplama, hook ve fire inputlarını taşınabilir HUD olarak gösterir."},
+		{"Draws a small input graph so you can see recent key and mouse timing.", "Son tuş ve mouse zamanlamanı görebilmen için küçük bir input grafiği çizer."},
+		{"Training overlay for practicing stable movement and controlled inputs.", "Stabil hareket ve kontrollü input çalışmak için antrenman overlay'i gösterir."},
+		{"Compact HUD for current session deaths, time and run information.", "Mevcut oturumdaki death, süre ve run bilgilerini kompakt HUD olarak gösterir."},
+		{"Shows the real tee collision box for practice and debugging.", "Pratik ve test için gerçek tee çarpışma kutusunu gösterir."},
+		{"Previews the ninja tee state without changing gameplay.", "Oynanışı değiştirmeden ninja tee görünümünü önizler."},
+		{"Shows remaining DDRace ninja time while ninja is active.", "Ninja aktifken kalan DDRace ninja süresini gösterir."},
+		{"Adds a visual sweat-style weapon effect.", "Silahlara sweat tarzı görsel efekt ekler."},
+		{"Draws a configurable aura effect around your tee.", "Tee etrafına ayarlanabilir aura efekti çizer."},
+		{"Adds a soft visual jelly motion to your tee.", "Tee'ye yumuşak jelly hareket efekti ekler."},
+		{"Estimates finish time and progress for the current run.", "Mevcut run için finish süresi ve ilerleme tahmini yapar."},
+		{"Adds stylized 3D-like particle visuals.", "Stilize 3D benzeri parçacık görselleri ekler."},
+		{"Uses Aether themed backgrounds on loading screens.", "Yükleme ekranlarında Aether temalı arka plan kullanır."},
+		{"Shows Aether family, founder, tester, chess and friend badges.", "Aether family, founder, tester, chess ve arkadaş rozetlerini gösterir."},
+		{"Predicts selected inputs ahead locally to reduce input delay feel.", "Input gecikmesi hissini azaltmak için seçili inputları yerel olarak önden tahmin eder."},
+		{"Radial wheel for place, help, danger, come and wait pings.", "Yer, yardım, tehlike, gel ve bekle pingleri için radial ping çarkı."},
+		{"Shows chat messages above tees for easier in-game reading.", "Chat mesajlarını oyun içinde daha rahat okumak için teelerin üstünde gösterir."},
+		{"Colors, scales and labels players by enemy, ally, helper or natural state.", "Oyuncuları enemy, ally, helper veya natural durumuna göre renklendirir, ölçekler ve etiketler."},
+		{"Hides selected UI parts so gameplay stays clean while focusing.", "Odaklanırken oynanış temiz kalsın diye seçili UI parçalarını gizler."},
+		{"Resolves opposite movement key presses more cleanly.", "Zıt yön tuşlarına basıldığında daha temiz input geçişi sağlar."},
+		{"Legacy Aether gores helper behavior for hammer/gun flow.", "Hammer/gun akışı için eski Aether gores helper davranışını kullanır."},
+		{"Queues a quick spec and return flow for DDRace strong/weak handling.", "DDRace strong/weak işleri için hızlı spec ve dönüş akışını sıraya alır."},
+		{"Translates chat manually or automatically using the embedded backend.", "Chat mesajlarını gömülü backend ile manuel veya otomatik çevirir."},
+		{"Reduces visible typing indicators for privacy.", "Gizlilik için görünür yazıyor göstergelerini azaltır."},
+		{"Plays custom sounds for freeze fail and related events.", "Freeze fail ve ilgili olaylar için özel sesler çalar."},
+		{"Extra gameplay sound controls for hooks, hammers, jumps and kills.", "Hook, hammer, jump ve kill sesleri için ek oynanış sesi kontrolleri sağlar."},
+		{"Plays configurable typing sounds while using chat.", "Chat kullanırken ayarlanabilir klavye yazma sesleri çalar."},
+		{"Automatically handles team lock preference after joining teams.", "Team'e girdikten sonra team lock tercihini otomatik uygular."},
+		{"Keeps unsent chat drafts across close or map change situations.", "Kapatma veya map değişiminde gönderilmemiş chat taslaklarını saklar."},
+		{"One-key DDRace config toggles such as show others, super and deep-fly.", "Show others, super ve deep-fly gibi DDRace configlerini tek tuşla açıp kapatır."},
+		{"Opens the editor for movable Aether and HUD elements.", "Taşınabilir Aether ve HUD öğelerini düzenlemek için editörü açar."},
+		{"Opens the visual editor for skins, game, particles, emoticons and entities.", "Skin, game, particles, emoticons ve entities için görsel editörü açar."},
+		{"Opens the builder for creating or recoloring simple background maps.", "Basit arka plan mapleri oluşturmak veya yeniden renklendirmek için builder'ı açar."},
+		{"Downloads and manages gores map packs.", "Gores map paketlerini indirir ve yönetir."},
+		{"Exports selected configs while excluding sensitive login details.", "Seçili configleri hassas login bilgilerini dışarıda bırakarak dışa aktarır."},
+		{"Applies a custom aspect ratio or resolution helper.", "Özel aspect ratio veya çözünürlük helper'ını uygular."},
+		{"Performance toggles and diagnostics for lower frame-time spikes.", "Frame-time spike azaltmak için performans ayarları ve tanılama sağlar."},
+		{"Small server browser helpers such as refresh and shorter names.", "Refresh ve kısa isim gibi küçük server browser yardımcıları sağlar."},
+		{"Keeps replay buffer controls for quick demo rollback clips.", "Hızlı demo rollback klipleri için replay buffer kontrollerini tutar."},
+		{"Uses the classic TClient fast input values. Good if you want the old direct feel.", "Eski direkt hissi istiyorsan klasik TClient fast input değerlerini kullanır."},
+		{"Aether's balanced mode. Movement and hook/fire can use separate timing.", "Aether'in dengeli modu. Hareket ve hook/fire ayrı zamanlama kullanabilir."},
+		{"Experimental stability-focused mode. It keeps prediction controlled and reduces jitter.", "Stabilite odaklı deneysel mod. Prediction'ı kontrollü tutup titremeyi azaltır."},
+		{"Sharper Saiko-style prediction. Stronger and more direct than Adaptive.", "Daha sert Saiko tarzı prediction. Adaptive'e göre daha güçlü ve direkt."},
+		{"How far TClient mode predicts local input ahead.", "TClient modunun local inputu ne kadar önden tahmin edeceği."},
+		{"Also predicts other tees in TClient mode. Helps drag/hook feel more responsive.", "TClient modunda diğer teeleri de tahmin eder. Drag/hook hissini daha anlık yapar."},
+		{"Saiko+ prediction amount. Higher feels sharper but can look more aggressive.", "Saiko+ prediction miktarı. Yüksek değer daha sert hisseder ama daha agresif görünebilir."},
+		{"Applies Saiko+ prediction to other tees too.", "Saiko+ prediction'ı diğer teelere de uygular."},
+		{"How far Control mode predicts your input. Keep this moderate for stable A/D control.", "Control modunun inputunu ne kadar önden tahmin edeceği. Stabil A/D kontrolü için orta değerde tut."},
+		{"Higher values reduce jitter and snapping, lower values follow prediction more directly.", "Yüksek değerler titreme ve snap'i azaltır; düşük değerler prediction'ı daha direkt takip eder."},
+		{"How quickly Control mode catches up to corrected server positions.", "Control modunun server düzeltmelerine ne kadar hızlı yetişeceği."},
+		{"Predicts other tees with a smaller stable offset for smoother hooks and drags.", "Daha smooth hook ve drag için diğer teeleri daha küçük stabil offset ile tahmin eder."},
+		{"How far movement keys are predicted ahead. This mostly affects A/D and jump feel.", "Hareket tuşlarının ne kadar önden tahmin edileceği. En çok A/D ve jump hissini etkiler."},
+		{"How far hook, fire and weapon input are predicted. Lower values feel closer to vanilla; higher values feel more immediate.", "Hook, fire ve silah inputlarının ne kadar önden tahmin edileceği. Düşük değerler vanilla'ya yakın, yüksek değerler daha anlık hisseder."},
+		{"How strongly prediction correction snaps back to the server result.", "Prediction düzeltmesinin server sonucuna ne kadar sert döneceği."},
+		{"Gives a short priority boost when switching directly from A to D or D to A.", "A'dan D'ye veya D'den A'ya direkt geçerken kısa öncelik desteği verir."},
+		{"Gives a short priority boost when releasing A or D to neutral.", "A veya D bırakılıp nötre geçerken kısa öncelik desteği verir."},
+		{"Extra one-tap brake prediction amount used only on the enabled A/D edges.", "Sadece açık A/D geçişlerinde kullanılan ekstra tek dokunuş fren prediction miktarı."},
+		{"Predicts other tees forward so hooks and drags feel less delayed.", "Hook ve drag daha az gecikmeli hissedilsin diye diğer teeleri ileri tahmin eder."},
+		{"Safer other-tee prediction with less snap.", "Daha az snap ile daha güvenli diğer tee prediction'ı."},
+		{"Balanced direct feel, close to the old Precision/Star style.", "Eski Precision/Star stiline yakın dengeli direkt his."},
+		{"Stronger Saiko-like other-tee prediction for very direct hooks.", "Çok direkt hook için daha güçlü Saiko benzeri diğer tee prediction'ı."},
+		{"Other tee prediction amount. 135 means roughly 1.35 ticks.", "Diğer tee prediction miktarı. 135 yaklaşık 1.35 tick demektir."},
+		{"Lets Adaptive add a small safe margin based on your current ping.", "Adaptive'in mevcut pingine göre küçük güvenli pay eklemesini sağlar."},
+		{"Adds extra help around close tee interaction such as dragging.", "Drag gibi yakın tee etkileşimlerinde ekstra destek ekler."},
+		{"How strong the interaction assist should be when enabled.", "Etkileşim desteği açıkken ne kadar güçlü olacağı."},
+		{"Also applies Aether fast input to dummy prediction when possible.", "Mümkün olduğunda Aether fast input'u dummy prediction'a da uygular."},
+		{"Samples mouse aim closer to the real hook/fire time.", "Mouse nişanını gerçek hook/fire zamanına daha yakın örnekler."},
+		{"Keeps a small safety margin to avoid over-predicting unstable frames.", "Stabil olmayan framelerde fazla prediction'ı önlemek için küçük güven payı tutar."},
+		{"Shows debug numbers for tuning and testing fast input.", "Fast input ayarlamak ve test etmek için debug sayılarını gösterir."},
+		{"Local aim training targets for mouse accuracy practice.", "Mouse doğruluğu çalışmak için yerel aim training targetları gösterir."},
+		{"Practice Sensitivity Analyzer for comparing low and high values.", "Düşük ve yüksek değerleri karşılaştırmak için hassasiyet analiz aracı."},
+		{"Cloud clan membership, members and warlist sharing for general clans.", "Cloud clan üyeliği, üye listesi ve general clan warlist paylaşımı sağlar."},
+
+		{"How long Aether waits before sending the automatic team lock command after you join a DDNet team.", "DDNet team'e girdikten sonra otomatik team lock komutu göndermeden önce Aether'ın ne kadar bekleyeceği."},
+		{"Turns Gores Mode off while you have stronger weapons, so it does not fight weapon-specific gameplay.", "Shotgun, grenade veya laser varken Gores Mode'u kapatır; böylece silaha özel oynanışla çakışmaz."},
+		{"Assign a key that toggles Focus Mode without opening the settings menu.", "Ayar menüsünü açmadan Focus Mode'u açıp kapatacak tuşu atar."},
+		{"Hides most HUD/UI elements while Focus Mode is active. The crosshair stays visible.", "Focus Mode aktifken çoğu HUD/UI öğesini gizler. Crosshair görünür kalır."},
+		{"Hides player names separately from the rest of Focus Mode.", "Oyuncu isimlerini Focus Mode'un diğer ayarlarından ayrı gizler."},
+		{"Keeps the music player HUD visible even while Focus Mode hides other UI.", "Focus Mode diğer UI öğelerini gizlerken müzik çalar HUD'unu görünür tutar."},
+		{"Draws Aether badges beside player names in-world.", "Aether rozetlerini oyun içi isimlerin yanında çizer."},
+		{"Draws Aether badges inside the scoreboard rows.", "Aether rozetlerini scoreboard satırlarında çizer."},
+		{"Only shows Aether/Vera/Via/Vex client identity badges and hides role badges.", "Sadece Aether/Vera/Via/Vex client rozetlerini gösterir, rol rozetlerini gizler."},
+		{"Shows the normal friend heart as the right-most badge slot.", "Normal arkadaş kalbini en sağdaki rozet slotu olarak gösterir."},
+		{"Enables Aether ping markers from the ping wheel and cloud ping events.", "Ping çarkı ve cloud ping olaylarından gelen Aether ping işaretlerini açar."},
+		{"How long chat bubbles stay above tees.", "Chat balonlarının teelerin üstünde ne kadar kalacağını belirler."},
+		{"Transparency of chat bubble panels.", "Chat balonu panellerinin şeffaflığını ayarlar."},
+		{"Maximum width of each chat bubble before wrapping.", "Chat balonu satır kırmadan önce maksimum genişliğini ayarlar."},
+		{"How many bubbles can stack over one tee.", "Bir tee üstünde en fazla kaç balon üst üste durabilir."},
+		{"Only shows bubbles for tees currently visible on your screen.", "Sadece ekranda görünen teeler için balon gösterir."},
+		{"Colors team chat and mention-like text inside bubbles.", "Balon içinde team chat ve mention benzeri yazıları renklendirir."},
+		{"Shows whisper/private messages as bubbles.", "Whisper/private mesajları balon olarak gösterir."},
+		{"Shows your own typed but not-yet-sent chat draft as a local bubble.", "Henüz göndermediğin yazı taslağını yerel balon olarak gösterir."},
+		{"Shows bubbles for your own sent messages too.", "Kendi gönderdiğin mesajlar için de balon gösterir."},
+		{"Classic TClient input amount used when Fast Input is set to TClient mode.", "Fast Input TClient modundayken kullanılan klasik TClient input miktarı."},
+		{"Predicts other tees in TClient mode to make drag/hook response look more immediate.", "TClient modunda diğer teeleri tahmin ederek drag/hook tepkisini daha anlık gösterir."},
+		{"Applies Saiko+ style prediction to other tees too.", "Saiko+ tarzı tahmini diğer teelere de uygular."},
+		{"Stability-focused experimental Fast Input mode with calmer correction and less jitter.", "Daha sakin düzeltme ve daha az titreme hedefleyen stabilite odaklı deneysel Fast Input modu."},
+		{"How quickly Control mode responds to your inputs. Keep it moderate for stable movement.", "Control modunun inputlarına ne kadar hızlı tepki vereceği. Stabil hareket için orta değerlerde tut."},
+		{"Higher values smooth small prediction noise; lower values follow prediction more directly.", "Yüksek değerler küçük prediction gürültüsünü yumuşatır; düşük değerler tahmini daha direkt takip eder."},
+		{"How quickly Control mode catches up after server correction.", "Server düzeltmesinden sonra Control modunun ne kadar hızlı toparlanacağını belirler."},
+		{"Applies a smaller stable offset to other tees for smoother hooks and drags.", "Daha yumuşak hook ve drag için diğer teelere küçük ve stabil offset uygular."},
+		{"How far A/D and jump input are predicted ahead in Adaptive mode.", "Adaptive modda A/D ve zıplama inputlarının ne kadar önden tahmin edileceği."},
+		{"How far hook, fire and weapon input are predicted. Lower values feel closer to vanilla; higher values feel more immediate.", "Hook, fire ve silah inputlarının ne kadar önden tahmin edileceği. Düşük değerler vanilla'ya yakın, yüksek değerler daha anlık hisseder."},
+		{"How strongly prediction snaps back toward the server result after correction.", "Düzeltmeden sonra prediction'ın server sonucuna ne kadar sert döneceği."},
+		{"Prioritizes direct A-to-D or D-to-A direction changes for a sharper brake feel.", "Daha keskin fren hissi için direkt A-D veya D-A geçişlerine öncelik verir."},
+		{"Prioritizes releasing A or D to neutral for a cleaner stop feel.", "Daha temiz durma hissi için A veya D bırakıp neutral'a geçişe öncelik verir."},
+		{"Extra prediction amount used by the enabled A/D brake priority behavior.", "Açık olan A/D brake priority davranışının kullandığı ek prediction miktarı."},
+		{"Predicts other tees forward in Adaptive mode so hook and drag feel less delayed.", "Adaptive modda diğer teeleri ileri tahmin ederek hook ve drag hissini daha az gecikmeli yapar."},
+		{"Chooses how direct other-tee prediction feels: smooth, balanced precision, or aggressive.", "Diğer tee tahmininin ne kadar direkt hissedeceğini seçer: smooth, dengeli precision veya aggressive."},
+		{"How far other tees are predicted in Adaptive mode. 135 means about 1.35 ticks.", "Adaptive modda diğer teelerin ne kadar ileri tahmin edileceği. 135 yaklaşık 1.35 tick demektir."},
+		{"Adds a small safe margin based on your ping so prediction stays stable.", "Prediction stabil kalsın diye pingine göre küçük bir güven payı ekler."},
+		{"Adds a little extra help around close tee interaction such as dragging.", "Drag gibi yakın tee etkileşimlerinde biraz ekstra destek ekler."},
+		{"Controls how strong interaction assist feels when enabled.", "Interaction assist açıkken desteğin ne kadar güçlü hissedileceğini ayarlar."},
+		{"Also applies Aether Fast Input to dummy prediction where possible.", "Mümkün olduğunda Aether Fast Input'u dummy prediction'a da uygular."},
+		{"Samples mouse aim closer to hook/fire time for better aim timing.", "Daha iyi aim zamanlaması için mouse aim'i hook/fire zamanına daha yakın örnekler."},
+		{"Keeps a small safety margin to avoid unstable over-prediction.", "Dengesiz over-prediction'ı önlemek için küçük bir güven payı tutar."},
+		{"Shows tuning/debug numbers for Fast Input testing.", "Fast Input testi için tuning/debug sayıları gösterir."},
+		{"Enables the quick spec/return helper used for DDRace strong/weak handling.", "DDRace strong/weak için kullanılan hızlı spec/dönüş helper'ını açar."},
+		{"Automatically translates incoming chat when the translator feature is enabled.", "Translator açıkken gelen chat mesajlarını otomatik çevirir."},
+		{"Translates your outgoing chat before it is sent.", "Gönderilmeden önce kendi yazdığın chat mesajını çevirir."},
+		{"Plays the freeze fail sound for your own tee and dummy.", "Kendi teen ve dummy için freeze fail sesi çalar."},
+		{"Plays freeze fail sounds for teammates.", "Takım arkadaşları için freeze fail sesi çalar."},
+		{"Warns when the team is close to a full freeze situation.", "Takım full freeze durumuna yaklaştığında uyarır."},
+		{"Volume for local freeze fail sounds.", "Kendi freeze fail seslerinin ses seviyesi."},
+		{"Volume for teammate freeze fail sounds.", "Takım arkadaşı freeze fail seslerinin ses seviyesi."},
+		{"Volume for the last-unfrozen warning sound.", "Son unfrozen uyarı sesinin ses seviyesi."},
+		{"Enables or disables hook sounds from your own tee.", "Kendi teenin hook seslerini açar veya kapatır."},
+		{"Enables or disables hook sounds caused by other players.", "Diğer oyuncuların hook seslerini açar veya kapatır."},
+		{"Enables or disables hammer sounds caused by other players.", "Diğer oyuncuların hammer seslerini açar veya kapatır."},
+		{"Enables or disables your own hammer sounds.", "Kendi hammer seslerini açar veya kapatır."},
+		{"Enables or disables your own weapon switch sound.", "Kendi silah değiştirme sesini açar veya kapatır."},
+		{"Enables or disables weapon switch sounds from other players.", "Diğer oyuncuların silah değiştirme seslerini açar veya kapatır."},
+		{"Enables or disables air-jump/double-jump sounds.", "Air-jump/double-jump seslerini açar veya kapatır."},
+		{"Enables or disables kill and respawn sounds for your own tee.", "Kendi teen için kill ve respawn seslerini açar veya kapatır."},
+		{"Enables or disables kill and respawn sounds from other players.", "Diğer oyuncuların kill ve respawn seslerini açar veya kapatır."},
+		{"Colors tees using Block Awareness enemy/ally/helper/natural groups.", "Teeleri Block Awareness enemy/ally/helper/natural gruplarına göre renklendirir."},
+		{"Keeps ally/helper real skins instead of replacing them with the default colored tee.", "Ally/helper skinlerini default renkli tee ile değiştirmek yerine gerçek skinlerini korur."},
+		{"Applies the same group colors to nameplates and scoreboard rows.", "Aynı grup renklerini nameplate ve scoreboard satırlarına uygular."},
+		{"Colors players that are not marked enemy, ally or helper.", "Enemy, ally veya helper olarak işaretlenmemiş oyuncuları renklendirir."},
+		{"Keeps natural players' real skins while still allowing name/color settings.", "Natural oyuncuların gerçek skinlerini korur ama isim/renk ayarlarına izin verir."},
+		{"Colors natural player names using the natural color.", "Natural oyuncu isimlerini natural renk ayarıyla renklendirir."},
+		{"Legacy quick enemy scale toggle. Fine tuning is in the Scale tab.", "Eski hızlı düşman büyütme ayarı. İnce ayar Scale sekmesindedir."},
+		{"Shows a larger HUD timer when your own tee is frozen.", "Kendi teen frozen olduğunda daha büyük HUD sayacı gösterir."},
+		{"Shows a stronger alert when an ally or helper freezes.", "Ally veya helper freeze olduğunda daha belirgin uyarı gösterir."},
+		{"Shows nearby enemies and their names inside the scan radius.", "Tarama yarıçapındaki yakın düşmanları ve isimlerini gösterir."},
+		{"Hides overhead emotes from enemies only.", "Sadece düşmanların baş üstü emote'larını gizler."},
+		{"Forces enemy eyes to a neutral/default look.", "Düşman gözlerini neutral/default görünüme zorlar."},
+		{"World radius used by the enemy count HUD.", "Düşman sayacı HUD'unun kullandığı dünya yarıçapı."},
+		{"Visual-only tee scale for enemies. Hitbox and prediction are unchanged.", "Sadece görsel düşman tee boyutu. Hitbox ve prediction değişmez."},
+		{"Visual-only tee scale for helpers. Hitbox and prediction are unchanged.", "Sadece görsel helper tee boyutu. Hitbox ve prediction değişmez."},
+		{"Visual-only tee scale for allies. Hitbox and prediction are unchanged.", "Sadece görsel ally tee boyutu. Hitbox ve prediction değişmez."},
+		{"Visual-only tee scale for natural players. Hitbox and prediction are unchanged.", "Sadece görsel natural oyuncu boyutu. Hitbox ve prediction değişmez."},
+		{"Nameplate/scoreboard opacity for enemies.", "Düşmanlar için nameplate/scoreboard opaklığı."},
+		{"Nameplate/scoreboard opacity for helpers.", "Helperlar için nameplate/scoreboard opaklığı."},
+		{"Nameplate/scoreboard opacity for allies.", "Ally'ler için nameplate/scoreboard opaklığı."},
+		{"Nameplate/scoreboard opacity for natural players.", "Natural oyuncular için nameplate/scoreboard opaklığı."},
+		{"Draws the keystrokes HUD horizontally instead of vertically.", "Keystrokes HUD'unu dikey yerine yatay çizer."},
+		{"Adds the jump key to the keystrokes HUD.", "Keystrokes HUD'una zıplama tuşunu ekler."},
+		{"Adds the left mouse/fire key to the keystrokes HUD.", "Keystrokes HUD'una sol mouse/fire tuşunu ekler."},
+		{"Plays a typing sound while writing chat messages.", "Chat yazarken klavye yazma sesi çalar."},
+		{"Volume of the keyboard typing sound.", "Klavye yazma sesinin ses seviyesi."},
+		{"How quickly input history moves through the visualizer.", "Input geçmişinin görselleştiricide ne kadar hızlı akacağını belirler."},
+		{"Shows your own input in the input visualizer.", "Input görselleştiricide kendi inputunu gösterir."},
+		{"Marks hook moments in the input visualizer.", "Input görselleştiricide hook anlarını işaretler."},
+		{"Adds mouse buttons to the input visualizer.", "Input görselleştiriciye mouse tuşlarını ekler."},
+		{"Shows a separate jump input lane.", "Ayrı bir zıplama input çizgisi gösterir."},
+		{"Shows a separate fire/M1 input lane.", "Ayrı bir fire/M1 input çizgisi gösterir."},
+		{"Labels input lanes with key names.", "Input çizgilerini tuş isimleriyle etiketler."},
+		{"Uses spectated or demo player input instead of only local input.", "Sadece local input yerine spectate edilen veya demo oyuncusunun inputunu kullanır."},
+		{"Draws this HUD vertically instead of horizontally.", "Bu HUD'u yatay yerine dikey çizer."},
+		{"Draws a background behind the HUD panel.", "HUD panelinin arkasına arka plan çizer."},
+		{"Uses sharper panel corners for a cleaner rectangular look.", "Daha temiz dikdörtgen görünüm için keskin panel köşeleri kullanır."},
+		{"Length of the input visualizer panel.", "Input görselleştirici panelinin uzunluğu."},
+		{"Thickness of each input lane.", "Her input çizgisinin kalınlığı."},
+		{"Opacity of the input visualizer overlay.", "Input görselleştirici overlay opaklığı."},
+		{"Shows the stability/velocity training bar.", "Stabilite/velocity antrenman barını gösterir."},
+		{"Uses spectated or demo player data for the trainer.", "Trainer için spectate edilen veya demo oyuncu verisini kullanır."},
+		{"Colors the trainer display based on movement quality.", "Trainer göstergesini hareket kalitesine göre renklendirir."},
+		{"How many ticks are averaged for a smoother trainer readout.", "Daha yumuşak trainer okuması için kaç tick ortalama alınacağı."},
+		{"How smoothly the trainer bar moves.", "Trainer barının ne kadar yumuşak hareket edeceği."},
+		{"Minimum speed threshold before trainer feedback becomes active.", "Trainer geri bildirimi aktif olmadan önce gereken minimum hız eşiği."},
+		{"Scales the trainer speed display.", "Trainer hız göstergesini ölçekler."},
+		{"Thickness of the trainer bar.", "Trainer barının kalınlığı."},
+		{"Width of the trainer track.", "Trainer track genişliği."},
+		{"Width of the highlighted center block.", "Ortadaki vurgulu bloğun genişliği."},
+		{"Shows elapsed time in the session stats HUD.", "Session Stats HUD'unda geçen süreyi gösterir."},
+		{"Size of this HUD element.", "Bu HUD öğesinin boyutu."},
+		{"Moves this HUD element up or down.", "Bu HUD öğesini yukarı veya aşağı taşır."},
+		{"Tints the music player with colors sampled from cover art.", "Müzik çaları kapak görselinden alınan renklerle boyar."},
+		{"Transparency of the music player panel.", "Müzik çalar panelinin şeffaflığı."},
+		{"Shows the music visualizer in the player panel.", "Müzik çalar panelinde görselleştiriciyi gösterir."},
+		{"How strongly audio affects visualizer height.", "Sesin görselleştirici yüksekliğini ne kadar etkileyeceği."},
+		{"Glow amount around the visualizer.", "Görselleştirici etrafındaki parlama miktarı."},
+		{"Filters the feature list to only show enabled features.", "Feature listesini sadece açık özellikleri gösterecek şekilde filtreler."},
+		{"Aether-specific option. Hover the feature title for the main purpose; this setting adjusts one part of that feature.", "Aether'a özel ayar. Ana amacı görmek için feature başlığına gel; bu ayar o özelliğin bir parçasını değiştirir."},
+	};
+
+	for(const auto &Translation : s_aTranslations)
+		if(str_comp(Translation.m_pEnglish, pText) == 0)
+			return Translation.m_pTurkish;
+
+	return pText;
+}
+
+#define DoButton_Menu(pId, pText, ...) DoButton_Menu(pId, AetherLocalize(pText), __VA_ARGS__)
+#define DoButton_MenuTab(pId, pText, ...) DoButton_MenuTab(pId, AetherLocalize(pText), __VA_ARGS__)
+#define DoButton_CheckBox(pId, pText, ...) DoButton_CheckBox(pId, AetherLocalize(pText), __VA_ARGS__)
+#define DoScrollbarOption(pId, pValue, pRect, pText, ...) DoScrollbarOption(pId, pValue, pRect, AetherLocalize(pText), __VA_ARGS__)
+#define DoLabel(pRect, pText, ...) DoLabel(pRect, AetherLocalize(pText), __VA_ARGS__)
+#define SetEmptyText(pText) SetEmptyText(AetherLocalize(pText))
+#define DoLine_ColorPicker(pID, LineSize, WantedPickerPosition, LabelSize, pMainRect, pText, ...) DoLine_ColorPicker(pID, LineSize, WantedPickerPosition, LabelSize, pMainRect, AetherLocalize(pText), __VA_ARGS__)
+
 void AetherDoTooltip(CUi *pUi, CGameClient *pGameClient, const void *pId, const CUIRect &Rect, const char *pText, float Width = 310.0f)
 {
 	if(!pUi || !pGameClient || !pText || !pText[0])
 		return;
 	if(pUi->MouseHovered(&Rect) && (!pUi->ActiveItem() || pUi->ActiveItem() == pId))
 		pUi->SetHotItem(pId);
-	pGameClient->m_Tooltips.DoToolTip(pId, &Rect, pText, Width);
+	pGameClient->m_Tooltips.DoToolTip(pId, &Rect, AetherLocalize(pText), Width);
 	pGameClient->m_Tooltips.SetFadeTime(pId, 0.35f);
 }
 
@@ -431,8 +946,13 @@ const char *AetherControlTooltip(const char *pLabel)
 		{"TClient amount", "Classic TClient input amount used when Fast Input is set to TClient mode."},
 		{"Fast input others", "Predicts other tees in TClient mode to make drag/hook response look more immediate."},
 		{"Saiko+ input others", "Applies Saiko+ style prediction to other tees too."},
+		{"Control", "Stability-focused experimental Fast Input mode with calmer correction and less jitter."},
+		{"Response amount", "How quickly Control mode responds to your inputs. Keep it moderate for stable movement."},
+		{"Stability", "Higher values smooth small prediction noise; lower values follow prediction more directly."},
+		{"Correction", "How quickly Control mode catches up after server correction."},
+		{"Control input other tees", "Applies a smaller stable offset to other tees for smoother hooks and drags."},
 		{"Movement amount", "How far A/D and jump input are predicted ahead in Adaptive mode."},
-		{"Hook/fire amount", "How far hook, fire and weapon input are predicted. Very low values are guarded so hook/fire does not drop."},
+		{"Hook/fire amount", "How far hook, fire and weapon input are predicted. Lower values feel closer to vanilla; higher values feel more immediate."},
 		{"Correction sharpness", "How strongly prediction snaps back toward the server result after correction."},
 		{"A/D reverse", "Prioritizes direct A-to-D or D-to-A direction changes for a sharper brake feel."},
 		{"A/D to none", "Prioritizes releasing A or D to neutral for a cleaner stop feel."},
@@ -651,12 +1171,13 @@ float AetherSettingsScale()
 
 void AetherOptionRow(CUIRect Row, float S, CUIRect *pLabel, CUIRect *pControl)
 {
-	const float MinLabelWidth = minimum(150.0f * S, Row.w * 0.42f);
-	const float MaxControlWidth = maximum(80.0f * S, Row.w - MinLabelWidth);
-	const float ControlWidth = minimum(MaxControlWidth, minimum(390.0f * S, Row.w * 0.56f));
-	Row.VSplitRight(ControlWidth, pLabel, pControl);
-	if(pLabel)
-		pLabel->VSplitRight(minimum(12.0f * S, pLabel->w * 0.08f), pLabel, nullptr);
+	if(!pLabel)
+	{
+		if(pControl)
+			*pControl = Row;
+		return;
+	}
+	Row.VSplitMid(pLabel, pControl, minimum(10.0f * S, Row.w * 0.05f));
 }
 
 bool IsAetherSoundFile(const char *pName)
@@ -2485,15 +3006,14 @@ void CMenus::RenderSettingsAetherBadges(CUIRect Body)
 	if(DoButton_Menu(&s_RefreshButton, "Refresh now", 0, &Row))
 		GameClient()->m_AetherBadges.RefreshNow();
 	Body.HSplitTop(10.0f * S, nullptr, &Body);
-	Body.HSplitTop(18.0f * S, &Row, &Body);
+	Body.HSplitTop(30.0f * S, &Row, &Body);
 	TextRender()->TextColor(0.75f, 0.80f, 0.88f, 1.0f);
-	Ui()->DoLabel(&Row, GameClient()->m_AetherBadges.Status(), 12.0f * S, TEXTALIGN_ML);
+	Ui()->DoLabel(&Row, GameClient()->m_AetherBadges.Status(), 10.5f * S, TEXTALIGN_ML);
 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
 void CMenus::RenderSettingsAetherPings(CUIRect Body)
 {
-	static std::array<CButtonContainer, 3> s_aPingTabs;
 	static CButtonContainer s_PingWheelReader;
 	static CButtonContainer s_PingWheelClear;
 	static CButtonContainer s_PingPlaceReader;
@@ -2510,48 +3030,14 @@ void CMenus::RenderSettingsAetherPings(CUIRect Body)
 	Body.Draw(AetherPanelColor(0.34f), IGraphics::CORNER_ALL, 6.0f);
 	Body.Margin(12.0f * S, &Body);
 
-	CUIRect Row;
-	Body.HSplitTop(24.0f * S, &Row, &Body);
-	const char *apTabs[] = {"General", "Keys"};
-	const float TabGap = 3.0f * S;
-	const float TabW = (Row.w - TabGap) / 2.0f;
-	for(int i = 0; i < 2; ++i)
-	{
-		CUIRect Tab;
-		Row.VSplitLeft(TabW, &Tab, &Row);
-		if(DoButton_Menu(&s_aPingTabs[i], apTabs[i], s_AetherPingTab == i, &Tab, BUTTONFLAG_LEFT, nullptr,
-			   i == 0 ? IGraphics::CORNER_L : IGraphics::CORNER_R))
-			s_AetherPingTab = i;
-		if(i != 1)
-			Row.VSplitLeft(TabGap, nullptr, &Row);
-	}
-	s_AetherPingTab = std::clamp(s_AetherPingTab, 0, 1);
-	Body.HSplitTop(8.0f * S, nullptr, &Body);
-
-	if(s_AetherPingTab == 0)
-	{
-		Body.HSplitTop(22.0f * S, &Row, &Body);
-		if(DoButton_CheckBox(&g_Config.m_AePings, "Show Aether pings", g_Config.m_AePings, &Row))
-			g_Config.m_AePings ^= 1;
-		AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AePings, Row, "Show Aether pings");
-		return;
-	}
-
-	if(s_AetherPingTab == 1)
-	{
-		CUIRect Left, Right;
-		Body.VSplitMid(&Left, &Right, 14.0f * S);
-		DoLine_KeyReader(Left, s_PingWheelReader, s_PingWheelClear, "Ping wheel", "+ae_ping_wheel");
-		DoLine_KeyReader(Left, s_PingPlaceReader, s_PingPlaceClear, "Place ping", "ae_ping place");
-		DoLine_KeyReader(Left, s_PingHelpReader, s_PingHelpClear, "Help ping", "ae_ping help");
-		DoLine_KeyReader(Right, s_PingDangerReader, s_PingDangerClear, "Danger ping", "ae_ping danger");
-		DoLine_KeyReader(Right, s_PingComeReader, s_PingComeClear, "Come ping", "ae_ping come");
-		DoLine_KeyReader(Right, s_PingWaitReader, s_PingWaitClear, "Wait ping", "ae_ping wait");
-		return;
-	}
-
-	Body.HSplitTop(24.0f * S, &Row, &Body);
-	Ui()->DoLabel(&Row, "Manual pings are shared with Aether clients.", 12.0f * S, TEXTALIGN_ML);
+	CUIRect Left, Right;
+	Body.VSplitMid(&Left, &Right, 14.0f * S);
+	DoLine_KeyReader(Left, s_PingWheelReader, s_PingWheelClear, "Ping wheel", "+ae_ping_wheel");
+	DoLine_KeyReader(Left, s_PingPlaceReader, s_PingPlaceClear, "Place ping", "ae_ping place");
+	DoLine_KeyReader(Left, s_PingHelpReader, s_PingHelpClear, "Help ping", "ae_ping help");
+	DoLine_KeyReader(Right, s_PingDangerReader, s_PingDangerClear, "Danger ping", "ae_ping danger");
+	DoLine_KeyReader(Right, s_PingComeReader, s_PingComeClear, "Come ping", "ae_ping come");
+	DoLine_KeyReader(Right, s_PingWaitReader, s_PingWaitClear, "Wait ping", "ae_ping wait");
 }
 
 void CMenus::RenderSettingsAetherClan(CUIRect Body)
@@ -2912,6 +3398,7 @@ void CMenus::RenderSettingsAetherFastInput(CUIRect Body)
 {
 	static CButtonContainer s_ModeTClient;
 	static CButtonContainer s_ModeAdaptive;
+	static CButtonContainer s_ModeControl;
 	static CButtonContainer s_ModeSaikoPlus;
 	const float S = AetherSettingsScale();
 	Body.Draw(AetherPanelColor(0.34f), IGraphics::CORNER_ALL, 6.0f);
@@ -2919,17 +3406,19 @@ void CMenus::RenderSettingsAetherFastInput(CUIRect Body)
 
 	CUIRect Control;
 	Body.HSplitTop(24.0f * S, &Control, &Body);
-	if(g_Config.m_AeFastInputMode > 3)
+	if(g_Config.m_AeFastInputMode > 4)
 		g_Config.m_AeFastInputMode = 1;
-	const int ActiveMode = g_Config.m_AeFastInputMode == 3 ? 1 : (g_Config.m_AeFastInputMode == 2 ? 3 : 2);
-	CUIRect B1, B2, B3, Rest;
+	const int ActiveMode = g_Config.m_AeFastInputMode == 3 ? 1 : (g_Config.m_AeFastInputMode == 4 ? 3 : (g_Config.m_AeFastInputMode == 2 ? 4 : 2));
+	CUIRect B1, B2, B3, B4, Rest;
 	const float Spacing = 2.0f * S;
-	const float SlotW = (Control.w - Spacing * 2.0f) / 3.0f;
+	const float SlotW = (Control.w - Spacing * 3.0f) / 4.0f;
 	Control.VSplitLeft(SlotW, &B1, &Rest);
 	Rest.VSplitLeft(Spacing, nullptr, &Rest);
 	Rest.VSplitLeft(SlotW, &B2, &Rest);
 	Rest.VSplitLeft(Spacing, nullptr, &Rest);
 	Rest.VSplitLeft(SlotW, &B3, &Rest);
+	Rest.VSplitLeft(Spacing, nullptr, &Rest);
+	Rest.VSplitLeft(SlotW, &B4, &Rest);
 
 	if(DoButton_Menu(&s_ModeTClient, "TClient", ActiveMode == 1, &B1, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_L))
 	{
@@ -2941,13 +3430,18 @@ void CMenus::RenderSettingsAetherFastInput(CUIRect Body)
 		g_Config.m_AeFastInputMode = 1;
 	}
 	AetherDoTooltip(Ui(), GameClient(), &s_ModeAdaptive, B2, "Aether's balanced mode. Movement and hook/fire can use separate timing.");
-	if(DoButton_Menu(&s_ModeSaikoPlus, "Saiko+", ActiveMode == 3, &B3, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_R))
+	if(DoButton_Menu(&s_ModeControl, "Control", ActiveMode == 3, &B3, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_NONE))
+	{
+		g_Config.m_AeFastInputMode = 4;
+	}
+	AetherDoTooltip(Ui(), GameClient(), &s_ModeControl, B3, "Experimental stability-focused mode. It keeps prediction controlled and reduces jitter.");
+	if(DoButton_Menu(&s_ModeSaikoPlus, "Saiko+", ActiveMode == 4, &B4, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_R))
 	{
 		g_Config.m_AeFastInputMode = 2;
 		if(g_Config.m_AeSaikoPlusAmount <= 0)
 			g_Config.m_AeSaikoPlusAmount = std::clamp(g_Config.m_AeFastInputMovementAmount * 5, 0, 500);
 	}
-	AetherDoTooltip(Ui(), GameClient(), &s_ModeSaikoPlus, B3, "Sharper Saiko-style prediction. Stronger and more direct than Adaptive.");
+	AetherDoTooltip(Ui(), GameClient(), &s_ModeSaikoPlus, B4, "Sharper Saiko-style prediction. Stronger and more direct than Adaptive.");
 
 	Body.HSplitTop(8.0f * S, nullptr, &Body);
 
@@ -2961,7 +3455,7 @@ void CMenus::RenderSettingsAetherFastInput(CUIRect Body)
 			g_Config.m_TcFastInputOthers ^= 1;
 		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_TcFastInputOthers, Control, "Also predicts other tees in TClient mode. Helps drag/hook feel more responsive.");
 	}
-	else if(ActiveMode == 3)
+	else if(ActiveMode == 4)
 	{
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		char aBuf[64];
@@ -2977,6 +3471,22 @@ void CMenus::RenderSettingsAetherFastInput(CUIRect Body)
 			g_Config.m_AeSaikoPlusOthers ^= 1;
 		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeSaikoPlusOthers, Control, "Applies Saiko+ prediction to other tees too.");
 	}
+	else if(ActiveMode == 3)
+	{
+		Body.HSplitTop(22.0f * S, &Control, &Body);
+		Ui()->DoScrollbarOption(&g_Config.m_AeFastInputControlResponse, &g_Config.m_AeFastInputControlResponse, &Control, "Response amount", 0, 50, &CUi::ms_LinearScrollbarScale, 0, "ms");
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeFastInputControlResponse, Control, "How far Control mode predicts your input. Keep this moderate for stable A/D control.");
+		Body.HSplitTop(22.0f * S, &Control, &Body);
+		Ui()->DoScrollbarOption(&g_Config.m_AeFastInputControlStability, &g_Config.m_AeFastInputControlStability, &Control, "Stability", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeFastInputControlStability, Control, "Higher values reduce jitter and snapping, lower values follow prediction more directly.");
+		Body.HSplitTop(22.0f * S, &Control, &Body);
+		Ui()->DoScrollbarOption(&g_Config.m_AeFastInputControlCorrection, &g_Config.m_AeFastInputControlCorrection, &Control, "Correction", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeFastInputControlCorrection, Control, "How quickly Control mode catches up to corrected server positions.");
+		Body.HSplitTop(22.0f * S, &Control, &Body);
+		if(DoButton_CheckBox(&g_Config.m_AeFastInputControlOthers, "Control input other tees", g_Config.m_AeFastInputControlOthers, &Control))
+			g_Config.m_AeFastInputControlOthers ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeFastInputControlOthers, Control, "Predicts other tees with a smaller stable offset for smoother hooks and drags.");
+	}
 	else if(ActiveMode == 2)
 	{
 		Body.HSplitTop(22.0f * S, &Control, &Body);
@@ -2984,7 +3494,7 @@ void CMenus::RenderSettingsAetherFastInput(CUIRect Body)
 		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeFastInputMovementAmount, Control, "How far movement keys are predicted ahead. This mostly affects A/D and jump feel.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		Ui()->DoScrollbarOption(&g_Config.m_AeFastInputActionAmount, &g_Config.m_AeFastInputActionAmount, &Control, "Hook/fire amount", 0, 50, &CUi::ms_LinearScrollbarScale, 0, "ms");
-		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeFastInputActionAmount, Control, "How far hook, fire and weapon input are predicted. Very low values are guarded so hook/fire does not drop during prediction.");
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeFastInputActionAmount, Control, "How far hook, fire and weapon input are predicted. Lower values feel closer to vanilla; higher values feel more immediate.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		Ui()->DoScrollbarOption(&g_Config.m_AeFastInputSmoothCorrections, &g_Config.m_AeFastInputSmoothCorrections, &Control, "Correction sharpness", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
 		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeFastInputSmoothCorrections, Control, "How strongly prediction correction snaps back to the server result.");
@@ -3092,11 +3602,6 @@ void CMenus::RenderSettingsAetherFastSpec(CUIRect Body)
 	Body.Margin(12.0f * S, &Body);
 
 	CUIRect Control;
-	Body.HSplitTop(22.0f * S, &Control, &Body);
-	if(DoButton_CheckBox(&g_Config.m_AeFastSpec, "Enable Fast Spec", g_Config.m_AeFastSpec, &Control))
-		g_Config.m_AeFastSpec ^= 1;
-	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeFastSpec, Control, "Enable Fast Spec");
-
 	Body.HSplitTop(18.0f * S, &Control, &Body);
 	char aStatus[64];
 	str_format(aStatus, sizeof(aStatus), "Status: %s", GameClient()->m_TClient.FastSpecStatus());
@@ -3109,6 +3614,7 @@ void CMenus::RenderSettingsAetherFastSpec(CUIRect Body)
 	static CButtonContainer s_FastSpecClearButton;
 	DoLine_KeyReader(Body, s_FastSpecReaderButton, s_FastSpecClearButton, "Fast Spec key", "+ae_fast_spec");
 
+	Body.HSplitTop(8.0f * S, nullptr, &Body);
 	Body.HSplitTop(18.0f * S, &Control, &Body);
 	Ui()->DoLabel(&Control, "Grounded -> /spec -> /spec return.", 11.0f * S, TEXTALIGN_ML);
 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -3594,19 +4100,7 @@ void CMenus::RenderSettingsAetherKeystrokes(CUIRect Body)
 	if(DoButton_CheckBox(&g_Config.m_AeKeystrokesShowFire, "Show M1 key", g_Config.m_AeKeystrokesShowFire, &Control))
 		g_Config.m_AeKeystrokesShowFire ^= 1;
 	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeKeystrokesShowFire, Control, "Show M1 key");
-
-	Body.HSplitTop(24.0f * S, &Control, &Body);
-	CUIRect Label, Buttons, Button;
-	AetherOptionRow(Control, S, &Label, &Buttons);
-	Ui()->DoLabel(&Label, "Jump label", 14.0f * S, TEXTALIGN_ML);
-	const float ButtonWidth = Buttons.w / 2.0f;
-	static CButtonContainer s_aJumpLabelButtons[2];
-	Buttons.VSplitLeft(ButtonWidth, &Button, &Buttons);
-	if(DoButton_Menu(&s_aJumpLabelButtons[0], "Line", g_Config.m_AeKeystrokesJumpLabel == 1, &Button, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_L))
-		g_Config.m_AeKeystrokesJumpLabel = 1;
-	Buttons.VSplitLeft(ButtonWidth, &Button, &Buttons);
-	if(DoButton_Menu(&s_aJumpLabelButtons[1], "Jump", g_Config.m_AeKeystrokesJumpLabel == 0, &Button, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_R))
-		g_Config.m_AeKeystrokesJumpLabel = 0;
+	g_Config.m_AeKeystrokesJumpLabel = 1;
 }
 
 void CMenus::RenderSettingsAetherKeyboardSound(CUIRect Body)
@@ -3704,10 +4198,15 @@ bool CMenus::IsAetherMapBackgroundBuilderOpen() const
 void CMenus::RenderSettingsAetherInputVisualizer(CUIRect Body)
 {
 	static CButtonContainer s_aLaneColorReset[5];
+	static CButtonContainer s_PauseReaderButton;
+	static CButtonContainer s_PauseClearButton;
 	const float S = AetherSettingsScale();
 	Body.Draw(AetherPanelColor(0.34f), IGraphics::CORNER_ALL, 6.0f);
 	Body.Margin(12.0f * S, &Body);
 	CUIRect Control;
+	Body.HSplitTop(28.0f * S, &Control, &Body);
+	DoLine_KeyReader(Control, s_PauseReaderButton, s_PauseClearButton, "Pause / resume key", "toggle ae_input_visualizer_paused 0 1");
+	Body.HSplitTop(4.0f * S, nullptr, &Body);
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeInputVisualizerFlow, &g_Config.m_AeInputVisualizerFlow, &Control, "Flow speed", 40, 1000, &CUi::ms_LinearScrollbarScale, 0, "px/s");
 	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeInputVisualizerFlow, Control, "Flow speed");
@@ -3800,18 +4299,14 @@ void CMenus::RenderSettingsAetherStabilityTrainer(CUIRect Body)
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeStabilityTrainerSharpCorners, "Sharp corners", g_Config.m_AeStabilityTrainerSharpCorners, &Control))
 		g_Config.m_AeStabilityTrainerSharpCorners ^= 1;
-	Body.HSplitTop(22.0f * S, &Control, &Body);
-	Ui()->DoScrollbarOption(&g_Config.m_AeStabilityTrainerAverageTicks, &g_Config.m_AeStabilityTrainerAverageTicks, &Control, "Average ticks", 1, 40);
-	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeStabilityTrainerAverageTicks, Control, "Average ticks");
-	Body.HSplitTop(22.0f * S, &Control, &Body);
-	Ui()->DoScrollbarOption(&g_Config.m_AeStabilityTrainerBarGlide, &g_Config.m_AeStabilityTrainerBarGlide, &Control, "Bar glide", 8, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
-	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeStabilityTrainerBarGlide, Control, "Bar glide");
-	Body.HSplitTop(22.0f * S, &Control, &Body);
-	Ui()->DoScrollbarOption(&g_Config.m_AeStabilityTrainerMinSpeed, &g_Config.m_AeStabilityTrainerMinSpeed, &Control, "Minimum speed", 0, 600, &CUi::ms_LinearScrollbarScale, 0, "x0.01");
-	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeStabilityTrainerMinSpeed, Control, "Minimum speed");
-	Body.HSplitTop(22.0f * S, &Control, &Body);
-	Ui()->DoScrollbarOption(&g_Config.m_AeStabilityTrainerVelocityScale, &g_Config.m_AeStabilityTrainerVelocityScale, &Control, "Velocity scale", 50, 800, &CUi::ms_LinearScrollbarScale, 0, "x0.01");
-	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeStabilityTrainerVelocityScale, Control, "Velocity scale");
+	g_Config.m_AeStabilityTrainerAverageTicks = 12;
+	g_Config.m_AeStabilityTrainerBarGlide = 8;
+	g_Config.m_AeStabilityTrainerMinSpeed = 600;
+	g_Config.m_AeStabilityTrainerVelocityScale = 800;
+	Body.HSplitTop(18.0f * S, &Control, &Body);
+	TextRender()->TextColor(0.75f, 0.80f, 0.88f, 1.0f);
+	Ui()->DoLabel(&Control, "Core tuning is fixed to the stable default profile.", 12.0f * S, TEXTALIGN_ML);
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeStabilityTrainerBarThickness, &g_Config.m_AeStabilityTrainerBarThickness, &Control, "Bar thickness", 50, 200, &CUi::ms_LinearScrollbarScale, 0, "%");
 	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeStabilityTrainerBarThickness, Control, "Bar thickness");
@@ -3880,12 +4375,6 @@ void CMenus::RenderSettingsAetherNinjaTimer(CUIRect Body)
 	Body.Margin(12.0f * S, &Body);
 
 	CUIRect Control;
-	Body.HSplitTop(24.0f * S, &Control, &Body);
-	Ui()->DoScrollbarOption(&g_Config.m_AeNinjaTimerScale, &g_Config.m_AeNinjaTimerScale, &Control, "HUD scale", 50, 200, &CUi::ms_LinearScrollbarScale, 0, "%");
-	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeNinjaTimerScale, Control, "HUD scale");
-	Body.HSplitTop(24.0f * S, &Control, &Body);
-	Ui()->DoScrollbarOption(&g_Config.m_AeNinjaTimerOffsetY, &g_Config.m_AeNinjaTimerOffsetY, &Control, "Vertical offset", -1000, 1000);
-	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeNinjaTimerOffsetY, Control, "Vertical offset");
 	Body.HSplitTop(18.0f * S, &Control, &Body);
 	TextRender()->TextColor(0.75f, 0.80f, 0.88f, 1.0f);
 	Ui()->DoLabel(&Control, "HUD Editor can move and resize this compact ninja timer.", 12.0f * S, TEXTALIGN_ML);
@@ -3980,7 +4469,6 @@ void CMenus::RenderSettingsAetherSweatWeapon(CUIRect Body)
 
 void CMenus::RenderSettingsAetherOrbitAura(CUIRect Body)
 {
-	static CButtonContainer s_StyleDropdown;
 	static CButtonContainer s_aStyleOptions[3];
 	static CButtonContainer s_AuraColorReset;
 	static CButtonContainer s_AccentColorReset;
@@ -4009,25 +4497,15 @@ void CMenus::RenderSettingsAetherOrbitAura(CUIRect Body)
 	AetherOptionRow(Control, S, &Label, &StyleRow);
 	Ui()->DoLabel(&Label, "Aura style", 13.0f * S, TEXTALIGN_ML);
 	const char *apStyles[] = {"Orbit", "Ring", "Flame"};
-	const int Style = std::clamp(g_Config.m_AeOrbitAuraStyle, 0, 2);
-	char aStyleButton[32];
-	str_format(aStyleButton, sizeof(aStyleButton), "%s  v", apStyles[Style]);
-	if(DoButton_Menu(&s_StyleDropdown, aStyleButton, s_AetherOrbitStyleDropdownOpen, &StyleRow))
-		s_AetherOrbitStyleDropdownOpen = !s_AetherOrbitStyleDropdownOpen;
-	if(s_AetherOrbitStyleDropdownOpen)
+	g_Config.m_AeOrbitAuraStyle = std::clamp(g_Config.m_AeOrbitAuraStyle, 0, 2);
+	for(int i = 0; i < 3; ++i)
 	{
-		Body.HSplitTop(4.0f * S, nullptr, &Body);
-		for(int i = 0; i < 3; ++i)
-		{
-			Body.HSplitTop(23.0f * S, &Control, &Body);
-			CUIRect OptionButton;
-			AetherOptionRow(Control, S, nullptr, &OptionButton);
-			if(DoButton_Menu(&s_aStyleOptions[i], apStyles[i], g_Config.m_AeOrbitAuraStyle == i, &OptionButton))
-			{
-				g_Config.m_AeOrbitAuraStyle = i;
-				s_AetherOrbitStyleDropdownOpen = false;
-			}
-		}
+		CUIRect Option;
+		const float W = StyleRow.w / (3 - i);
+		StyleRow.VSplitLeft(W, &Option, &StyleRow);
+		const int Corners = i == 0 ? IGraphics::CORNER_L : i == 2 ? IGraphics::CORNER_R : IGraphics::CORNER_NONE;
+		if(DoButton_Menu(&s_aStyleOptions[i], apStyles[i], g_Config.m_AeOrbitAuraStyle == i, &Option, BUTTONFLAG_LEFT, nullptr, Corners))
+			g_Config.m_AeOrbitAuraStyle = i;
 	}
 
 	Body.HSplitTop(24.0f * S, &Control, &Body);
@@ -4449,9 +4927,9 @@ void CMenus::RenderSettingsAetherMapBackgroundBuilderPopup(CUIRect Screen)
 	AetherOptionRow(ImportRow, S, &Label, &Control);
 	Ui()->DoLabel(&Label, "Import map", 13.0f * S, TEXTALIGN_ML);
 	CUIRect ImportButton, RefreshButton, ImportMapDrop;
-	Control.VSplitRight(92.0f * S, &ImportMapDrop, &ImportButton);
+	Control.VSplitRight(90.0f * S, &ImportMapDrop, &ImportButton);
 	ImportMapDrop.VSplitRight(6.0f * S, &ImportMapDrop, nullptr);
-	ImportMapDrop.VSplitRight(34.0f * S, &ImportMapDrop, &RefreshButton);
+	ImportMapDrop.VSplitRight(66.0f * S, &ImportMapDrop, &RefreshButton);
 	ImportMapDrop.VSplitRight(6.0f * S, &ImportMapDrop, nullptr);
 	if(!s_vpImportMaps.empty())
 	{
@@ -4468,7 +4946,7 @@ void CMenus::RenderSettingsAetherMapBackgroundBuilderPopup(CUIRect Screen)
 		ImportMapDrop.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, 0.10f), IGraphics::CORNER_ALL, 5.0f * S);
 		Ui()->DoLabel(&ImportMapDrop, "No maps found", 12.0f * S, TEXTALIGN_MC);
 	}
-	if(DoButton_Menu(&s_RefreshImportMapsButton, "R", 0, &RefreshButton))
+	if(DoButton_Menu(&s_RefreshImportMapsButton, "Reload", 0, &RefreshButton))
 		RefreshImportMaps();
 	if(DoButton_Menu(&s_ImportButton, "Import", 0, &ImportButton))
 	{
@@ -4497,7 +4975,7 @@ void CMenus::RenderSettingsAetherMapBackgroundBuilderPopup(CUIRect Screen)
 		str_format(aLayerLabel, sizeof(aLayerLabel), "Imported layer %d/%d", s_ImportedLayerIndex + 1, (int)s_vImportedLayers.size());
 		Ui()->DoLabel(&Label, aLayerLabel, 13.0f * S, TEXTALIGN_ML);
 		CUIRect Drop, Use;
-		Control.VSplitRight(94.0f * S, &Drop, &Use);
+		Control.VSplitRight(72.0f * S, &Drop, &Use);
 		Drop.VSplitRight(8.0f * S, &Drop, nullptr);
 		static std::vector<std::string> s_vImportLayerNames;
 		static std::vector<const char *> s_vpImportLayerNames;
@@ -4524,12 +5002,15 @@ void CMenus::RenderSettingsAetherMapBackgroundBuilderPopup(CUIRect Screen)
 	Bottom.HSplitTop(8.0f * S, nullptr, &Bottom);
 	CUIRect Buttons;
 	Bottom.HSplitTop(30.0f * S, &Buttons, &Bottom);
+	AetherOptionRow(Buttons, S, &Label, &Buttons);
 	CUIRect ExportButton, ApplyButton, FolderButton;
-	Buttons.VSplitRight(150.0f * S, &Buttons, &FolderButton);
-	Buttons.VSplitRight(8.0f * S, &Buttons, nullptr);
-	Buttons.VSplitRight(150.0f * S, &Buttons, &ApplyButton);
-	Buttons.VSplitRight(8.0f * S, &Buttons, nullptr);
-	Buttons.VSplitRight(150.0f * S, &Buttons, &ExportButton);
+	const float Gap = 8.0f * S;
+	const float ButtonW = (Buttons.w - Gap * 2.0f) / 3.0f;
+	Buttons.VSplitLeft(ButtonW, &ExportButton, &Buttons);
+	Buttons.VSplitLeft(Gap, nullptr, &Buttons);
+	Buttons.VSplitLeft(ButtonW, &ApplyButton, &Buttons);
+	Buttons.VSplitLeft(Gap, nullptr, &Buttons);
+	FolderButton = Buttons;
 	if(DoButton_Menu(&s_ExportButton, "Export map", 0, &ExportButton))
 	{
 		char aStatus[192];
@@ -4808,9 +5289,13 @@ void CMenus::RenderSettingsAetherPsa(CUIRect Body)
 	Row.VSplitLeft(ButtonW, &BtnReset, nullptr);
 	static CButtonContainer s_StartButton;
 	static CButtonContainer s_ResetButton;
-	if(DoButton_Menu(&s_StartButton, "Start PSA", 0, &BtnStart))
+	const bool PsaActive = GameClient()->m_AetherPsa.IsActive();
+	const bool PsaAutoBusy = GameClient()->m_AetherPsa.AutoInProgress();
+	const char *pStartLabel = PsaActive ? (PsaAutoBusy ? "Phase running" : "Next phase") : "Start PSA";
+	if(DoButton_Menu(&s_StartButton, pStartLabel, PsaAutoBusy ? 1 : 0, &BtnStart) && !PsaAutoBusy)
 	{
-		GameClient()->m_AetherPsa.Start(BaseValue);
+		if(!PsaActive)
+			GameClient()->m_AetherPsa.Start(BaseValue);
 		GameClient()->m_AetherPsa.AutoStart(s_TimerSeconds);
 	}
 	if(DoButton_Menu(&s_ResetButton, "Reset", 0, &BtnReset))
@@ -6472,16 +6957,16 @@ void CMenus::RenderSettingsAetherMusicPlayer(CUIRect Body)
 	Body.Margin(12.0f * S, &Body);
 	CUIRect Control;
 	Body.HSplitTop(22.0f * S, &Control, &Body);
-	if(DoButton_CheckBox(&g_Config.m_AeMusicDynamicColor, "Dynamic cover color", g_Config.m_AeMusicDynamicColor, &Control))
+	if(DoButton_CheckBox(&g_Config.m_AeMusicDynamicColor, Localize("Dynamic cover color"), g_Config.m_AeMusicDynamicColor, &Control))
 		g_Config.m_AeMusicDynamicColor ^= 1;
 	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeMusicDynamicColor, Control, "Dynamic cover color");
 	if(!g_Config.m_AeMusicDynamicColor)
-		DoLine_ColorPicker(&s_BackgroundColorReset, 25.0f * S, 13.0f * S, 4.0f * S, &Body, "Background color", &g_Config.m_AeMusicBackgroundColor, ColorRGBA(0.10f, 0.10f, 0.10f), false);
+		DoLine_ColorPicker(&s_BackgroundColorReset, 25.0f * S, 13.0f * S, 4.0f * S, &Body, Localize("Background color"), &g_Config.m_AeMusicBackgroundColor, ColorRGBA(0.10f, 0.10f, 0.10f), false);
 	Body.HSplitTop(22.0f * S, &Control, &Body);
-	Ui()->DoScrollbarOption(&g_Config.m_AeMusicOpacity, &g_Config.m_AeMusicOpacity, &Control, "Panel opacity", 10, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+	Ui()->DoScrollbarOption(&g_Config.m_AeMusicOpacity, &g_Config.m_AeMusicOpacity, &Control, Localize("Panel opacity"), 10, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
 	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeMusicOpacity, Control, "Panel opacity");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
-	if(DoButton_CheckBox(&g_Config.m_AeMusicVisualizer, "Visualizer", g_Config.m_AeMusicVisualizer, &Control))
+	if(DoButton_CheckBox(&g_Config.m_AeMusicVisualizer, Localize("Visualizer"), g_Config.m_AeMusicVisualizer, &Control))
 		g_Config.m_AeMusicVisualizer ^= 1;
 	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeMusicVisualizer, Control, "Visualizer");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
@@ -6490,19 +6975,19 @@ void CMenus::RenderSettingsAetherMusicPlayer(CUIRect Body)
 	static CButtonContainer s_aVisualizerStyleButtons[2];
 	CUIRect Label, Buttons, Button;
 	AetherOptionRow(Control, S, &Label, &Buttons);
-	Ui()->DoLabel(&Label, "Visualizer style", 14.0f * S, TEXTALIGN_ML);
+	Ui()->DoLabel(&Label, Localize("Visualizer style"), 14.0f * S, TEXTALIGN_ML);
 	const float ButtonWidth = Buttons.w / 2.0f;
 	Buttons.VSplitLeft(ButtonWidth, &Button, &Buttons);
-	if(DoButton_Menu(&s_aVisualizerStyleButtons[0], "Bars", g_Config.m_AeMusicVisualizerStyle == 0, &Button, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_L))
+	if(DoButton_Menu(&s_aVisualizerStyleButtons[0], Localize("Bars"), g_Config.m_AeMusicVisualizerStyle == 0, &Button, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_L))
 		g_Config.m_AeMusicVisualizerStyle = 0;
 	Buttons.VSplitLeft(ButtonWidth, &Button, &Buttons);
-	if(DoButton_Menu(&s_aVisualizerStyleButtons[1], "Mountain", g_Config.m_AeMusicVisualizerStyle == 1, &Button, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_R))
+	if(DoButton_Menu(&s_aVisualizerStyleButtons[1], Localize("Mountain"), g_Config.m_AeMusicVisualizerStyle == 1, &Button, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_R))
 		g_Config.m_AeMusicVisualizerStyle = 1;
 	Body.HSplitTop(22.0f * S, &Control, &Body);
-	Ui()->DoScrollbarOption(&g_Config.m_AeMusicVisualizerSensitivity, &g_Config.m_AeMusicVisualizerSensitivity, &Control, "Visualizer sensitivity", 50, 1500, &CUi::ms_LinearScrollbarScale, 0, "%");
+	Ui()->DoScrollbarOption(&g_Config.m_AeMusicVisualizerSensitivity, &g_Config.m_AeMusicVisualizerSensitivity, &Control, Localize("Visualizer sensitivity"), 50, 1500, &CUi::ms_LinearScrollbarScale, 0, "%");
 	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeMusicVisualizerSensitivity, Control, "Visualizer sensitivity");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
-	Ui()->DoScrollbarOption(&g_Config.m_AeMusicVisualizerGlow, &g_Config.m_AeMusicVisualizerGlow, &Control, "Visualizer glow", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+	Ui()->DoScrollbarOption(&g_Config.m_AeMusicVisualizerGlow, &g_Config.m_AeMusicVisualizerGlow, &Control, Localize("Visualizer glow"), 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
 	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeMusicVisualizerGlow, Control, "Visualizer glow");
 }
 
@@ -6528,15 +7013,15 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		"Visualizer style",
 		"Visualizer sensitivity",
 		"Visualizer glow"};
-	static const std::array<const char *, 6> s_apKeystrokesChildren = {
+	static const std::array<const char *, 5> s_apKeystrokesChildren = {
 		"Movement keys",
 		"Horizontal layout",
 		"Jump key",
-		"Jump label",
 		"M1",
 		"Mouse buttons"};
-	static const std::array<const char *, 11> s_apInputVisualizerChildren = {
+	static const std::array<const char *, 12> s_apInputVisualizerChildren = {
 		"Input history",
+		"Pause key",
 		"Flow speed",
 		"Local input",
 		"Movement",
@@ -6547,16 +7032,14 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		"Spectated input",
 		"Demo input",
 		"Hook markers"};
-	static const std::array<const char *, 9> s_apStabilityTrainerChildren = {
+	static const std::array<const char *, 7> s_apStabilityTrainerChildren = {
 		"Velocity bar",
 		"Spectated input",
 		"Quality color",
-		"Average ticks",
-		"Bar glide",
-		"Velocity scale",
 		"HUD editor",
 		"Trainer color",
-		"Sharp corners"};
+		"Sharp corners",
+		"Stable defaults"};
 	static const std::array<const char *, 3> s_apSessionStatsChildren = {
 		"Session time",
 		"Deaths",
@@ -6568,9 +7051,8 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		"Ninja preview",
 		"Body color",
 		"Feet color"};
-	static const std::array<const char *, 3> s_apNinjaTimerChildren = {
+	static const std::array<const char *, 2> s_apNinjaTimerChildren = {
 		"Timer",
-		"HUD scale",
 		"HUD editor"};
 	static const std::array<const char *, 16> s_apSweatWeaponChildren = {
 		"Crystal laser",
@@ -6630,15 +7112,13 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		"Client badges only",
 		"Friend heart",
 		"Refresh now"};
-	static const std::array<const char *, 8> s_apPingChildren = {
+	static const std::array<const char *, 6> s_apPingChildren = {
 		"Ping wheel",
+		"Place ping",
 		"Help ping",
 		"Danger ping",
 		"Come ping",
-		"Wait ping",
-		"Auto help",
-		"Frozen ally",
-		"Offscreen indicator"};
+		"Wait ping"};
 	static const std::array<const char *, 9> s_apChatBubblesChildren = {
 		"Bubble duration",
 		"Bubble opacity",
@@ -6699,10 +7179,15 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		"Edge2Edge Freeze Tiles",
 		"Keybinds",
 		"Open folder"};
-	static const std::array<const char *, 24> s_apFastInputChildren = {
+	static const std::array<const char *, 29> s_apFastInputChildren = {
 		"TClient",
 		"Adaptive",
+		"Control",
 		"Saiko+",
+		"Response amount",
+		"Stability",
+		"Correction",
+		"Control input other tees",
 		"Movement amount",
 		"Hook fire amount",
 		"Saiko amount",
@@ -6723,8 +7208,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		"Interaction assist",
 		"Interaction strength",
 		"Debug"};
-	static const std::array<const char *, 3> s_apFastSpecChildren = {
-		"Enable Fast Spec",
+	static const std::array<const char *, 2> s_apFastSpecChildren = {
 		"+ae_fast_spec",
 		"Status"};
 	static const std::array<const char *, 3> s_apTranslatorChildren = {
@@ -6897,12 +7381,12 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 
 	CUIRect Header, Search;
 	MainView.HSplitTop(34.0f * S, &Header, &MainView);
-	Ui()->DoLabel(&Header, "Aether Settings", 24.0f * S, TEXTALIGN_ML);
+	Ui()->DoLabel(&Header, Localize("Aether Settings"), 24.0f * S, TEXTALIGN_ML);
 	MainView.HSplitTop(8.0f * S, nullptr, &MainView);
 	static CButtonContainer s_aPageButtons[7];
 	CUIRect PageArea;
 	const bool CompactAetherHeader = MainView.w < 880.0f * S;
-	m_AetherSearchInput.SetEmptyText("Search features and settings...");
+	m_AetherSearchInput.SetEmptyText(Localize("Search features and settings..."));
 	if(CompactAetherHeader)
 	{
 		MainView.HSplitTop(28.0f * S, &Search, &MainView);
@@ -6950,7 +7434,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 			PageArea.VSplitLeft(ButtonW, &Button, &PageArea);
 			PageArea.VSplitLeft(Gap, nullptr, &PageArea);
 		}
-		if(DoButton_MenuTab(&s_aPageButtons[i], aPages[i].second, s_AetherActivePage == aPages[i].first, &Button, IGraphics::CORNER_ALL, nullptr, nullptr, nullptr, nullptr, 4.0f * S))
+		if(DoButton_MenuTab(&s_aPageButtons[i], Localize(aPages[i].second), s_AetherActivePage == aPages[i].first, &Button, IGraphics::CORNER_ALL, nullptr, nullptr, nullptr, nullptr, 4.0f * S))
 			s_AetherActivePage = aPages[i].first;
 	}
 	MainView.HSplitTop(8.0f * S, nullptr, &MainView);
@@ -6961,7 +7445,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		MainView.HSplitTop(24.0f * S, &FilterRow, &MainView);
 		FilterRow.VSplitLeft(220.0f * S, &FilterButton, nullptr);
 		static CButtonContainer s_EnabledOnlyButton;
-		if(DoButton_CheckBox(&s_EnabledOnlyButton, "Only enabled", m_AetherShowEnabledOnly, &FilterButton))
+		if(DoButton_CheckBox(&s_EnabledOnlyButton, Localize("Only enabled"), m_AetherShowEnabledOnly, &FilterButton))
 			m_AetherShowEnabledOnly = !m_AetherShowEnabledOnly;
 		AetherDoLabelTooltip(Ui(), GameClient(), &s_EnabledOnlyButton, FilterButton, "Only enabled");
 		MainView.HSplitTop(8.0f * S, nullptr, &MainView);
@@ -7010,7 +7494,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		switch(Id)
 		{
 		case AetherMusic::EAetherFeatureId::MUSIC_PLAYER: return 168.0f * S;
-		case AetherMusic::EAetherFeatureId::KEYSTROKES: return 112.0f * S;
+		case AetherMusic::EAetherFeatureId::KEYSTROKES: return 84.0f * S;
 		case AetherMusic::EAetherFeatureId::INPUT_VISUALIZER:
 		{
 			int ColorRows = 2;
@@ -7022,26 +7506,26 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 					++ColorRows;
 				++ColorRows;
 			}
-			return (24.0f + 14.0f * 22.0f + 8.0f + 18.0f + ColorRows * 29.0f + 8.0f) * S;
+			return (28.0f + 4.0f + 14.0f * 22.0f + 8.0f + 18.0f + ColorRows * 29.0f + 8.0f) * S;
 		}
-		case AetherMusic::EAetherFeatureId::STABILITY_TRAINER: return (g_Config.m_AeStabilityTrainerColorize ? 280.0f : 310.0f) * S;
+		case AetherMusic::EAetherFeatureId::STABILITY_TRAINER: return (g_Config.m_AeStabilityTrainerColorize ? 190.0f : 220.0f) * S;
 		case AetherMusic::EAetherFeatureId::SESSION_STATS: return 62.0f * S;
 		case AetherMusic::EAetherFeatureId::REAL_HITBOX: return 74.0f * S;
 		case AetherMusic::EAetherFeatureId::NINJA_TEE_PREVIEW: return 116.0f * S;
-		case AetherMusic::EAetherFeatureId::NINJA_TIMER: return 86.0f * S;
+		case AetherMusic::EAetherFeatureId::NINJA_TIMER: return 54.0f * S;
 		case AetherMusic::EAetherFeatureId::SWEAT_WEAPON:
 			return (430.0f +
 				(g_Config.m_AeSweatWeaponShine ? 24.0f : 0.0f) +
 				(g_Config.m_AeSweatWeaponElectric ? 48.0f : 0.0f) +
 				(g_Config.m_AeSweatWeaponEntitiesLaser ? 118.0f : 0.0f)) *
 			       S;
-		case AetherMusic::EAetherFeatureId::ORBIT_AURA: return (284.0f + (g_Config.m_AeOrbitAuraIdleOnly ? 24.0f : 0.0f) + (s_AetherOrbitStyleDropdownOpen ? 76.0f : 0.0f)) * S;
+		case AetherMusic::EAetherFeatureId::ORBIT_AURA: return (284.0f + (g_Config.m_AeOrbitAuraIdleOnly ? 24.0f : 0.0f)) * S;
 		case AetherMusic::EAetherFeatureId::JELLY_TEE: return 94.0f * S;
 		case AetherMusic::EAetherFeatureId::FINISH_PREDICTION: return 128.0f * S;
 		case AetherMusic::EAetherFeatureId::THREE_D_PARTICLES: return (g_Config.m_Ae3DParticlesColorMode == 0 ? 266.0f : 230.0f) * S;
 		case AetherMusic::EAetherFeatureId::LOADING_THEME_BACKGROUND: return 52.0f * S;
-		case AetherMusic::EAetherFeatureId::CLIENT_BADGES: return 154.0f * S;
-		case AetherMusic::EAetherFeatureId::PING_WHEEL: return (s_AetherPingTab == 1 ? 132.0f : s_AetherPingTab == 2 ? 88.0f : 92.0f) * S;
+		case AetherMusic::EAetherFeatureId::CLIENT_BADGES: return 170.0f * S;
+		case AetherMusic::EAetherFeatureId::PING_WHEEL: return 126.0f * S;
 		case AetherMusic::EAetherFeatureId::CHAT_BUBBLES: return 238.0f * S;
 		case AetherMusic::EAetherFeatureId::BLOCK_AWARENESS:
 			return (s_AetherBlockAwarenessTab == 0 ? 344.0f : s_AetherBlockAwarenessTab == 1 ? 160.0f : s_AetherBlockAwarenessTab == 2 ? 150.0f : s_AetherBlockAwarenessTab == 3 ? 150.0f : 188.0f) * S;
@@ -7065,8 +7549,21 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		case AetherMusic::EAetherFeatureId::SNAP_TAP: return 46.0f * S;
 		case AetherMusic::EAetherFeatureId::GORES_MODE: return 86.0f * S;
 		case AetherMusic::EAetherFeatureId::DDRACE_CONFIGS: return 172.0f * S;
-		case AetherMusic::EAetherFeatureId::FAST_INPUT: return 520.0f * S;
-		case AetherMusic::EAetherFeatureId::FAST_SPEC: return 104.0f * S;
+		case AetherMusic::EAetherFeatureId::FAST_INPUT:
+		{
+			const int Mode = g_Config.m_AeFastInputMode == 3 ? 1 : g_Config.m_AeFastInputMode == 4 ? 3 : g_Config.m_AeFastInputMode == 2 ? 4 : 2;
+			if(Mode == 1 || Mode == 4)
+				return 188.0f * S;
+			if(Mode == 3)
+				return 232.0f * S;
+			float Height = 392.0f;
+			if(g_Config.m_AeFastInputBrakePriority || g_Config.m_AeFastInputBrakeReleasePriority)
+				Height += 22.0f;
+			if(g_Config.m_AeFastInputAdaptiveOthers)
+				Height += 44.0f;
+			return Height * S;
+		}
+		case AetherMusic::EAetherFeatureId::FAST_SPEC: return 118.0f * S;
 		case AetherMusic::EAetherFeatureId::TRANSLATOR: return 124.0f * S;
 		case AetherMusic::EAetherFeatureId::SILENT_TYPING: return 52.0f * S;
 		case AetherMusic::EAetherFeatureId::SAVE_UNSENT_MESSAGES: return 52.0f * S;
@@ -7302,7 +7799,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		Hero.VSplitMid(&Left, &Right, 10.0f * S);
 		if(s_ScrollRegion.AddRect(Hero))
 		{
-			RenderInfoCard(Left, "Aether Client", "A custom DDNet client built around clean visuals, QoL tools, games and Aether-only systems.", ColorRGBA(0.55f, 0.86f, 1.0f, 1.0f));
+			RenderInfoCard(Left, "Aether Client", "A custom DDNet client built around clean visuals, QoL tools, games and Aether-only systems.", ColorRGBA(0.94f, 0.64f, 1.0f, 1.0f));
 			RenderInfoCard(Right, "Config", "Aether settings use the ae_* namespace in this clean build. Vault CFG can export a combined preset.", ColorRGBA(1.0f, 0.72f, 0.38f, 1.0f));
 		}
 
@@ -8672,7 +9169,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 						if(Idx == Hover)
 							CellColor = AetherBlendColor(CellColor, AetherThemeColor(0.92f), 0.22f);
 						if(Idx == s_Chess.m_Selected)
-							CellColor = ColorRGBA(0.30f, 0.55f, 1.0f, 0.82f);
+							CellColor = ColorRGBA(0.82f, 0.48f, 1.0f, 0.82f);
 						else if(g_Config.m_AeGameChessShowLegalMoves && s_Chess.m_Selected >= 0 && LegalMove(s_Chess.m_Selected, Idx))
 							CellColor = AetherBlendColor(CellColor, ColorRGBA(0.20f, 0.95f, 0.50f, 0.92f), 0.30f);
 						Cell.Draw(CellColor, 0, 0.0f);
@@ -8730,7 +9227,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 						{
 							RoomCard.HSplitTop(38.0f * S, &Row, &RoomCard);
 							Row.VSplitRight(70.0f * S, &Row, &Copy);
-							TextRender()->TextColor(ColorRGBA(0.72f, 0.90f, 1.0f, 1.0f));
+							TextRender()->TextColor(ColorRGBA(0.94f, 0.76f, 1.0f, 1.0f));
 							Ui()->DoLabel(&Row, RoomState.m_aCode, 28.0f * S, TEXTALIGN_ML);
 							TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 							if(DoButton_Menu(&s_ChessCopyRoomButton, "Copy", 0, &Copy))
@@ -8959,7 +9456,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 									if(Idx == CheckedKing)
 										CellColor = ColorRGBA(1.0f, 0.30f, 0.22f, 0.88f);
 									else if(Idx == s_ChessOnline.m_Selected)
-										CellColor = ColorRGBA(0.30f, 0.55f, 1.0f, 0.82f);
+										CellColor = ColorRGBA(0.82f, 0.48f, 1.0f, 0.82f);
 									else if(g_Config.m_AeGameChessShowLegalMoves && s_ChessOnline.m_Selected >= 0 && OnlineLegalMove(s_ChessOnline.m_Selected, Idx))
 										CellColor = AetherBlendColor(CellColor, ColorRGBA(0.20f, 0.95f, 0.50f, 0.92f), 0.30f);
 									Cell.Draw(CellColor, 0, 0.0f);
@@ -9257,9 +9754,9 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		MainView.HSplitTop(28.0f * S, &SectionHeader, &MainView);
 		if(s_ScrollRegion.AddRect(SectionHeader))
 		{
-			TextRender()->TextColor(0.53f, 0.72f, 1.0f, 1.0f);
+			TextRender()->TextColor(0.94f, 0.64f, 1.0f, 1.0f);
 			const char *pSectionLabel = Section == ESection::VISUALS ? "VISUALS" : Section == ESection::GAMEPLAY ? "GAMEPLAY" : Section == ESection::TOOLS ? "TOOLS" : "EDITORS";
-			Ui()->DoLabel(&SectionHeader, pSectionLabel, 15.0f * S, TEXTALIGN_ML);
+			Ui()->DoLabel(&SectionHeader, Localize(pSectionLabel), 15.0f * S, TEXTALIGN_ML);
 			TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 		}
 
@@ -9284,18 +9781,25 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 					CUIRect Label, OpenButton;
 					Row.Margin(8.0f * S, &Row);
 					Row.VSplitRight(90.0f * S, &Label, &OpenButton);
-					Ui()->DoLabel(&Label, Feature.m_pLabel, 16.0f * S, TEXTALIGN_ML);
+					Ui()->DoLabel(&Label, Localize(Feature.m_pLabel), 16.0f * S, TEXTALIGN_ML);
 					if(Feature.m_EditorAction == EEditorAction::OPEN_HUD_EDITOR &&
 						DoButton_Menu(&s_OpenEditorButton, Localize("Open"), 0, &OpenButton))
 					{
 						bool EditorOpened = false;
-						EditorOpened |= GameClient()->m_AetherMusicPlayer.OpenEditor();
-						EditorOpened |= GameClient()->m_AetherKeystrokes.OpenEditor();
-						EditorOpened |= GameClient()->m_AetherInputVisualizer.OpenEditor();
-						EditorOpened |= GameClient()->m_AetherSessionStats.OpenEditor();
-						EditorOpened |= GameClient()->m_AetherFinishPrediction.OpenEditor();
-						EditorOpened |= GameClient()->m_AetherStabilityTrainer.OpenEditor();
-						EditorOpened |= GameClient()->m_Hud.OpenTClientFrozenTextEditor();
+						if(g_Config.m_AeMusicPlayer)
+							EditorOpened |= GameClient()->m_AetherMusicPlayer.OpenEditor();
+						if(g_Config.m_AeKeystrokes)
+							EditorOpened |= GameClient()->m_AetherKeystrokes.OpenEditor();
+						if(g_Config.m_AeInputVisualizer)
+							EditorOpened |= GameClient()->m_AetherInputVisualizer.OpenEditor();
+						if(g_Config.m_AeSessionStats)
+							EditorOpened |= GameClient()->m_AetherSessionStats.OpenEditor();
+						if(g_Config.m_AeFinishPrediction)
+							EditorOpened |= GameClient()->m_AetherFinishPrediction.OpenEditor();
+						if(g_Config.m_AeStabilityTrainer)
+							EditorOpened |= GameClient()->m_AetherStabilityTrainer.OpenEditor();
+						if(g_Config.m_AeNinjaTimer || g_Config.m_TcShowFrozenText || g_Config.m_TcShowFrozenHud)
+							EditorOpened |= GameClient()->m_Hud.OpenTClientFrozenTextEditor();
 						if(EditorOpened)
 						{
 							SetActive(false);
@@ -9341,7 +9845,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 						m_AetherExpandedFeature = AetherMusic::ToggleAccordion(m_AetherExpandedFeature, Feature.m_Id);
 					AetherDoTooltip(Ui(), GameClient(), &s_aExpandButtons[Index], ExpandButton, AetherFeatureTooltip(Feature.m_Id), 330.0f);
 					ExpandArea.VSplitLeft(8.0f * S, nullptr, &ExpandArea);
-					Ui()->DoLabel(&ExpandArea, Feature.m_pLabel, 16.0f * S, TEXTALIGN_ML);
+					Ui()->DoLabel(&ExpandArea, Localize(Feature.m_pLabel), 16.0f * S, TEXTALIGN_ML);
 					TextRender()->SetFontPreset(EFontPreset::ICON_FONT);
 					Ui()->DoLabel(&Arrow, m_AetherExpandedFeature == Feature.m_Id ? FontIcon::CHEVRON_UP : FontIcon::CHEVRON_RIGHT, 13.0f * S, TEXTALIGN_MC);
 					TextRender()->SetFontPreset(EFontPreset::DEFAULT_FONT);

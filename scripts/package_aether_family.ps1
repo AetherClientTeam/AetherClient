@@ -3,7 +3,7 @@ param(
 	[string]$BuildRoot = "build-vs2026",
 	[string]$ReleaseDir = "Release",
 	[string]$OutRoot = "portable",
-	[string]$Version = "1.0.6",
+	[string]$Version = "1.0.7",
 	[string]$Name = "",
 	[switch]$SkipBuild
 )
@@ -20,12 +20,13 @@ if([string]::IsNullOrWhiteSpace($Name))
 }
 $PortablePath = Join-Path $OutRootPath $Name
 $ZipPath = "$PortablePath.zip"
-$ExeNames = @("Aether.exe", "Vera.exe", "Via.exe", "Vex.exe")
+$ExeNames = @("Aether.exe")
 $ServerExe = "Aether-Server.exe"
 $BadgeNames = @("founder.png", "tester.png", "chess_winner.png")
 $LogoNames = @(
 	"aether_icon_small_256.png", "vera_icon_small_256.png", "via_icon_small_256.png", "vex_icon_small_256.png",
-	"aether_lockup_1024.png", "vera_lockup_1024.png", "via_lockup_1024.png", "vex_lockup_1024.png"
+	"aether_lockup_1024.png", "vera_lockup_1024.png", "via_lockup_1024.png", "vex_lockup_1024.png",
+	"aether_vera_big_1024.png", "aether_vera_logo.png", "aether_vera_text.png"
 )
 
 function Remove-LegacyAetherData($Root)
@@ -40,7 +41,7 @@ function Remove-LegacyAetherData($Root)
 if(!$SkipBuild)
 {
 	cmake -S $RepoRoot -B $BuildPath -DAUTOUPDATE=ON -DDISCORD=ON -DSTEAM=ON -DSERVER_EXECUTABLE=Aether-Server
-	cmake --build $BuildPath --config Release --target game-client-family game-server
+	cmake --build $BuildPath --config Release --target game-client game-server
 }
 
 $DataPath = Join-Path $BuildPath "data"
@@ -54,11 +55,11 @@ foreach($Exe in $ExeNames)
 	$ExePath = Join-Path $BuildPath $Exe
 	if(!(Test-Path $ExePath))
 	{
-		throw "Family executable missing: $ExePath"
+		throw "Client executable missing: $ExePath"
 	}
 	$ExeBytes = [System.IO.File]::ReadAllBytes($ExePath)
 	$ExeText = [System.Text.Encoding]::ASCII.GetString($ExeBytes)
-	if(!$ExeText.Contains("AetherClientTeam/AetherClient") -or !$ExeText.Contains("Updating..."))
+	if(!$ExeText.Contains("AetherClientTeam/AetherClient") -or !$ExeText.Contains("Downloading %d%%"))
 	{
 		throw "AUTOUPDATE appears disabled or misconfigured in: $ExePath"
 	}

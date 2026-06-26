@@ -1066,6 +1066,9 @@ set(EXPECTED_DATA
   core/logos/aether_lockup_1024.png
   core/logos/aether_lockup_256.png
   core/logos/aether_lockup_512.png
+  core/logos/aether_vera_big_1024.png
+  core/logos/aether_vera_logo.png
+  core/logos/aether_vera_text.png
   core/logos/manifest.json
   core/logos/vera_1024.png
   core/logos/vera_256.png

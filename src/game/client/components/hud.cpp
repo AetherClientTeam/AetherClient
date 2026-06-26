@@ -122,8 +122,8 @@ void CHud::ClampTClientLastNotify()
 {
 	m_TClientLastNotifyRect.x = std::clamp(m_TClientLastNotifyRect.x, 0.0f, std::max(0.0f, m_Width - m_TClientLastNotifyRect.w));
 	m_TClientLastNotifyRect.y = std::clamp(m_TClientLastNotifyRect.y, 0.0f, std::max(0.0f, m_Height - m_TClientLastNotifyRect.h));
-	g_Config.m_TcNotifyWhenLastX = std::clamp(round_to_int((m_TClientLastNotifyRect.x / std::max(1.0f, m_Width)) * 100.0f), 0, 100);
-	g_Config.m_TcNotifyWhenLastY = std::clamp(round_to_int((m_TClientLastNotifyRect.y / std::max(1.0f, m_Height)) * 100.0f), 0, 100);
+	g_Config.m_TcNotifyWhenLastX = std::clamp(round_to_int(((m_TClientLastNotifyRect.x + 3.0f) / std::max(1.0f, m_Width)) * 100.0f), 0, 100);
+	g_Config.m_TcNotifyWhenLastY = std::clamp(round_to_int(((m_TClientLastNotifyRect.y + 2.0f) / std::max(1.0f, m_Height)) * 100.0f), 0, 100);
 }
 
 void CHud::ClampTClientFrozenHud()
@@ -239,6 +239,10 @@ bool CHud::OnInput(const IInput::CEvent &Event)
 {
 	if(!m_TClientFrozenTextEditorOpen)
 		return false;
+	const bool EditFrozenText = g_Config.m_TcShowFrozenText > 0;
+	const bool EditLastNotify = g_Config.m_TcNotifyWhenLast;
+	const bool EditFrozenHud = g_Config.m_TcShowFrozenHud > 0;
+	const bool EditNinjaTimer = g_Config.m_AeNinjaTimer;
 	if((Event.m_Flags & IInput::FLAG_PRESS) && Event.m_Key == KEY_ESCAPE)
 	{
 		CloseTClientFrozenTextEditor();
@@ -263,25 +267,25 @@ bool CHud::OnInput(const IInput::CEvent &Event)
 	if((Event.m_Flags & IInput::FLAG_PRESS) && (Event.m_Key == KEY_MOUSE_WHEEL_UP || Event.m_Key == KEY_MOUSE_WHEEL_DOWN))
 	{
 		const vec2 Mouse = HudMousePos();
-		if(m_TClientFrozenTextRect.Inside(Mouse))
+		if(EditFrozenText && m_TClientFrozenTextRect.Inside(Mouse))
 		{
 			const vec2 Center(m_TClientFrozenTextRect.x + m_TClientFrozenTextRect.w * 0.5f, m_TClientFrozenTextRect.y + m_TClientFrozenTextRect.h * 0.5f);
 			SetTClientFrozenTextScaleKeepingCenter(g_Config.m_TcFrozenTextScale + (Event.m_Key == KEY_MOUSE_WHEEL_UP ? 5 : -5), Center);
 			return true;
 		}
-		if(m_TClientLastNotifyRect.Inside(Mouse))
+		if(EditLastNotify && m_TClientLastNotifyRect.Inside(Mouse))
 		{
 			const vec2 Center(m_TClientLastNotifyRect.x + m_TClientLastNotifyRect.w * 0.5f, m_TClientLastNotifyRect.y + m_TClientLastNotifyRect.h * 0.5f);
 			SetTClientLastNotifySizeKeepingCenter(g_Config.m_TcNotifyWhenLastSize + (Event.m_Key == KEY_MOUSE_WHEEL_UP ? 1 : -1), Center);
 			return true;
 		}
-		if(m_TClientFrozenHudRect.Inside(Mouse))
+		if(EditFrozenHud && m_TClientFrozenHudRect.Inside(Mouse))
 		{
 			const vec2 Center(m_TClientFrozenHudRect.x + m_TClientFrozenHudRect.w * 0.5f, m_TClientFrozenHudRect.y + m_TClientFrozenHudRect.h * 0.5f);
 			SetTClientFrozenHudSizeKeepingCenter(g_Config.m_TcFrozenHudTeeSize + (Event.m_Key == KEY_MOUSE_WHEEL_UP ? 1 : -1), Center);
 			return true;
 		}
-		if(m_AetherNinjaTimerRect.Inside(Mouse))
+		if(EditNinjaTimer && m_AetherNinjaTimerRect.Inside(Mouse))
 		{
 			const vec2 Center(m_AetherNinjaTimerRect.x + m_AetherNinjaTimerRect.w * 0.5f, m_AetherNinjaTimerRect.y + m_AetherNinjaTimerRect.h * 0.5f);
 			SetAetherNinjaTimerScaleKeepingCenter(g_Config.m_AeNinjaTimerScale + (Event.m_Key == KEY_MOUSE_WHEEL_UP ? 5 : -5), Center);
@@ -294,49 +298,49 @@ bool CHud::OnInput(const IInput::CEvent &Event)
 		if(Event.m_Flags & IInput::FLAG_PRESS)
 		{
 			const vec2 Mouse = HudMousePos();
-			if(TClientFrozenHudResizeHandleRect().Inside(Mouse))
+			if(EditFrozenHud && TClientFrozenHudResizeHandleRect().Inside(Mouse))
 			{
 				m_TClientFrozenTextEditorInteraction = ETClientFrozenTextEditorInteraction::RESIZING_FROZEN_HUD;
 				m_TClientFrozenHudResizeCenter = vec2(m_TClientFrozenHudRect.x + m_TClientFrozenHudRect.w * 0.5f, m_TClientFrozenHudRect.y + m_TClientFrozenHudRect.h * 0.5f);
 				return true;
 			}
-			if(AetherNinjaTimerResizeHandleRect().Inside(Mouse))
+			if(EditNinjaTimer && AetherNinjaTimerResizeHandleRect().Inside(Mouse))
 			{
 				m_TClientFrozenTextEditorInteraction = ETClientFrozenTextEditorInteraction::RESIZING_NINJA_TIMER;
 				m_AetherNinjaTimerResizeCenter = vec2(m_AetherNinjaTimerRect.x + m_AetherNinjaTimerRect.w * 0.5f, m_AetherNinjaTimerRect.y + m_AetherNinjaTimerRect.h * 0.5f);
 				return true;
 			}
-			if(TClientLastNotifyResizeHandleRect().Inside(Mouse))
+			if(EditLastNotify && TClientLastNotifyResizeHandleRect().Inside(Mouse))
 			{
 				m_TClientFrozenTextEditorInteraction = ETClientFrozenTextEditorInteraction::RESIZING_LAST_NOTIFY;
 				m_TClientLastNotifyResizeCenter = vec2(m_TClientLastNotifyRect.x + m_TClientLastNotifyRect.w * 0.5f, m_TClientLastNotifyRect.y + m_TClientLastNotifyRect.h * 0.5f);
 				return true;
 			}
-			if(TClientFrozenTextResizeHandleRect().Inside(Mouse))
+			if(EditFrozenText && TClientFrozenTextResizeHandleRect().Inside(Mouse))
 			{
 				m_TClientFrozenTextEditorInteraction = ETClientFrozenTextEditorInteraction::RESIZING_FROZEN_TEXT;
 				m_TClientFrozenTextResizeCenter = vec2(m_TClientFrozenTextRect.x + m_TClientFrozenTextRect.w * 0.5f, m_TClientFrozenTextRect.y + m_TClientFrozenTextRect.h * 0.5f);
 				return true;
 			}
-			if(m_TClientLastNotifyRect.Inside(Mouse))
+			if(EditLastNotify && m_TClientLastNotifyRect.Inside(Mouse))
 			{
 				m_TClientFrozenTextEditorInteraction = ETClientFrozenTextEditorInteraction::DRAGGING_LAST_NOTIFY;
 				m_TClientLastNotifyDragOffset = Mouse - vec2(m_TClientLastNotifyRect.x, m_TClientLastNotifyRect.y);
 				return true;
 			}
-			if(m_TClientFrozenHudRect.Inside(Mouse))
+			if(EditFrozenHud && m_TClientFrozenHudRect.Inside(Mouse))
 			{
 				m_TClientFrozenTextEditorInteraction = ETClientFrozenTextEditorInteraction::DRAGGING_FROZEN_HUD;
 				m_TClientFrozenHudDragOffset = Mouse - vec2(m_TClientFrozenHudRect.x, m_TClientFrozenHudRect.y);
 				return true;
 			}
-			if(m_AetherNinjaTimerRect.Inside(Mouse))
+			if(EditNinjaTimer && m_AetherNinjaTimerRect.Inside(Mouse))
 			{
 				m_TClientFrozenTextEditorInteraction = ETClientFrozenTextEditorInteraction::DRAGGING_NINJA_TIMER;
 				m_AetherNinjaTimerDragOffset = Mouse - vec2(m_AetherNinjaTimerRect.x, m_AetherNinjaTimerRect.y);
 				return true;
 			}
-			if(m_TClientFrozenTextRect.Inside(Mouse))
+			if(EditFrozenText && m_TClientFrozenTextRect.Inside(Mouse))
 			{
 				m_TClientFrozenTextEditorInteraction = ETClientFrozenTextEditorInteraction::DRAGGING_FROZEN_TEXT;
 				m_TClientFrozenTextDragOffset = Mouse - vec2(m_TClientFrozenTextRect.x, m_TClientFrozenTextRect.y);
@@ -1114,7 +1118,10 @@ void CHud::RenderTextInfo()
 		Graphics()->RenderQuadContainerAsSprite(m_HudQuadContainerIndex, m_aCursorOffset[CurWeapon], m_Width / 2.0f, m_Height / 2.0f, 0.36f, 0.36f);
 	}
 	// render team in freeze text and last notify
-	if(((g_Config.m_TcShowFrozenText > 0 || g_Config.m_TcShowFrozenHud > 0 || g_Config.m_TcNotifyWhenLast) && GameClient()->m_GameInfo.m_EntitiesDDRace) || m_TClientFrozenTextEditorOpen)
+	const bool EditorShowFrozenText = m_TClientFrozenTextEditorOpen && g_Config.m_TcShowFrozenText > 0;
+	const bool EditorShowFrozenHud = m_TClientFrozenTextEditorOpen && g_Config.m_TcShowFrozenHud > 0;
+	const bool EditorShowLastNotify = m_TClientFrozenTextEditorOpen && g_Config.m_TcNotifyWhenLast;
+	if(((g_Config.m_TcShowFrozenText > 0 || g_Config.m_TcShowFrozenHud > 0 || g_Config.m_TcNotifyWhenLast) && GameClient()->m_GameInfo.m_EntitiesDDRace) || EditorShowFrozenText || EditorShowFrozenHud || EditorShowLastNotify)
 	{
 		int NumInTeam = 0;
 		int NumFrozen = 0;
@@ -1140,7 +1147,7 @@ void CHud::RenderTextInfo()
 		}
 
 		// Notify when last
-		if(g_Config.m_TcNotifyWhenLast || m_TClientFrozenTextEditorOpen)
+		if(g_Config.m_TcNotifyWhenLast)
 		{
 			if((g_Config.m_TcNotifyWhenLast && NumInTeam > 1 && NumInTeam - NumFrozen == 1) || m_TClientFrozenTextEditorOpen)
 			{
@@ -1201,25 +1208,12 @@ void CHud::RenderTextInfo()
 			if(m_TClientFrozenTextEditorOpen)
 				RenderTClientHudEditorOverlay(m_TClientFrozenTextRect, TClientFrozenTextResizeHandleRect());
 		}
-		else if(m_TClientFrozenTextEditorOpen)
-		{
-			const float FontSize = 10.0f * std::clamp(g_Config.m_TcFrozenTextScale / 100.0f, 0.5f, 2.0f);
-			const char *pPlaceholder = "2 / 2";
-			const float TextWidth = TextRender()->TextWidth(FontSize, pPlaceholder);
-			m_TClientFrozenTextRect.w = TextWidth + 6.0f;
-			m_TClientFrozenTextRect.h = FontSize + 4.0f;
-			ClampTClientFrozenText();
-			const float X = m_TClientFrozenTextRect.x + 3.0f;
-			const float Y = m_TClientFrozenTextRect.y + 2.0f;
-			TextRender()->Text(X, Y, FontSize, pPlaceholder, -1.0f);
-			RenderTClientHudEditorOverlay(m_TClientFrozenTextRect, TClientFrozenTextResizeHandleRect());
-		}
 
 		// str_format(aBuf, sizeof(aBuf), "%d", GameClient()->m_aClients[GameClient()->m_Snap.m_LocalClientId].m_PrevPredicted.m_FreezeEnd);
 		// str_format(aBuf, sizeof(aBuf), "%d", g_Config.m_ClWhatsMyPing);
 		// TextRender()->Text(0, m_Width / 2 - TextRender()->TextWidth(0, 10, aBuf, -1, -1.0f) / 2, 20, 10, aBuf, -1.0f);
 
-		if((g_Config.m_TcShowFrozenHud > 0 && !GameClient()->m_Scoreboard.IsActive() && !(LocalTeamID == 0 && g_Config.m_TcFrozenHudTeamOnly)) || m_TClientFrozenTextEditorOpen)
+		if(g_Config.m_TcShowFrozenHud > 0 && ((!GameClient()->m_Scoreboard.IsActive() && !(LocalTeamID == 0 && g_Config.m_TcFrozenHudTeamOnly)) || m_TClientFrozenTextEditorOpen))
 		{
 			CTeeRenderInfo FreezeInfo;
 			const CSkin *pSkin = GameClient()->m_Skins.Find("x_ninja");
@@ -2615,8 +2609,10 @@ void CHud::OnRender()
 			char aBuf[192];
 			const bool TClientMode = g_Config.m_AeFastInputMode == 3;
 			const bool SaikoMode = g_Config.m_AeFastInputMode == 2;
-			const char *pMode = TClientMode ? "TClient" : (SaikoMode ? "Saiko+" : "Adaptive");
-			const char *pSharpnessLabel = g_Config.m_AeFastInputSmoothCorrections < 30 ? "soft" : (g_Config.m_AeFastInputSmoothCorrections < 70 ? "balanced" : "sharp");
+			const bool ControlMode = g_Config.m_AeFastInputMode == 4;
+			const char *pMode = TClientMode ? "TClient" : (SaikoMode ? "Saiko+" : (ControlMode ? "Control" : "Adaptive"));
+			const int SharpnessValue = ControlMode ? g_Config.m_AeFastInputControlCorrection : g_Config.m_AeFastInputSmoothCorrections;
+			const char *pSharpnessLabel = SharpnessValue < 30 ? "soft" : (SharpnessValue < 70 ? "balanced" : "sharp");
 			const int LocalId = GameClient()->m_Snap.m_LocalClientId;
 			const int InteractionState = LocalId >= 0 ? GameClient()->m_aClients[LocalId].m_AetherFastInteractionState : 0;
 			const char *pInteraction = "none";
@@ -2630,13 +2626,13 @@ void CHud::OnRender()
 				pInteraction = "snap";
 			str_format(aBuf, sizeof(aBuf), "Aether FI: %s | move %dms | action %dms | saiko %.2ft | sharp %d%% %s | margin %s | interaction %s",
 				pMode,
-				TClientMode ? g_Config.m_TcFastInputAmount : (SaikoMode ? (g_Config.m_AeSaikoPlusAmount + 2) / 5 : g_Config.m_AeFastInputMovementAmount),
-				TClientMode ? g_Config.m_TcFastInputAmount : (SaikoMode ? (g_Config.m_AeSaikoPlusAmount + 2) / 5 : g_Config.m_AeFastInputActionAmount),
+				TClientMode ? g_Config.m_TcFastInputAmount : (SaikoMode ? (g_Config.m_AeSaikoPlusAmount + 2) / 5 : (ControlMode ? g_Config.m_AeFastInputControlResponse : g_Config.m_AeFastInputMovementAmount)),
+				TClientMode ? g_Config.m_TcFastInputAmount : (SaikoMode ? (g_Config.m_AeSaikoPlusAmount + 2) / 5 : (ControlMode ? g_Config.m_AeFastInputControlResponse : g_Config.m_AeFastInputActionAmount)),
 				g_Config.m_AeSaikoPlusAmount / 100.0f,
-				g_Config.m_AeFastInputSmoothCorrections,
+				SharpnessValue,
 				pSharpnessLabel,
 				g_Config.m_AeFastInputAutoMargin ? "auto" : "manual",
-				(!TClientMode && !SaikoMode && g_Config.m_AeFastInputInteractionAssist) ? pInteraction : "off");
+				(!TClientMode && !SaikoMode && !ControlMode && g_Config.m_AeFastInputInteractionAssist) ? pInteraction : "off");
 			TextRender()->TextColor(0.72f, 0.88f, 1.0f, 0.9f);
 			TextRender()->Text(5.0f, 96.0f, 6.0f, aBuf, -1.0f);
 			TextRender()->TextColor(TextRender()->DefaultTextColor());
@@ -2684,7 +2680,7 @@ bool CHud::AetherNinjaTimerState(int *pRemainingMs, float *pProgress) const
 
 void CHud::RenderAetherNinjaTimer()
 {
-	if(!g_Config.m_AeNinjaTimer && !m_TClientFrozenTextEditorOpen)
+	if(!g_Config.m_AeNinjaTimer)
 		return;
 
 	int RemainingMs = 0;

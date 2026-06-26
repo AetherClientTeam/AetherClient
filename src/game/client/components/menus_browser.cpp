@@ -11,11 +11,13 @@
 #include <engine/favorites.h>
 #include <engine/font_icons.h>
 #include <engine/friends.h>
+#include <engine/graphics.h>
 #include <engine/gfx/image_manipulation.h>
 #include <engine/keys.h>
 #include <engine/serverbrowser.h>
 #include <engine/shared/config.h>
 #include <engine/shared/localization.h>
+#include <engine/storage.h>
 #include <engine/textrender.h>
 
 #include <game/client/animstate.h>
@@ -25,6 +27,7 @@
 #include <game/client/ui_listbox.h>
 #include <game/localization.h>
 
+#include <numeric>
 #include <string>
 
 static constexpr ColorRGBA HIGHLIGHTED_TEXT_COLOR = ColorRGBA(0.4f, 0.4f, 1.0f, 1.0f);
@@ -125,6 +128,8 @@ void CMenus::RenderServerbrowserServerList(CUIRect View, bool &WasListboxItemAct
 		CUIRect m_Rect;
 	};
 
+	static constexpr int AETHER_BROWSER_SORT_AETHER = 250;
+
 	enum
 	{
 		COL_FLAG_LOCK = 0,
@@ -134,6 +139,7 @@ void CMenus::RenderServerbrowserServerList(CUIRect View, bool &WasListboxItemAct
 		COL_GAMETYPE,
 		COL_MAP,
 		COL_FRIENDS,
+		COL_AETHER,
 		COL_PLAYERS,
 		COL_PING,
 	};
@@ -152,6 +158,7 @@ void CMenus::RenderServerbrowserServerList(CUIRect View, bool &WasListboxItemAct
 		UI_ELEM_FINISH_ICON,
 		UI_ELEM_PLAYERS,
 		UI_ELEM_FRIEND_ICON,
+		UI_ELEM_AETHER_ICON,
 		UI_ELEM_PING,
 		UI_ELEM_KEY_ICON,
 		NUM_UI_ELEMS,
@@ -165,7 +172,8 @@ void CMenus::RenderServerbrowserServerList(CUIRect View, bool &WasListboxItemAct
 		{COL_NAME, IServerBrowser::SORT_NAME, Localizable("Name"), 0, 50.0f, {0}},
 		{COL_GAMETYPE, IServerBrowser::SORT_GAMETYPE, Localizable("Type"), 1, 50.0f, {0}},
 		{COL_MAP, IServerBrowser::SORT_MAP, Localizable("Map"), 1, 120.0f + (Headers.w - 480) / 8, {0}},
-		{COL_FRIENDS, IServerBrowser::SORT_NUMFRIENDS, "", 1, 20.0f, {0}},
+		{COL_FRIENDS, IServerBrowser::SORT_NUMFRIENDS, "", 1, 24.0f, {0}},
+		{COL_AETHER, AETHER_BROWSER_SORT_AETHER, "", 1, 24.0f, {0}},
 		{COL_PLAYERS, IServerBrowser::SORT_NUMPLAYERS, Localizable("Players"), 1, 60.0f, {0}},
 		{-1, -1, "", 1, 4.0f, {0}},
 		{COL_PING, IServerBrowser::SORT_PING, Localizable("Ping"), 1, 40.0f, {0}},
@@ -231,9 +239,34 @@ void CMenus::RenderServerbrowserServerList(CUIRect View, bool &WasListboxItemAct
 			TextRender()->SetRenderFlags(0);
 			TextRender()->SetFontPreset(EFontPreset::DEFAULT_FONT);
 		}
+		else if(Col.m_Id == COL_AETHER)
+		{
+			CUIRect Icon = Col.m_Rect;
+			Icon.Margin(3.0f, &Icon);
+			const float IconSize = minimum(Icon.w, Icon.h);
+			GameClient()->m_AetherBadges.RenderClientBadgeKey("aether", Icon.x + (Icon.w - IconSize) * 0.5f, Icon.y + (Icon.h - IconSize) * 0.5f, IconSize, 1.0f);
+		}
 	}
 
 	const int NumServers = ServerBrowser()->NumSortedServers();
+	const auto AetherPlayersOnServer = [this](const CServerInfo *pServer, const char **ppFirstClientKey = nullptr) {
+		if(ppFirstClientKey)
+			*ppFirstClientKey = nullptr;
+		if(!pServer)
+			return 0;
+		int AetherPlayers = 0;
+		for(int OnlineIndex = 0; OnlineIndex < GameClient()->m_AetherBadges.AetherOnlineCount(); ++OnlineIndex)
+		{
+			const auto *pOnline = GameClient()->m_AetherBadges.AetherOnlinePlayer(OnlineIndex);
+			if(pOnline && pOnline->m_aServerAddress[0] && str_comp(pOnline->m_aServerAddress, pServer->m_aAddress) == 0)
+			{
+				if(ppFirstClientKey && !*ppFirstClientKey)
+					*ppFirstClientKey = pOnline->m_aClient;
+				++AetherPlayers;
+			}
+		}
+		return AetherPlayers;
+	};
 
 	// display important messages in the middle of the screen so no
 	// users misses it
@@ -303,8 +336,8 @@ void CMenus::RenderServerbrowserServerList(CUIRect View, bool &WasListboxItemAct
 	}
 	m_SelectedIndex = -1;
 
-	const auto &&RenderBrowserIcons = [this](CUIElement::SUIElementRect &UIRect, CUIRect *pRect, const ColorRGBA &TextColor, const ColorRGBA &TextOutlineColor, const char *pText, int TextAlign, bool SmallFont = false) {
-		const float FontSize = SmallFont ? 6.0f : 14.0f;
+	const auto &&RenderBrowserIcons = [this](CUIElement::SUIElementRect &UIRect, CUIRect *pRect, const ColorRGBA &TextColor, const ColorRGBA &TextOutlineColor, const char *pText, int TextAlign, bool SmallFont = false, float FontSizeOverride = 0.0f) {
+		const float FontSize = FontSizeOverride > 0.0f ? FontSizeOverride : (SmallFont ? 6.0f : 14.0f);
 		TextRender()->SetFontPreset(EFontPreset::ICON_FONT);
 		TextRender()->SetRenderFlags(ETextRenderFlags::TEXT_RENDER_FLAG_ONLY_ADVANCE_WIDTH | ETextRenderFlags::TEXT_RENDER_FLAG_NO_X_BEARING | ETextRenderFlags::TEXT_RENDER_FLAG_NO_Y_BEARING | ETextRenderFlags::TEXT_RENDER_FLAG_NO_PIXEL_ALIGNMENT | ETextRenderFlags::TEXT_RENDER_FLAG_NO_OVERSIZE);
 		TextRender()->TextColor(TextColor);
@@ -320,9 +353,27 @@ void CMenus::RenderServerbrowserServerList(CUIRect View, bool &WasListboxItemAct
 	if(vpServerBrowserUiElements.size() < (size_t)NumServers)
 		vpServerBrowserUiElements.resize(NumServers, nullptr);
 
+	std::vector<int> vServerDisplayOrder;
+	if(g_Config.m_BrSort == AETHER_BROWSER_SORT_AETHER)
+	{
+		vServerDisplayOrder.resize(NumServers);
+		std::iota(vServerDisplayOrder.begin(), vServerDisplayOrder.end(), 0);
+		std::stable_sort(vServerDisplayOrder.begin(), vServerDisplayOrder.end(), [&](int Left, int Right) {
+			const CServerInfo *pLeft = ServerBrowser()->SortedGet(Left);
+			const CServerInfo *pRight = ServerBrowser()->SortedGet(Right);
+			const int LeftCount = AetherPlayersOnServer(pLeft);
+			const int RightCount = AetherPlayersOnServer(pRight);
+			if(LeftCount != RightCount)
+				return g_Config.m_BrSortOrder == 1 ? LeftCount < RightCount : LeftCount > RightCount;
+			const int NameCompare = str_comp_nocase(pLeft ? pLeft->m_aName : "", pRight ? pRight->m_aName : "");
+			return NameCompare < 0;
+		});
+	}
+
 	for(int i = 0; i < NumServers; i++)
 	{
-		const CServerInfo *pItem = ServerBrowser()->SortedGet(i);
+		const int SortedIndex = vServerDisplayOrder.empty() ? i : vServerDisplayOrder[i];
+		const CServerInfo *pItem = ServerBrowser()->SortedGet(SortedIndex);
 		const CCommunity *pCommunity = ServerBrowser()->Community(pItem->m_aCommunityId);
 
 		if(vpServerBrowserUiElements[i] == nullptr)
@@ -333,7 +384,7 @@ void CMenus::RenderServerbrowserServerList(CUIRect View, bool &WasListboxItemAct
 
 		const CListboxItem ListItem = s_ListBox.DoNextItem(pItem, str_comp(pItem->m_aAddress, g_Config.m_UiServerAddress) == 0);
 		if(ListItem.m_Selected)
-			m_SelectedIndex = i;
+			m_SelectedIndex = SortedIndex;
 
 		if(!ListItem.m_Visible)
 		{
@@ -453,37 +504,39 @@ void CMenus::RenderServerbrowserServerList(CUIRect View, bool &WasListboxItemAct
 			}
 			else if(Id == COL_FRIENDS)
 			{
-				const char *pAetherClientKey = nullptr;
-				for(int OnlineIndex = 0; OnlineIndex < GameClient()->m_AetherBadges.AetherOnlineCount(); ++OnlineIndex)
-				{
-					const auto *pOnline = GameClient()->m_AetherBadges.AetherOnlinePlayer(OnlineIndex);
-					if(pOnline && pOnline->m_aServerAddress[0] && str_comp(pOnline->m_aServerAddress, pItem->m_aAddress) == 0)
-					{
-						pAetherClientKey = pOnline->m_aClient;
-						break;
-					}
-				}
 				if(pItem->m_FriendState != IFriends::FRIEND_NO)
 				{
 					CUIRect HeartSlot = Button;
-					if(pAetherClientKey)
-						Button.VSplitLeft(Button.w * 0.48f, &HeartSlot, &Button);
-					RenderBrowserIcons(*pUiElement->Rect(UI_ELEM_FRIEND_ICON), &HeartSlot, ColorRGBA(0.94f, 0.4f, 0.4f, 1.0f), TextRender()->DefaultTextOutlineColor(), FontIcon::HEART, TEXTALIGN_MC);
+					RenderBrowserIcons(*pUiElement->Rect(UI_ELEM_FRIEND_ICON), &HeartSlot, ColorRGBA(0.94f, 0.4f, 0.4f, 1.0f), TextRender()->DefaultTextOutlineColor(), FontIcon::HEART, TEXTALIGN_MC, false, 16.0f);
 
 					if(pItem->m_FriendNum > 1)
 					{
 						str_format(aTemp, sizeof(aTemp), "%d", pItem->m_FriendNum);
 						TextRender()->TextColor(0.94f, 0.8f, 0.8f, 1.0f);
-						Ui()->DoLabel(&HeartSlot, aTemp, 9.0f, TEXTALIGN_MC);
+						Ui()->DoLabel(&HeartSlot, aTemp, 9.5f, TEXTALIGN_MC);
 						TextRender()->TextColor(TextRender()->DefaultTextColor());
 					}
 				}
-				if(pAetherClientKey)
+			}
+			else if(Id == COL_AETHER)
+			{
+				const char *pAetherClientKey = nullptr;
+				const int AetherPlayers = AetherPlayersOnServer(pItem, &pAetherClientKey);
+				if(pAetherClientKey && AetherPlayers > 0)
 				{
 					CUIRect IconSlot = Button;
-					IconSlot.Margin(2.0f, &IconSlot);
-					const float IconSize = minimum(IconSlot.w, IconSlot.h);
+					IconSlot.Margin(1.0f, &IconSlot);
+					const float IconSize = minimum(IconSlot.w, IconSlot.h) * 1.08f;
 					GameClient()->m_AetherBadges.RenderClientBadgeKey(pAetherClientKey, IconSlot.x + (IconSlot.w - IconSize) * 0.5f, IconSlot.y + (IconSlot.h - IconSize) * 0.5f, IconSize, 1.0f);
+					if(AetherPlayers > 1)
+					{
+						str_format(aTemp, sizeof(aTemp), "%d", AetherPlayers);
+						CUIRect Count = IconSlot;
+						Count.y -= 1.0f;
+						TextRender()->TextColor(0.95f, 0.80f, 1.0f, 1.0f);
+						Ui()->DoLabel(&Count, aTemp, 9.0f, TEXTALIGN_MC);
+						TextRender()->TextColor(TextRender()->DefaultTextColor());
+					}
 				}
 			}
 			else if(Id == COL_PLAYERS)
@@ -511,13 +564,14 @@ void CMenus::RenderServerbrowserServerList(CUIRect View, bool &WasListboxItemAct
 	}
 
 	const int NewSelected = s_ListBox.DoEnd();
-	if(NewSelected != m_SelectedIndex)
+	const int NewSortedIndex = NewSelected >= 0 ? (vServerDisplayOrder.empty() ? NewSelected : vServerDisplayOrder[NewSelected]) : -1;
+	if(NewSortedIndex != m_SelectedIndex)
 	{
-		m_SelectedIndex = NewSelected;
+		m_SelectedIndex = NewSortedIndex;
 		if(m_SelectedIndex >= 0)
 		{
 			// select the new server
-			const CServerInfo *pItem = ServerBrowser()->SortedGet(NewSelected);
+			const CServerInfo *pItem = ServerBrowser()->SortedGet(m_SelectedIndex);
 			if(pItem)
 			{
 				str_copy(g_Config.m_UiServerAddress, pItem->m_aAddress);
@@ -1347,6 +1401,18 @@ void CMenus::RenderServerbrowserInfoScoreboard(CUIRect View, const CServerInfo *
 	s_ListBox.SetScrollbarMargin(5.0f);
 	s_ListBox.DoStart(25.0f, pSelectedServer->m_NumReceivedClients, 1, 3, -1, &View, false, IGraphics::CORNER_NONE, true);
 
+	const auto AetherClientKeyForPlayer = [this, pSelectedServer](const char *pName) -> const char * {
+		if(!pName || !pName[0] || !pSelectedServer)
+			return nullptr;
+		for(int OnlineIndex = 0; OnlineIndex < GameClient()->m_AetherBadges.AetherOnlineCount(); ++OnlineIndex)
+		{
+			const auto *pOnline = GameClient()->m_AetherBadges.AetherOnlinePlayer(OnlineIndex);
+			if(pOnline && pOnline->m_aServerAddress[0] && pOnline->m_aName[0] && str_comp(pOnline->m_aServerAddress, pSelectedServer->m_aAddress) == 0 && str_comp(pOnline->m_aName, pName) == 0)
+				return pOnline->m_aClient;
+		}
+		return nullptr;
+	};
+
 	for(int i = 0; i < pSelectedServer->m_NumReceivedClients; i++)
 	{
 		const CServerInfo::CClient &CurrentClient = pSelectedServer->m_aClients[i];
@@ -1354,7 +1420,7 @@ void CMenus::RenderServerbrowserInfoScoreboard(CUIRect View, const CServerInfo *
 		if(!Item.m_Visible)
 			continue;
 
-		CUIRect Skin, Name, Clan, Score, Flag;
+		CUIRect Skin, AetherBadge, Name, Clan, Score, Flag;
 		Name = Item.m_Rect;
 
 		const ColorRGBA Color = PlayerBackgroundColor(CurrentClient.m_FriendState == IFriends::FRIEND_PLAYER, CurrentClient.m_FriendState == IFriends::FRIEND_CLAN, CurrentClient.m_Afk, false, false);
@@ -1362,6 +1428,7 @@ void CMenus::RenderServerbrowserInfoScoreboard(CUIRect View, const CServerInfo *
 		Name.VSplitLeft(1.0f, nullptr, &Name);
 		Name.VSplitLeft(34.0f, &Score, &Name);
 		Name.VSplitLeft(18.0f, &Skin, &Name);
+		Name.VSplitLeft(14.0f, &AetherBadge, &Name);
 		Name.VSplitRight(26.0f, &Name, &Flag);
 		Flag.HMargin(6.0f, &Flag);
 		Name.HSplitTop(12.0f, &Name, &Clan);
@@ -1431,6 +1498,13 @@ void CMenus::RenderServerbrowserInfoScoreboard(CUIRect View, const CServerInfo *
 			CRenderTools::GetRenderTeeOffsetToRenderedTee(pIdleState, &TeeInfo, OffsetToMid);
 			const vec2 TeeRenderPos = vec2(Skin.x + TeeInfo.m_Size / 2.0f, Skin.y + Skin.h / 2.0f + OffsetToMid.y);
 			RenderTools()->RenderTee(pIdleState, &TeeInfo, CurrentClient.m_Afk ? EMOTE_BLINK : EMOTE_NORMAL, vec2(1.0f, 0.0f), TeeRenderPos);
+		}
+
+		if(const char *pClientKey = AetherClientKeyForPlayer(CurrentClient.m_aName))
+		{
+			AetherBadge.Margin(1.0f, &AetherBadge);
+			const float IconSize = minimum(AetherBadge.w, AetherBadge.h);
+			GameClient()->m_AetherBadges.RenderClientBadgeKey(pClientKey, AetherBadge.x + (AetherBadge.w - IconSize) * 0.5f, AetherBadge.y + (AetherBadge.h - IconSize) * 0.5f, IconSize, 1.0f);
 		}
 
 		// name
@@ -1924,6 +1998,39 @@ void CMenus::RenderServerbrowserTabBar(CUIRect TabBar)
 
 	const ColorRGBA ColorActive = ColorRGBA(0.0f, 0.0f, 0.0f, 0.3f);
 	const ColorRGBA ColorInactive = ColorRGBA(0.0f, 0.0f, 0.0f, 0.15f);
+	const ColorRGBA ColorClientActive = ColorRGBA(0.56f, 0.24f, 0.68f, 0.52f);
+	const ColorRGBA ColorClientHover = ColorRGBA(0.66f, 0.34f, 0.78f, 0.45f);
+
+	static bool s_BrowserClientLogoLoaded = false;
+	static IGraphics::CTextureHandle s_BrowserClientLogoTexture;
+	if(!s_BrowserClientLogoLoaded)
+	{
+		s_BrowserClientLogoTexture = Graphics()->LoadTexture("core/logos/vera_icon_small_256.png", IStorage::TYPE_ALL);
+		if(!s_BrowserClientLogoTexture.IsValid())
+			s_BrowserClientLogoTexture = Graphics()->LoadTexture("aether/logos/vera_icon_small_256.png", IStorage::TYPE_ALL);
+		s_BrowserClientLogoLoaded = true;
+	}
+
+	auto RenderClientTabLogo = [&](const CUIRect &Tab) {
+		if(!s_BrowserClientLogoTexture.IsValid())
+			return;
+		CUIRect Icon = Tab;
+		Icon.Margin(5.0f, &Icon);
+		const float Size = minimum(Icon.w, Icon.h);
+		Icon.x += (Icon.w - Size) * 0.5f;
+		Icon.y += (Icon.h - Size) * 0.5f;
+		Icon.w = Size;
+		Icon.h = Size;
+		Graphics()->TextureSet(s_BrowserClientLogoTexture);
+		Graphics()->WrapClamp();
+		Graphics()->QuadsBegin();
+		Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f);
+		Graphics()->QuadsSetSubset(0, 0, 1, 1);
+		IGraphics::CQuadItem Quad(Icon.x, Icon.y, Icon.w, Icon.h);
+		Graphics()->QuadsDrawTL(&Quad, 1);
+		Graphics()->QuadsEnd();
+		Graphics()->WrapNormal();
+	};
 
 	if(!Ui()->IsPopupOpen() && Ui()->ConsumeHotkey(CUi::HOTKEY_TAB))
 	{
@@ -1934,6 +2041,7 @@ void CMenus::RenderServerbrowserTabBar(CUIRect TabBar)
 	TextRender()->SetFontPreset(EFontPreset::ICON_FONT);
 	TextRender()->SetRenderFlags(ETextRenderFlags::TEXT_RENDER_FLAG_ONLY_ADVANCE_WIDTH | ETextRenderFlags::TEXT_RENDER_FLAG_NO_X_BEARING | ETextRenderFlags::TEXT_RENDER_FLAG_NO_Y_BEARING | ETextRenderFlags::TEXT_RENDER_FLAG_NO_PIXEL_ALIGNMENT | ETextRenderFlags::TEXT_RENDER_FLAG_NO_OVERSIZE);
 
+	const bool BrowserLogoReady = s_BrowserClientLogoTexture.IsValid();
 	static CButtonContainer s_FilterTabButton;
 	if(DoButton_MenuTab(&s_FilterTabButton, FontIcon::LIST_UL, g_Config.m_UiToolboxPage == UI_TOOLBOX_PAGE_FILTERS, &FilterTabButton, IGraphics::CORNER_T, &m_aAnimatorsSmallPage[SMALL_TAB_BROWSER_FILTER], &ColorInactive, &ColorActive))
 	{
@@ -1956,11 +2064,13 @@ void CMenus::RenderServerbrowserTabBar(CUIRect TabBar)
 	GameClient()->m_Tooltips.DoToolTip(&s_FriendsTabButton, &FriendsTabButton, Localize("Friends"));
 
 	static CButtonContainer s_AetherTabButton;
-	if(DoButton_MenuTab(&s_AetherTabButton, FontIcon::NETWORK_WIRED, g_Config.m_UiToolboxPage == UI_TOOLBOX_PAGE_AETHER, &AetherTabButton, IGraphics::CORNER_T, &m_aAnimatorsSmallPage[SMALL_TAB_BROWSER_AETHER], &ColorInactive, &ColorActive))
+	if(DoButton_MenuTab(&s_AetherTabButton, BrowserLogoReady ? "" : FontIcon::NETWORK_WIRED, g_Config.m_UiToolboxPage == UI_TOOLBOX_PAGE_AETHER, &AetherTabButton, IGraphics::CORNER_T, &m_aAnimatorsSmallPage[SMALL_TAB_BROWSER_AETHER], &ColorInactive, &ColorClientActive, &ColorClientHover))
 	{
 		g_Config.m_UiToolboxPage = UI_TOOLBOX_PAGE_AETHER;
 		GameClient()->m_AetherBadges.RequestAetherOnline(true);
 	}
+	if(BrowserLogoReady)
+		RenderClientTabLogo(AetherTabButton);
 	GameClient()->m_Tooltips.DoToolTip(&s_AetherTabButton, &AetherTabButton, Localize("Aether players"));
 
 	TextRender()->SetRenderFlags(0);

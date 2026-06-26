@@ -2,9 +2,6 @@
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include "menus_start.h"
 
-#include "aether/client_variant.h"
-
-#include <base/process.h>
 #include <base/str.h>
 #include <base/system.h>
 
@@ -25,6 +22,7 @@
 #include <game/version.h>
 
 #include <algorithm>
+#include <cmath>
 
 #if defined(CONF_PLATFORM_ANDROID)
 #include <android/android_main.h>
@@ -51,70 +49,62 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 		return Graphics()->LoadTexture(aFallback, IStorage::TYPE_ALL);
 	};
 
+	const ColorRGBA VeraAccent(0.88f, 0.50f, 1.0f, 0.70f);
+	const ColorRGBA VeraAccentSoft(0.74f, 0.56f, 1.0f, 0.58f);
+	const float StartLogoBand = std::clamp(MainView.h * 0.22f, 94.0f, 150.0f);
+
 	// render logo
 	static bool s_AetherStartLogoLoaded = false;
 	static IGraphics::CTextureHandle s_AetherStartLogoTexture;
 	if(!s_AetherStartLogoLoaded)
 	{
-		s_AetherStartLogoTexture = LoadCoreTexture(AetherVariant::LogoLockupPath());
+		s_AetherStartLogoTexture = LoadCoreTexture("core/logos/aether_vera_big_1024.png");
 		s_AetherStartLogoLoaded = true;
 	}
-	Graphics()->TextureSet(s_AetherStartLogoTexture.IsValid() ? s_AetherStartLogoTexture : g_pData->m_aImages[IMAGE_BANNER].m_Id);
-	Graphics()->QuadsBegin();
-	Graphics()->SetColor(1, 1, 1, 1);
-	Graphics()->QuadsSetSubset(0, 0, 1, 1);
-	const float LogoW = s_AetherStartLogoTexture.IsValid() ? std::min(460.0f, MainView.w * 0.50f) : std::min(360.0f, MainView.w * 0.46f);
-	const float LogoH = s_AetherStartLogoTexture.IsValid() ? LogoW * 0.25f : 103.0f;
-	const float LogoY = s_AetherStartLogoTexture.IsValid() ? std::clamp(MainView.h * 0.055f, 18.0f, 34.0f) : std::clamp(MainView.h * 0.095f, 32.0f, 60.0f);
-	IGraphics::CQuadItem QuadItem(MainView.w / 2.0f - LogoW / 2.0f, LogoY, LogoW, LogoH);
-	Graphics()->QuadsDrawTL(&QuadItem, 1);
-	Graphics()->QuadsEnd();
-
 	const float Rounding = 16.0f;
-	const float VMargin = std::max(20.0f, MainView.w / 2 - 190.0f);
 	int NewPage = -1;
+	static int64_t s_StartIntroTime = 0;
+	if(s_StartIntroTime == 0)
+		s_StartIntroTime = time_get();
+	float IntroAlpha = 1.0f;
+	if(!(g_Config.m_AeOptimizer && g_Config.m_AeOptimizerDisableMenuAnimations))
+	{
+		const float IntroProgress = std::clamp((time_get() - s_StartIntroTime) / (float)time_freq(), 0.0f, 0.45f) / 0.45f;
+		IntroAlpha = IntroProgress * IntroProgress * (3.0f - 2.0f * IntroProgress);
+	}
 
-	auto DrawTexture = [&](IGraphics::CTextureHandle Texture, const CUIRect &Rect, float Alpha = 1.0f) {
-		if(!Texture.IsValid())
-			return;
-		Graphics()->TextureSet(Texture);
-		Graphics()->WrapClamp();
-		Graphics()->QuadsBegin();
-		Graphics()->SetColor(1.0f, 1.0f, 1.0f, Alpha);
-		Graphics()->QuadsSetSubset(0, 0, 1, 1);
-		IGraphics::CQuadItem Quad(Rect.x, Rect.y, Rect.w, Rect.h);
-		Graphics()->QuadsDrawTL(&Quad, 1);
-		Graphics()->QuadsEnd();
-		Graphics()->WrapNormal();
-	};
-	auto DrawTextureSquare = [&](IGraphics::CTextureHandle Texture, const CUIRect &Rect, float Alpha = 1.0f) {
-		CUIRect Draw = Rect;
-		const float Side = minimum(Draw.w, Draw.h);
-		Draw.x += (Draw.w - Side) * 0.5f;
-		Draw.y += (Draw.h - Side) * 0.5f;
-		Draw.w = Side;
-		Draw.h = Side;
-		DrawTexture(Texture, Draw, Alpha);
+	auto FadeColor = [&](ColorRGBA Color) {
+		Color.a *= IntroAlpha;
+		return Color;
 	};
 
 	auto DoModernCard = [&](CButtonContainer *pId, const char *pTitle, const char *pSubtitle, const char *pHotkey, CUIRect Rect, ColorRGBA Accent, bool Highlight = false) {
 		const bool Hot = Ui()->HotItem() == pId;
 		ColorRGBA Border = Hot ? Accent : ColorRGBA(1.0f, 1.0f, 1.0f, 0.08f);
-		Border.a *= Ui()->ButtonColorMul(pId);
+		Border.a *= Ui()->ButtonColorMul(pId) * IntroAlpha;
 		Rect.Draw(Border, IGraphics::CORNER_ALL, Rounding);
 
 		CUIRect Inner = Rect;
 		Inner.Margin(1.5f, &Inner);
-		ColorRGBA CardColor = Hot && Highlight ? ColorRGBA(0.08f, 0.20f, 0.30f, 0.78f) : ColorRGBA(0.01f, 0.02f, 0.04f, 0.62f);
-		CardColor.a *= Ui()->ButtonColorMul(pId);
+		ColorRGBA CardColor = Hot && Highlight ? ColorRGBA(0.17f, 0.08f, 0.22f, 0.78f) : ColorRGBA(0.01f, 0.02f, 0.04f, 0.62f);
+		CardColor.a *= Ui()->ButtonColorMul(pId) * IntroAlpha;
 		Inner.Draw(CardColor, IGraphics::CORNER_ALL, Rounding - 1.5f);
+		if(Hot)
+		{
+			CUIRect Glow = Inner;
+			Glow.Margin(3.0f, &Glow);
+			Glow.Draw(FadeColor(ColorRGBA(0.96f, 0.50f, 1.0f, Highlight ? 0.13f : 0.085f)), IGraphics::CORNER_ALL, Rounding - 4.0f);
+			CUIRect EdgeGlow = Glow;
+			EdgeGlow.HSplitTop(Glow.h * 0.34f, &EdgeGlow, nullptr);
+			EdgeGlow.Draw(FadeColor(ColorRGBA(1.0f, 0.74f, 1.0f, 0.055f)), IGraphics::CORNER_T, Rounding - 4.0f);
+		}
 
 		CUIRect Text = Inner;
 		Text.Margin(12.0f, &Text);
 		CUIRect Hotkey, Title, Subtitle;
 		Text.VSplitRight(42.0f, &Text, &Hotkey);
 		Hotkey.HSplitTop(23.0f, &Hotkey, nullptr);
-		Hotkey.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, 0.08f), IGraphics::CORNER_ALL, 8.0f);
+		Hotkey.Draw(FadeColor(ColorRGBA(1.0f, 1.0f, 1.0f, 0.08f)), IGraphics::CORNER_ALL, 8.0f);
 		Ui()->DoLabel(&Hotkey, pHotkey, 11.0f, TEXTALIGN_MC);
 
 		const bool ShowSubtitle = Rect.h >= 68.0f && Text.w >= 150.0f;
@@ -126,66 +116,49 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 		return Ui()->DoButtonLogic(pId, 0, &Rect, BUTTONFLAG_LEFT);
 	};
 
-	auto DoCompactButton = [&](CButtonContainer *pId, const char *pText, CUIRect Rect, ColorRGBA Accent) {
+	auto DoCompactButton = [&](CButtonContainer *pId, const char *pText, CUIRect Rect, ColorRGBA Accent, ColorRGBA Base = ColorRGBA(1.0f, 1.0f, 1.0f, 0.045f), ColorRGBA TextColor = ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f)) {
 		const bool Hot = Ui()->HotItem() == pId;
-		Rect.Draw(Hot ? Accent : ColorRGBA(1.0f, 1.0f, 1.0f, 0.08f), IGraphics::CORNER_ALL, 12.0f);
+		Rect.Draw(FadeColor(Hot ? Accent : Base), IGraphics::CORNER_ALL, 12.0f);
 		CUIRect Inner = Rect;
 		Inner.Margin(1.5f, &Inner);
-		Inner.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.44f), IGraphics::CORNER_ALL, 10.5f);
+		Inner.Draw(FadeColor(ColorRGBA(0.01f, 0.02f, 0.04f, 0.62f)), IGraphics::CORNER_ALL, 10.5f);
+		TextRender()->TextColor(TextColor);
 		Ui()->DoLabel(&Inner, pText, 16.0f, TEXTALIGN_MC);
+		TextRender()->TextColor(TextRender()->DefaultTextColor());
 		return Ui()->DoButtonLogic(pId, 0, &Rect, BUTTONFLAG_LEFT);
-	};
-
-	static bool s_EcosystemTexturesLoaded = false;
-	static IGraphics::CTextureHandle s_aEcosystemTextures[4];
-	if(!s_EcosystemTexturesLoaded)
-	{
-		for(int i = 0; i < 4; ++i)
-			s_aEcosystemTextures[i] = LoadCoreTexture(AetherVariant::IconPath(i));
-		s_EcosystemTexturesLoaded = true;
-	}
-	const char *apEcosystemNames[] = {"Aether", "Vera", "Via", "Vex"};
-	const char *apEcosystemDescriptions[] = {"All-in-one", "Gores", "DDRace", "Block"};
-	auto SwitchToClient = [&](int Index) {
-		char aPath[IO_MAX_PATH_LENGTH];
-		Storage()->GetBinaryPathAbsolute(AetherVariant::ExecutableName(Index), aPath, sizeof(aPath));
-		if(process_execute(aPath, EShellExecuteWindowState::FOREGROUND) == INVALID_PROCESS)
-		{
-			char aMsg[128];
-			str_format(aMsg, sizeof(aMsg), "Client executable not found: %s", AetherVariant::ExecutableName(Index));
-			GameClient()->Echo(aMsg);
-		}
-		else
-			Client()->Quit();
 	};
 
 	CUIRect Content = MainView;
 	const float OuterMargin = std::clamp(MainView.w * 0.03f, 14.0f, 34.0f);
 	Content.Margin(OuterMargin, &Content);
-	Content.HSplitTop(std::clamp(MainView.h * 0.24f, 86.0f, 158.0f), nullptr, &Content);
+	Content.HSplitTop(StartLogoBand, nullptr, &Content);
 	Content.HSplitBottom(std::clamp(MainView.h * 0.07f, 28.0f, 54.0f), &Content, nullptr);
 
-	CUIRect EcosystemPanel;
 	CUIRect Cluster = Content;
-	const bool ShowEcosystem = Content.w >= 900.0f;
-	const float ClusterWidth = std::min(Content.w, ShowEcosystem ? 1040.0f : 680.0f);
-	const float ClusterHeight = std::min(Content.h, ShowEcosystem ? 430.0f : 500.0f);
+	const float ClusterWidth = std::min(Content.w, 720.0f);
+	const float ClusterHeight = std::min(Content.h, 500.0f);
 	Cluster.VMargin(std::max(0.0f, (Cluster.w - ClusterWidth) * 0.5f), &Cluster);
 	Cluster.HMargin(std::max(0.0f, (Cluster.h - ClusterHeight) * 0.5f), &Cluster);
 
 	CUIRect MainPanel = Cluster;
-	if(ShowEcosystem)
+
+	if(s_AetherStartLogoTexture.IsValid())
 	{
-		Cluster.VSplitRight(210.0f, &MainPanel, &EcosystemPanel);
-		MainPanel.VSplitRight(14.0f, &MainPanel, nullptr);
-	}
-	else
-	{
-		Cluster.HSplitBottom(62.0f, &MainPanel, &EcosystemPanel);
-		EcosystemPanel.HSplitTop(10.0f, nullptr, &EcosystemPanel);
+		const float LogoAspect = 256.0f / 1024.0f;
+		const float LogoW = std::min({455.0f, MainView.w * 0.38f, MainPanel.w * 0.56f});
+		const float LogoH = LogoW * LogoAspect;
+		const float LogoGap = std::clamp(MainView.h * 0.004f, 2.0f, 6.0f);
+		const float LogoY = std::max(8.0f, MainPanel.y - LogoH - LogoGap);
+		Graphics()->TextureSet(s_AetherStartLogoTexture);
+		Graphics()->QuadsBegin();
+		Graphics()->SetColor(1, 1, 1, IntroAlpha);
+		Graphics()->QuadsSetSubset(0, 0, 1, 1);
+		IGraphics::CQuadItem QuadItem(MainView.w / 2.0f - LogoW / 2.0f, LogoY, LogoW, LogoH);
+		Graphics()->QuadsDrawTL(&QuadItem, 1);
+		Graphics()->QuadsEnd();
 	}
 
-	MainPanel.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.20f), IGraphics::CORNER_ALL, 22.0f);
+	MainPanel.Draw(FadeColor(ColorRGBA(0.0f, 0.0f, 0.0f, 0.20f)), IGraphics::CORNER_ALL, 22.0f);
 	CUIRect MainInner = MainPanel;
 	MainInner.Margin(18.0f, &MainInner);
 
@@ -202,8 +175,11 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 	HeaderTitle.VSplitRight(std::min(360.0f, HeaderTitle.w * 0.55f), &HeaderTitle, &UpdateArea);
 	UpdateArea.VSplitLeft(14.0f, nullptr, &UpdateArea);
 #endif
-	Ui()->DoLabel(&HeaderTitle, "Aether Client", 19.0f, TEXTALIGN_ML, {.m_MaxWidth = HeaderTitle.w});
-
+	char aVersionBuf[64];
+	str_format(aVersionBuf, sizeof(aVersionBuf), "v%s", CLIENT_RELEASE_VERSION);
+	SLabelProperties VersionLabelProps;
+	VersionLabelProps.SetColor(ColorRGBA(0.92f, 0.78f, 1.0f, 1.0f));
+	Ui()->DoLabel(&HeaderTitle, aVersionBuf, 11.0f, TEXTALIGN_ML, VersionLabelProps);
 #if defined(CONF_AUTOUPDATE)
 	{
 		CUIRect UpdateStatus, UpdateButton;
@@ -217,11 +193,11 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 
 		const char *pButtonLabel = "Update";
 		if(UpdateState == IUpdater::GETTING_MANIFEST)
-			pButtonLabel = "Checking...";
+			pButtonLabel = "Checking";
 		else if(UpdateState == IUpdater::DOWNLOADING)
-			pButtonLabel = "Updating...";
+			pButtonLabel = "Updating";
 		else if(UpdateState == IUpdater::NEED_RESTART)
-			pButtonLabel = "Update";
+			pButtonLabel = "Restart";
 		else if(UpdateState == IUpdater::FAIL)
 			pButtonLabel = "Retry";
 
@@ -236,18 +212,20 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 
 		char aBuf[96];
 		if(UpdateState == IUpdater::DOWNLOADING)
-			str_format(aBuf, sizeof(aBuf), "%s %d%%", "New Update", Percent);
+			str_format(aBuf, sizeof(aBuf), "Downloading %d%%", Percent);
 		else if(UpdateState == IUpdater::GETTING_MANIFEST)
-			str_format(aBuf, sizeof(aBuf), "%s", aStatus[0] ? aStatus : "Checking latest release");
-		else if(UpdateState == IUpdater::UPDATE_AVAILABLE || UpdateState == IUpdater::NEED_RESTART)
+			str_format(aBuf, sizeof(aBuf), "%s", "Checking");
+		else if(UpdateState == IUpdater::UPDATE_AVAILABLE)
 			str_format(aBuf, sizeof(aBuf), "%s", "New Update");
+		else if(UpdateState == IUpdater::NEED_RESTART)
+			str_format(aBuf, sizeof(aBuf), "%s", "Restart to finish");
 		else if(UpdateState == IUpdater::FAIL)
 			str_format(aBuf, sizeof(aBuf), "%s", aStatus[0] ? aStatus : "Update failed");
 		else
-			str_format(aBuf, sizeof(aBuf), "%s", aStatus[0] ? aStatus : "Checking latest release");
+			str_format(aBuf, sizeof(aBuf), "%s", aStatus[0] ? aStatus : "Latest");
 		SLabelProperties UpdateLabelProps;
 		const bool ShowUpdateAlert = UpdateState == IUpdater::UPDATE_AVAILABLE || UpdateState == IUpdater::DOWNLOADING || UpdateState == IUpdater::NEED_RESTART || UpdateState == IUpdater::FAIL;
-		UpdateLabelProps.SetColor(ShowUpdateAlert ? ColorRGBA(1.0f, 0.45f, 0.45f, 1.0f) : ColorRGBA(0.75f, 0.88f, 1.0f, 1.0f));
+		UpdateLabelProps.SetColor(ShowUpdateAlert ? ColorRGBA(1.0f, 0.45f, 0.45f, 1.0f) : ColorRGBA(0.92f, 0.78f, 1.0f, 1.0f));
 		Ui()->DoLabel(&UpdateStatus, aBuf, 11.0f, TEXTALIGN_MR, UpdateLabelProps);
 	}
 #endif
@@ -281,16 +259,16 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 		BottomRow.VSplitMid(&EditorCard, &SettingsCard, 6.0f);
 	}
 
-	if(DoModernCard(&s_PlayCard, Localize("Play", "Start menu"), Localize("Browse servers and jump in."), "P", PlayCard, ColorRGBA(0.28f, 0.72f, 1.0f, 0.70f), true) || Ui()->ConsumeHotkey(CUi::HOTKEY_ENTER) || CheckHotKey(KEY_P))
+	if(DoModernCard(&s_PlayCard, Localize("Play", "Start menu"), Localize("Browse servers and jump in."), "P", PlayCard, VeraAccent, true) || Ui()->ConsumeHotkey(CUi::HOTKEY_ENTER) || CheckHotKey(KEY_P))
 		NewPage = g_Config.m_UiPage >= CMenus::PAGE_INTERNET && g_Config.m_UiPage <= CMenus::PAGE_FAVORITE_COMMUNITY_5 ? g_Config.m_UiPage : CMenus::PAGE_INTERNET;
-	if(DoModernCard(&s_DemoCard, Localize("Demos"), Localize("Watch, trim and render demos."), "D", DemoCard, ColorRGBA(0.74f, 0.54f, 1.0f, 0.56f)) || CheckHotKey(KEY_D))
+	if(DoModernCard(&s_DemoCard, Localize("Demos"), Localize("Watch, trim and render demos."), "D", DemoCard, VeraAccentSoft) || CheckHotKey(KEY_D))
 		NewPage = CMenus::PAGE_DEMOS;
-	if(DoModernCard(&s_EditorCard, Localize("Editor"), Localize("Create and edit maps."), "E", EditorCard, ColorRGBA(0.38f, 1.0f, 0.70f, 0.52f), GameClient()->Editor()->HasUnsavedData()) || CheckHotKey(KEY_E))
+	if(DoModernCard(&s_EditorCard, Localize("Editor"), Localize("Create and edit maps."), "E", EditorCard, ColorRGBA(0.96f, 0.58f, 1.0f, 0.50f), GameClient()->Editor()->HasUnsavedData()) || CheckHotKey(KEY_E))
 	{
 		g_Config.m_ClEditor = 1;
 		Input()->MouseModeRelative();
 	}
-	if(DoModernCard(&s_SettingsCard, Localize("Settings"), Localize("Tune DDNet, TClient and Aether."), "S", SettingsCard, ColorRGBA(1.0f, 0.78f, 0.32f, 0.55f)) || CheckHotKey(KEY_S))
+	if(DoModernCard(&s_SettingsCard, Localize("Settings"), Localize("Tune DDNet, TClient and Aether."), "S", SettingsCard, ColorRGBA(0.72f, 0.48f, 1.0f, 0.56f)) || CheckHotKey(KEY_S))
 		NewPage = CMenus::PAGE_SETTINGS;
 
 	CUIRect ServerButton, QuitButton;
@@ -298,7 +276,7 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 	static CButtonContainer s_LocalServerButton;
 	static CButtonContainer s_QuitButton;
 	const bool LocalServerRunning = GameClient()->m_LocalServer.IsServerRunning();
-	if(DoCompactButton(&s_LocalServerButton, LocalServerRunning ? Localize("Stop server") : Localize("Run server"), ServerButton, LocalServerRunning ? ColorRGBA(0.25f, 1.0f, 0.45f, 0.35f) : ColorRGBA(1.0f, 1.0f, 1.0f, 0.12f)) || (CheckHotKey(KEY_R) && Input()->KeyPress(KEY_R)))
+	if(DoCompactButton(&s_LocalServerButton, LocalServerRunning ? Localize("Stop server") : Localize("Run server"), ServerButton, LocalServerRunning ? ColorRGBA(0.42f, 1.0f, 0.72f, 0.24f) : ColorRGBA(0.40f, 0.96f, 0.72f, 0.20f)) || (CheckHotKey(KEY_R) && Input()->KeyPress(KEY_R)))
 	{
 		if(LocalServerRunning)
 			GameClient()->m_LocalServer.KillServer();
@@ -309,82 +287,13 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 		}
 	}
 	bool UsedEscape = false;
-	if(DoCompactButton(&s_QuitButton, Localize("Quit"), QuitButton, ColorRGBA(1.0f, 0.32f, 0.32f, 0.28f)) || (UsedEscape = Ui()->ConsumeHotkey(CUi::HOTKEY_ESCAPE)) || CheckHotKey(KEY_Q))
+	if(DoCompactButton(&s_QuitButton, Localize("Quit"), QuitButton, ColorRGBA(1.0f, 0.32f, 0.32f, 0.18f), ColorRGBA(1.0f, 1.0f, 1.0f, 0.045f)) || (UsedEscape = Ui()->ConsumeHotkey(CUi::HOTKEY_ESCAPE)) || CheckHotKey(KEY_Q))
 	{
 		if(UsedEscape || GameClient()->Editor()->HasUnsavedData() || (GameClient()->CurrentRaceTime() / 60 >= g_Config.m_ClConfirmQuitTime && g_Config.m_ClConfirmQuitTime >= 0))
 			GameClient()->m_Menus.ShowQuitPopup();
 		else
 			Client()->Quit();
 	}
-
-	if(ShowEcosystem && EcosystemPanel.w > 1.0f)
-	{
-		EcosystemPanel.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.20f), IGraphics::CORNER_ALL, 22.0f);
-		CUIRect Header;
-		EcosystemPanel.Margin(14.0f, &EcosystemPanel);
-		EcosystemPanel.HSplitTop(32.0f, &Header, &EcosystemPanel);
-		Ui()->DoLabel(&Header, "Ecosystem", 17.0f, TEXTALIGN_ML);
-		static CButtonContainer s_aClientSwitchButtons[4];
-		for(int i = 0; i < 4; ++i)
-		{
-			CUIRect Card;
-			EcosystemPanel.HSplitTop(54.0f, &Card, &EcosystemPanel);
-			EcosystemPanel.HSplitTop(10.0f, nullptr, &EcosystemPanel);
-			const bool Active = i == AetherVariant::Index();
-			Card.Draw(Active ? ColorRGBA(0.12f, 0.30f, 0.42f, 0.58f) : ColorRGBA(0.0f, 0.0f, 0.0f, 0.30f), IGraphics::CORNER_ALL, 12.0f);
-			CUIRect Icon, Text, Title, Description, Tag;
-			Card.Margin(8.0f, &Card);
-			Card.VSplitLeft(40.0f, &Icon, &Text);
-			DrawTextureSquare(s_aEcosystemTextures[i], Icon, Active ? 1.0f : 0.36f);
-			Text.VSplitLeft(8.0f, nullptr, &Text);
-			Text.HSplitTop(20.0f, &Title, &Description);
-			Ui()->DoLabel(&Title, apEcosystemNames[i], 14.0f, TEXTALIGN_ML);
-			if(Active)
-				Ui()->DoLabel(&Description, apEcosystemDescriptions[i], 10.0f, TEXTALIGN_ML);
-			else
-			{
-				Description.VSplitRight(76.0f, &Description, &Tag);
-				Ui()->DoLabel(&Description, apEcosystemDescriptions[i], 10.0f, TEXTALIGN_ML);
-				Tag.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, 0.10f), IGraphics::CORNER_ALL, 6.0f);
-				Ui()->DoLabel(&Tag, "Open", 9.0f, TEXTALIGN_MC);
-			}
-			if(!Active && Ui()->DoButtonLogic(&s_aClientSwitchButtons[i], 0, &Card, BUTTONFLAG_LEFT))
-				SwitchToClient(i);
-		}
-	}
-	else if(EcosystemPanel.w > 1.0f)
-	{
-		static CButtonContainer s_aCompactClientSwitchButtons[4];
-		EcosystemPanel.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.20f), IGraphics::CORNER_ALL, 16.0f);
-		EcosystemPanel.Margin(8.0f, &EcosystemPanel);
-		const float Gap = 8.0f;
-		const float CardW = (EcosystemPanel.w - Gap * 3.0f) / 4.0f;
-		for(int i = 0; i < 4; ++i)
-		{
-			CUIRect Card;
-			EcosystemPanel.VSplitLeft(CardW, &Card, &EcosystemPanel);
-			if(i < 3)
-				EcosystemPanel.VSplitLeft(Gap, nullptr, &EcosystemPanel);
-			const bool Active = i == AetherVariant::Index();
-			const bool Hot = Ui()->HotItem() == &s_aCompactClientSwitchButtons[i];
-			Card.Draw(Active ? ColorRGBA(0.12f, 0.30f, 0.42f, 0.62f) : Hot ? ColorRGBA(1.0f, 1.0f, 1.0f, 0.16f) : ColorRGBA(0.0f, 0.0f, 0.0f, 0.32f), IGraphics::CORNER_ALL, 10.0f);
-			CUIRect Icon, Text;
-			Card.Margin(7.0f, &Card);
-			Card.VSplitLeft(34.0f, &Icon, &Text);
-			DrawTextureSquare(s_aEcosystemTextures[i], Icon, Active ? 1.0f : 0.45f);
-			Text.VSplitLeft(7.0f, nullptr, &Text);
-			Ui()->DoLabel(&Text, apEcosystemNames[i], 12.0f, TEXTALIGN_ML);
-			if(!Active && Ui()->DoButtonLogic(&s_aCompactClientSwitchButtons[i], 0, &Card, BUTTONFLAG_LEFT))
-				SwitchToClient(i);
-		}
-	}
-
-	CUIRect TClientVersion;
-	MainView.HSplitTop(15.0f, &TClientVersion, &MainView);
-	TClientVersion.VSplitRight(40.0f, &TClientVersion, nullptr);
-	char aTBuf[64];
-	str_format(aTBuf, sizeof(aTBuf), "v%s", CLIENT_RELEASE_VERSION);
-	Ui()->DoLabel(&TClientVersion, aTBuf, 14.0f, TEXTALIGN_MR);
 
 	if(NewPage != -1)
 	{

@@ -648,6 +648,7 @@ protected:
 
 public:
 	void RenderBackground();
+	void RenderAetherAnimatedBackdrop(const CUIRect &View);
 
 	CMenus();
 	int Sizeof() const override { return sizeof(*this); }

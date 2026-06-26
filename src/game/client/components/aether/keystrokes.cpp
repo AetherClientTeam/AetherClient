@@ -206,7 +206,7 @@ void CAetherKeystrokes::OnRender()
 	const float Gap = 2.0f * Scale;
 	m_LastRect = PanelRect();
 
-	const char *pJumpLabel = g_Config.m_AeKeystrokesJumpLabel == 0 ? "Jump" : (g_Config.m_AeKeystrokesJumpLabel == 2 ? "Space" : "--");
+	const char *pJumpLabel = "--";
 	if(g_Config.m_AeKeystrokesHorizontal)
 	{
 		float x = m_LastRect.x;

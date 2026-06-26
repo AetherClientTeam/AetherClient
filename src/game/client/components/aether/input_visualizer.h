@@ -52,6 +52,8 @@ class CAetherInputVisualizer : public CComponent
 	std::deque<SSegment> m_vSegments;
 	int m_SourceKey = -1;
 	double m_FrozenClock = 0.0;
+	bool m_PauseActive = false;
+	double m_PauseNow = 0.0;
 
 	float PanelScale() const;
 	CUIRect PanelRect() const;
@@ -61,6 +63,7 @@ class CAetherInputVisualizer : public CComponent
 	void ApplyCenterSnap(float ScreenWidth, float ScreenHeight, float PanelWidth, float PanelHeight);
 	void SetScaleKeepingCenter(int NewScale, vec2 Center);
 	void ClearLaneHistory();
+	void ShiftLaneHistory(double Delta);
 	double TimelineNow(bool WantRemote, bool WantDemoReplay) const;
 	bool WantsRemoteInput() const;
 	bool WantsDemoReplayInput() const;

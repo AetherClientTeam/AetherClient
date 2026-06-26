@@ -19,6 +19,14 @@
 #include <algorithm>
 #include <cmath>
 
+namespace
+{
+constexpr int AETHER_STABILITY_AVERAGE_TICKS = 12;
+constexpr int AETHER_STABILITY_BAR_GLIDE = 8;
+constexpr int AETHER_STABILITY_MIN_SPEED = 600;
+constexpr int AETHER_STABILITY_VELOCITY_SCALE = 800;
+} // namespace
+
 bool CAetherStabilityTrainer::IsLocalClientId(int ClientId) const
 {
 	if(ClientId == GameClient()->m_aLocalIds[0])
@@ -59,7 +67,7 @@ void CAetherStabilityTrainer::ResetState()
 float CAetherStabilityTrainer::BarTarget(vec2 Vel, int TrackId, bool *pWarnOut) const
 {
 	const float Speed = length(Vel);
-	const float MinSpeed = g_Config.m_AeStabilityTrainerMinSpeed / 100.0f;
+	const float MinSpeed = AETHER_STABILITY_MIN_SPEED / 100.0f;
 	float ActiveWeight = 1.0f;
 	if(MinSpeed > 0.001f && Speed < MinSpeed)
 		ActiveWeight = Speed / MinSpeed;
@@ -73,7 +81,7 @@ float CAetherStabilityTrainer::BarTarget(vec2 Vel, int TrackId, bool *pWarnOut) 
 	if(pWarnOut)
 		*pWarnOut = Ambiguous;
 
-	const float Reference = maximum(0.05f, g_Config.m_AeStabilityTrainerVelocityScale / 100.0f);
+	const float Reference = maximum(0.05f, AETHER_STABILITY_VELOCITY_SCALE / 100.0f);
 	const float Instant = 0.5f + 0.5f * std::clamp(Vel.x / Reference, -1.0f, 1.0f);
 	return Instant * ActiveWeight + 0.5f * (1.0f - ActiveWeight);
 }
@@ -81,7 +89,7 @@ float CAetherStabilityTrainer::BarTarget(vec2 Vel, int TrackId, bool *pWarnOut) 
 float CAetherStabilityTrainer::Quality(vec2 Vel, int TrackId, bool *pWarnOut) const
 {
 	const float Speed = length(Vel);
-	const float MinSpeed = g_Config.m_AeStabilityTrainerMinSpeed / 100.0f;
+	const float MinSpeed = AETHER_STABILITY_MIN_SPEED / 100.0f;
 	float ActiveWeight = 1.0f;
 	if(MinSpeed > 0.001f && Speed < MinSpeed)
 		ActiveWeight = Speed / MinSpeed;
@@ -95,7 +103,7 @@ float CAetherStabilityTrainer::Quality(vec2 Vel, int TrackId, bool *pWarnOut) co
 	if(pWarnOut)
 		*pWarnOut = Ambiguous;
 
-	const float Reference = maximum(0.05f, g_Config.m_AeStabilityTrainerVelocityScale / 100.0f);
+	const float Reference = maximum(0.05f, AETHER_STABILITY_VELOCITY_SCALE / 100.0f);
 	const float Instant = 1.0f - std::clamp(std::abs(Vel.x) / Reference, 0.0f, 1.0f);
 	const float Blended = std::clamp(Instant * ActiveWeight + 1.0f * (1.0f - ActiveWeight), 0.0f, 1.0f);
 	return Ambiguous ? Blended * 0.25f : Blended;
@@ -223,7 +231,7 @@ void CAetherStabilityTrainer::UpdateState()
 	bool Warn = false;
 	const float Instant = Quality(Vel, TrackId, &Warn);
 	m_WarnAmbiguous = Warn;
-	const float Alpha = minimum(1.0f, 1.0f / (float)maximum(1, g_Config.m_AeStabilityTrainerAverageTicks));
+	const float Alpha = minimum(1.0f, 1.0f / (float)maximum(1, AETHER_STABILITY_AVERAGE_TICKS));
 	m_RollingQuality = m_RollingQuality * (1.0f - Alpha) + Instant * Alpha;
 }
 
@@ -258,7 +266,7 @@ void CAetherStabilityTrainer::RenderPanel(bool ForcePreview)
 		const vec2 Vel = ResolveVelocity(TrackId);
 		TargetBar = BarTarget(Vel, TrackId, &Warn);
 		QualityNow = Quality(Vel, TrackId, nullptr);
-		const float Rate = 5.0f + std::clamp(g_Config.m_AeStabilityTrainerBarGlide / 100.0f, 0.08f, 1.0f) * 58.0f;
+		const float Rate = 5.0f + std::clamp(AETHER_STABILITY_BAR_GLIDE / 100.0f, 0.08f, 1.0f) * 58.0f;
 		const float Alpha = minimum(1.0f, maximum(Client()->RenderFrameTime(), 0.00005f) * Rate);
 		m_SmoothBar += (TargetBar - m_SmoothBar) * Alpha;
 		if(std::fabs(TargetBar - m_SmoothBar) < 0.0005f)

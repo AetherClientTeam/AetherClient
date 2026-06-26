@@ -41,7 +41,7 @@ struct SBadgeIconDef
 };
 
 constexpr std::array<SBadgeIconDef, 7> BADGE_ICON_DEFS = {{
-	{"client_aether", "core/logos/aether_icon_small_256.png"},
+	{"client_aether", "core/logos/vera_icon_small_256.png"},
 	{"client_vera", "core/logos/vera_icon_small_256.png"},
 	{"client_via", "core/logos/via_icon_small_256.png"},
 	{"client_vex", "core/logos/vex_icon_small_256.png"},
@@ -53,7 +53,7 @@ constexpr std::array<SBadgeIconDef, 7> BADGE_ICON_DEFS = {{
 const char *BadgeShortLabel(const char *pKey, const char *pName)
 {
 	if(str_comp(pKey, "client_aether") == 0)
-		return "A";
+		return "Vera";
 	if(str_comp(pKey, "client_vera") == 0)
 		return "Vera";
 	if(str_comp(pKey, "client_via") == 0)

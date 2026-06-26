@@ -17,30 +17,14 @@
 
 typedef enum EDiscordResult(DISCORD_API *FDiscordCreate)(DiscordVersion, struct DiscordCreateParams *, struct IDiscordCore **);
 
-#ifndef AETHER_CLIENT_VARIANT
-#define AETHER_CLIENT_VARIANT "aether"
-#endif
-
-const char *AetherDiscordVariantName()
+const char *AetherDiscordClientName()
 {
-	if(str_comp(AETHER_CLIENT_VARIANT, "vera") == 0)
-		return "Vera";
-	if(str_comp(AETHER_CLIENT_VARIANT, "via") == 0)
-		return "Via";
-	if(str_comp(AETHER_CLIENT_VARIANT, "vex") == 0)
-		return "Vex";
-	return "Aether";
+	return "Aether Client";
 }
 
 const char *AetherDiscordLargeImage()
 {
-	if(str_comp(AETHER_CLIENT_VARIANT, "vera") == 0)
-		return "vera_1024";
-	if(str_comp(AETHER_CLIENT_VARIANT, "via") == 0)
-		return "via_1024";
-	if(str_comp(AETHER_CLIENT_VARIANT, "vex") == 0)
-		return "vex_1024";
-	return "aether_1024";
+	return "vera_1024";
 }
 
 #if defined(CONF_DISCORD_DYNAMIC)
@@ -152,10 +136,10 @@ public:
 		mem_zero(&m_Activity, sizeof(DiscordActivity));
 
 		str_copy(m_Activity.assets.large_image, AetherDiscordLargeImage(), sizeof(m_Activity.assets.large_image));
-		str_format(m_Activity.assets.large_text, sizeof(m_Activity.assets.large_text), "Aether Client - %s", AetherDiscordVariantName());
+		str_copy(m_Activity.assets.large_text, AetherDiscordClientName(), sizeof(m_Activity.assets.large_text));
 		m_Activity.timestamps.start = time_timestamp();
 		str_copy(m_Activity.details, "In menus", sizeof(m_Activity.details));
-		str_format(m_Activity.state, sizeof(m_Activity.state), "Client: %s", AetherDiscordVariantName());
+		str_copy(m_Activity.state, AetherDiscordClientName(), sizeof(m_Activity.state));
 		m_Activity.instance = false;
 
 		m_UpdateActivity = true;
@@ -167,13 +151,13 @@ public:
 		mem_zero(&m_Activity, sizeof(DiscordActivity));
 
 		str_copy(m_Activity.assets.large_image, AetherDiscordLargeImage(), sizeof(m_Activity.assets.large_image));
-		str_format(m_Activity.assets.large_text, sizeof(m_Activity.assets.large_text), "Aether Client - %s", AetherDiscordVariantName());
+		str_copy(m_Activity.assets.large_text, AetherDiscordClientName(), sizeof(m_Activity.assets.large_text));
 		m_Activity.timestamps.start = time_timestamp();
-		str_copy(m_Activity.name, "Aether Client", sizeof(m_Activity.name));
+		str_copy(m_Activity.name, AetherDiscordClientName(), sizeof(m_Activity.name));
 		m_Activity.instance = false;
 
 		str_format(m_Activity.details, sizeof(m_Activity.details), "Map: %s", ServerInfo.m_aMap);
-		str_format(m_Activity.state, sizeof(m_Activity.state), "Client: %s", AetherDiscordVariantName());
+		str_copy(m_Activity.state, AetherDiscordClientName(), sizeof(m_Activity.state));
 
 		m_UpdateActivity = true;
 	}
@@ -183,13 +167,13 @@ public:
 		if(!m_Activity.instance)
 		{
 			str_format(m_Activity.details, sizeof(m_Activity.details), "Map: %s", ServerInfo.m_aMap);
-			str_format(m_Activity.state, sizeof(m_Activity.state), "Client: %s", AetherDiscordVariantName());
+			str_copy(m_Activity.state, AetherDiscordClientName(), sizeof(m_Activity.state));
 			m_UpdateActivity = true;
 			return;
 		}
 
 		str_format(m_Activity.details, sizeof(m_Activity.details), "Map: %s", ServerInfo.m_aMap);
-		str_format(m_Activity.state, sizeof(m_Activity.state), "Client: %s", AetherDiscordVariantName());
+		str_copy(m_Activity.state, AetherDiscordClientName(), sizeof(m_Activity.state));
 		m_UpdateActivity = true;
 	}
 

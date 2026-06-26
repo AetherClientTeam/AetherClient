@@ -89,7 +89,7 @@ inline const char *LogoLockupPath()
 		return "core/logos/via_lockup_1024.png";
 	if(IsVex())
 		return "core/logos/vex_lockup_1024.png";
-	return "core/logos/aether_lockup_1024.png";
+	return "core/logos/vera_lockup_1024.png";
 }
 
 inline const char *IconPath(int Index)

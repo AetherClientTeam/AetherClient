@@ -2651,3 +2651,120 @@ When a Tee is hookable
 [Hook collision line color]
 Hook collision line tip
 == Kanca çizgisi ucu
+
+Aether Settings
+== Aether Ayarları
+
+Search features and settings...
+== Özellik ve ayar ara...
+
+Only enabled
+== Sadece açık olanlar
+
+Visuals
+== Görseller
+
+VISUALS
+== GÖRSELLER
+
+Gameplay
+== Oynanış
+
+GAMEPLAY
+== OYNANIŞ
+
+Tools
+== Araçlar
+
+TOOLS
+== ARAÇLAR
+
+EDITORS
+== EDİTÖRLER
+
+Assets
+== Assetler
+
+Games
+== Oyunlar
+
+Info
+== Bilgi
+
+Gradient Effects
+== Gradient Efektleri
+
+Music Player
+== Müzik Çalar
+
+Dynamic cover color
+== Kapak rengine uyarla
+
+Background color
+== Arka plan rengi
+
+Panel opacity
+== Panel opaklığı
+
+Visualizer
+== Görselleştirici
+
+Visualizer style
+== Görselleştirici stili
+
+Visualizer sensitivity
+== Görselleştirici hassasiyeti
+
+Visualizer glow
+== Görselleştirici parlaması
+
+Bars
+== Çubuklar
+
+Mountain
+== Dağ
+
+Keystrokes
+== Tuş Göstergesi
+
+Input Visualizer
+== Input Görselleştirici
+
+Stability Trainer
+== Stabilite Antrenörü
+
+Session Stats
+== Oturum İstatistikleri
+
+Show Real Hitbox
+== Gerçek Hitbox Göster
+
+Ninja Tee Preview
+== Ninja Tee Önizleme
+
+Ninja Timer
+== Ninja Zamanlayıcı
+
+Sweat Weapon
+== Sweat Weapon
+
+Orbit Aura
+== Orbit Aura
+
+Jelly Tee
+== Jelly Tee
+
+Finish Prediction
+== Finish Tahmini
+
+3D Particles
+== 3D Parçacıklar
+
+Loading Theme Background
+== Yükleme Teması Arka Planı
+
+Client Badges
+== Client Rozetleri
+
+Chat Bubbles
+== Chat Balonları

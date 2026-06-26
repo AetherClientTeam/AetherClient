@@ -129,11 +129,12 @@ void CPlayers::RenderMenuStatusIcon(vec2 Center, float Alpha)
 	if(Alpha <= 0.01f || !m_AetherMenuStatusIconTexture.IsValid())
 		return;
 
-	constexpr float IconSize = 22.0f;
+	constexpr float IconSize = 36.0f;
 	Graphics()->WrapClamp();
 	Graphics()->TextureSet(m_AetherMenuStatusIconTexture);
 	Graphics()->QuadsBegin();
 	Graphics()->SetColor(1.0f, 1.0f, 1.0f, Alpha);
+	Graphics()->QuadsSetSubset(0.0f, 0.0f, 1.0f, 1.0f);
 	IGraphics::CQuadItem Quad(Center.x, Center.y, IconSize, IconSize);
 	Graphics()->QuadsDraw(&Quad, 1);
 	Graphics()->QuadsEnd();
