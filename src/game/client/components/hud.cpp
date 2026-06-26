@@ -1149,7 +1149,7 @@ void CHud::RenderTextInfo()
 		// Notify when last
 		if(g_Config.m_TcNotifyWhenLast)
 		{
-			if((g_Config.m_TcNotifyWhenLast && NumInTeam > 1 && NumInTeam - NumFrozen == 1) || m_TClientFrozenTextEditorOpen)
+			if((g_Config.m_TcNotifyWhenLast && NumInTeam > 1 && NumInTeam - NumFrozen == 1) || EditorShowLastNotify)
 			{
 				const char *pLastNotifyText = g_Config.m_TcNotifyWhenLastText[0] ? g_Config.m_TcNotifyWhenLastText : "Last!";
 				TextRender()->TextColor(color_cast<ColorRGBA>(ColorHSLA(g_Config.m_TcNotifyWhenLastColor)));
@@ -1157,10 +1157,13 @@ void CHud::RenderTextInfo()
 				const float TextWidth = TextRender()->TextWidth(FontSize, pLastNotifyText);
 				float XPos;
 				float YPos;
-				if(m_TClientFrozenTextEditorOpen)
+				if(EditorShowLastNotify)
 				{
+					const vec2 Center(m_TClientLastNotifyRect.x + m_TClientLastNotifyRect.w * 0.5f, m_TClientLastNotifyRect.y + m_TClientLastNotifyRect.h * 0.5f);
 					m_TClientLastNotifyRect.w = TextWidth + 6.0f;
 					m_TClientLastNotifyRect.h = FontSize + 4.0f;
+					m_TClientLastNotifyRect.x = Center.x - m_TClientLastNotifyRect.w * 0.5f;
+					m_TClientLastNotifyRect.y = Center.y - m_TClientLastNotifyRect.h * 0.5f;
 					ClampTClientLastNotify();
 					XPos = m_TClientLastNotifyRect.x + 3.0f;
 					YPos = m_TClientLastNotifyRect.y + 2.0f;
@@ -1174,7 +1177,7 @@ void CHud::RenderTextInfo()
 
 				TextRender()->Text(XPos, YPos, FontSize, pLastNotifyText, -1.0f);
 				TextRender()->TextColor(TextRender()->DefaultTextColor());
-				if(m_TClientFrozenTextEditorOpen)
+				if(EditorShowLastNotify)
 					RenderTClientHudEditorOverlay(m_TClientLastNotifyRect, TClientLastNotifyResizeHandleRect());
 			}
 		}
@@ -1190,10 +1193,13 @@ void CHud::RenderTextInfo()
 			const float TextWidth = TextRender()->TextWidth(FontSize, aBuf);
 			float X;
 			float Y;
-			if(m_TClientFrozenTextEditorOpen)
+			if(EditorShowFrozenText)
 			{
+				const vec2 Center(m_TClientFrozenTextRect.x + m_TClientFrozenTextRect.w * 0.5f, m_TClientFrozenTextRect.y + m_TClientFrozenTextRect.h * 0.5f);
 				m_TClientFrozenTextRect.w = TextWidth + 6.0f;
 				m_TClientFrozenTextRect.h = FontSize + 4.0f;
+				m_TClientFrozenTextRect.x = Center.x - m_TClientFrozenTextRect.w * 0.5f;
+				m_TClientFrozenTextRect.y = Center.y - m_TClientFrozenTextRect.h * 0.5f;
 				ClampTClientFrozenText();
 				X = m_TClientFrozenTextRect.x + 3.0f;
 				Y = m_TClientFrozenTextRect.y + 2.0f;
@@ -1205,7 +1211,7 @@ void CHud::RenderTextInfo()
 				m_TClientFrozenTextRect = CUIRect(X - 3.0f, Y - 2.0f, TextWidth + 6.0f, FontSize + 4.0f);
 			}
 			TextRender()->Text(X, Y, FontSize, aBuf, -1.0f);
-			if(m_TClientFrozenTextEditorOpen)
+			if(EditorShowFrozenText)
 				RenderTClientHudEditorOverlay(m_TClientFrozenTextRect, TClientFrozenTextResizeHandleRect());
 		}
 
@@ -1213,7 +1219,7 @@ void CHud::RenderTextInfo()
 		// str_format(aBuf, sizeof(aBuf), "%d", g_Config.m_ClWhatsMyPing);
 		// TextRender()->Text(0, m_Width / 2 - TextRender()->TextWidth(0, 10, aBuf, -1, -1.0f) / 2, 20, 10, aBuf, -1.0f);
 
-		if(g_Config.m_TcShowFrozenHud > 0 && ((!GameClient()->m_Scoreboard.IsActive() && !(LocalTeamID == 0 && g_Config.m_TcFrozenHudTeamOnly)) || m_TClientFrozenTextEditorOpen))
+		if(g_Config.m_TcShowFrozenHud > 0 && ((!GameClient()->m_Scoreboard.IsActive() && !(LocalTeamID == 0 && g_Config.m_TcFrozenHudTeamOnly)) || EditorShowFrozenHud))
 		{
 			CTeeRenderInfo FreezeInfo;
 			const CSkin *pSkin = GameClient()->m_Skins.Find("x_ninja");
@@ -1227,7 +1233,7 @@ void CHud::RenderTextInfo()
 
 			float ProgressiveOffset = 0.0f;
 			float TeeSize = g_Config.m_TcFrozenHudTeeSize;
-			const int DisplayCount = std::max(NumInTeam, m_TClientFrozenTextEditorOpen ? 2 : 0);
+			const int DisplayCount = std::max(NumInTeam, EditorShowFrozenHud ? 2 : 0);
 			int MaxTees = (int)(8.3f * (m_Width / m_Height) * 13.0f / TeeSize);
 			if(!g_Config.m_ClShowfps && !g_Config.m_ClShowpred)
 				MaxTees = (int)(9.5f * (m_Width / m_Height) * 13.0f / TeeSize);
@@ -1238,10 +1244,13 @@ void CHud::RenderTextInfo()
 
 			int TotalRows = std::max(1, std::min(MaxRows, (DisplayCount + MaxTees - 1) / MaxTees));
 			const int VisibleColumns = std::max(1, std::min(DisplayCount, MaxTees));
-			if(m_TClientFrozenTextEditorOpen)
+			if(EditorShowFrozenHud)
 			{
+				const vec2 Center(m_TClientFrozenHudRect.x + m_TClientFrozenHudRect.w * 0.5f, m_TClientFrozenHudRect.y + m_TClientFrozenHudRect.h * 0.5f);
 				m_TClientFrozenHudRect.w = TeeSize * VisibleColumns;
 				m_TClientFrozenHudRect.h = TeeSize + 3.0f + (TotalRows - 1) * TeeSize;
+				m_TClientFrozenHudRect.x = Center.x - m_TClientFrozenHudRect.w * 0.5f;
+				m_TClientFrozenHudRect.y = Center.y - m_TClientFrozenHudRect.h * 0.5f;
 				ClampTClientFrozenHud();
 				StartPos = m_TClientFrozenHudRect.x + TeeSize / 2.0f;
 				StartY = m_TClientFrozenHudRect.y;
@@ -1316,7 +1325,7 @@ void CHud::RenderTextInfo()
 					}
 				}
 			}
-			if(m_TClientFrozenTextEditorOpen)
+			if(EditorShowFrozenHud)
 			{
 				if(NumInTeam == 0)
 				{
@@ -2682,18 +2691,19 @@ void CHud::RenderAetherNinjaTimer()
 {
 	if(!g_Config.m_AeNinjaTimer)
 		return;
+	const bool EditorShowNinjaTimer = m_TClientFrozenTextEditorOpen && g_Config.m_AeNinjaTimer;
 
 	int RemainingMs = 0;
 	float Progress = 0.0f;
 	const bool Active = AetherNinjaTimerState(&RemainingMs, &Progress);
-	if(!Active && !m_TClientFrozenTextEditorOpen)
+	if(!Active && !EditorShowNinjaTimer)
 		return;
 
 	const float Scale = std::clamp(g_Config.m_AeNinjaTimerScale / 100.0f, 0.5f, 2.0f);
 	const float Width = 70.0f * Scale;
 	const float Height = 16.0f * Scale;
 	m_AetherNinjaTimerRect = CUIRect(m_Width * 0.5f - Width * 0.5f + g_Config.m_AeNinjaTimerOffsetX, (float)g_Config.m_AeNinjaTimerOffsetY, Width, Height);
-	if(m_TClientFrozenTextEditorOpen)
+	if(EditorShowNinjaTimer)
 		ClampAetherNinjaTimer();
 
 	char aBuf[32];
@@ -2707,7 +2717,7 @@ void CHud::RenderAetherNinjaTimer()
 	TextRender()->Text(m_AetherNinjaTimerRect.x + m_AetherNinjaTimerRect.w * 0.5f - TextRender()->TextWidth(FontSize, aBuf) * 0.5f, m_AetherNinjaTimerRect.y + 4.1f * Scale, FontSize, aBuf, -1.0f);
 	TextRender()->TextColor(TextRender()->DefaultTextColor());
 
-	if(m_TClientFrozenTextEditorOpen)
+	if(EditorShowNinjaTimer)
 		RenderTClientHudEditorOverlay(m_AetherNinjaTimerRect, AetherNinjaTimerResizeHandleRect());
 }
 

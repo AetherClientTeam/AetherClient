@@ -43,6 +43,13 @@
 
 using namespace std::chrono_literals;
 
+namespace {
+bool IsAetherMenuThemeSelected()
+{
+	return g_Config.m_ClMenuMap[0] == '\0' || str_comp_nocase(g_Config.m_ClMenuMap, "none") == 0 || str_comp_nocase(g_Config.m_ClMenuMap, "aether") == 0;
+}
+}
+
 ColorRGBA CMenus::ms_GuiColor;
 ColorRGBA CMenus::ms_ColorTabbarInactiveOutgame;
 ColorRGBA CMenus::ms_ColorTabbarActiveOutgame;
@@ -781,14 +788,16 @@ void CMenus::RenderLoading(const char *pCaption, const char *pContent, int Incre
 
 	Ui()->MapScreen();
 
-	if(g_Config.m_AeLoadingThemeBackground && GameClient()->m_MenuBackground.IsLoading())
+	const bool AetherThemeSelected = IsAetherMenuThemeSelected();
+	const bool UseAetherLoadingTheme = AetherThemeSelected && g_Config.m_AeLoadingThemeBackground;
+	if(UseAetherLoadingTheme && GameClient()->m_MenuBackground.IsLoading())
 	{
 		// Avoid rendering while loading the menu background as this would otherwise
 		// cause the regular menu background to be rendered for a few frames while
 		// the menu background is not loaded yet.
 		return;
 	}
-	if(!g_Config.m_AeLoadingThemeBackground || !GameClient()->m_MenuBackground.Render())
+	if(!UseAetherLoadingTheme || !GameClient()->m_MenuBackground.Render())
 	{
 		RenderBackground();
 	}
@@ -1097,15 +1106,18 @@ void CMenus::Render()
 	{
 		if(!GameClient()->m_MenuBackground.Render())
 		{
-			RenderBackground();
+			RenderBackground(false);
 		}
-		RenderAetherAnimatedBackdrop(*Ui()->Screen());
+		const bool AetherThemeSelected = IsAetherMenuThemeSelected();
+		if(AetherThemeSelected)
+			RenderAetherAnimatedBackdrop(*Ui()->Screen());
 		ms_ColorTabbarInactive = ms_ColorTabbarInactiveOutgame;
 		ms_ColorTabbarActive = ms_ColorTabbarActiveOutgame;
 		ms_ColorTabbarHover = ms_ColorTabbarHoverOutgame;
 	}
 
-	if(SettingsPageVisible && ClientState != IClient::STATE_OFFLINE)
+	const bool AetherThemeSelected = IsAetherMenuThemeSelected();
+	if(AetherThemeSelected && SettingsPageVisible && ClientState != IClient::STATE_OFFLINE)
 		RenderAetherAnimatedBackdrop(*Ui()->Screen());
 
 	CUIRect Screen = *Ui()->Screen();
@@ -2375,7 +2387,7 @@ void CMenus::RenderThemeSelection(CUIRect MainView)
 	int SelectedTheme = -1;
 	for(int i = 0; i < (int)vThemes.size(); i++)
 	{
-		if(str_comp(vThemes[i].m_Name.c_str(), g_Config.m_ClMenuMap) == 0)
+		if((vThemes[i].m_Name.empty() && IsAetherMenuThemeSelected()) || str_comp(vThemes[i].m_Name.c_str(), g_Config.m_ClMenuMap) == 0)
 		{
 			SelectedTheme = i;
 			break;
@@ -2413,7 +2425,7 @@ void CMenus::RenderThemeSelection(CUIRect MainView)
 
 		char aName[128];
 		if(Theme.m_Name.empty())
-			str_copy(aName, "(none)");
+			str_copy(aName, "Aether");
 		else if(str_comp(Theme.m_Name.c_str(), "auto") == 0)
 			str_copy(aName, "(seasons)");
 		else if(str_comp(Theme.m_Name.c_str(), "rand") == 0)
@@ -2626,7 +2638,7 @@ void CMenus::UpdateColors()
 	ms_ColorTabbarHoverIngame = ColorRGBA(1.0f, 1.0f, 1.0f, 0.75f);
 }
 
-void CMenus::RenderBackground()
+void CMenus::RenderBackground(bool DrawChecker)
 {
 	Graphics()->BlendNormal();
 
@@ -2642,32 +2654,35 @@ void CMenus::RenderBackground()
 	Graphics()->QuadsDrawTL(&BackgroundQuadItem, 1);
 	Graphics()->QuadsEnd();
 
-	// render the tiles
-	Graphics()->TextureClear();
-	Graphics()->QuadsBegin();
-	Graphics()->SetColor(0.0f, 0.0f, 0.0f, 0.045f);
-	const float Size = 15.0f;
-	const float OffsetTime = std::fmod(Client()->GlobalTime() * 0.15f, 2.0f);
-	IGraphics::CQuadItem aCheckerItems[64];
-	size_t NumCheckerItems = 0;
-	const int NumItemsWidth = std::ceil(ScreenWidth / Size);
-	const int NumItemsHeight = std::ceil(ScreenHeight / Size);
-	for(int y = -2; y < NumItemsHeight; y++)
+	if(DrawChecker)
 	{
-		for(int x = 0; x < NumItemsWidth + 4; x += 2)
+		// render the tiles
+		Graphics()->TextureClear();
+		Graphics()->QuadsBegin();
+		Graphics()->SetColor(0.0f, 0.0f, 0.0f, 0.045f);
+		const float Size = 15.0f;
+		const float OffsetTime = std::fmod(Client()->GlobalTime() * 0.15f, 2.0f);
+		IGraphics::CQuadItem aCheckerItems[64];
+		size_t NumCheckerItems = 0;
+		const int NumItemsWidth = std::ceil(ScreenWidth / Size);
+		const int NumItemsHeight = std::ceil(ScreenHeight / Size);
+		for(int y = -2; y < NumItemsHeight; y++)
 		{
-			aCheckerItems[NumCheckerItems] = IGraphics::CQuadItem((x - 2 * OffsetTime + (y & 1)) * Size, (y + OffsetTime) * Size, Size, Size);
-			NumCheckerItems++;
-			if(NumCheckerItems == std::size(aCheckerItems))
+			for(int x = 0; x < NumItemsWidth + 4; x += 2)
 			{
-				Graphics()->QuadsDrawTL(aCheckerItems, NumCheckerItems);
-				NumCheckerItems = 0;
+				aCheckerItems[NumCheckerItems] = IGraphics::CQuadItem((x - 2 * OffsetTime + (y & 1)) * Size, (y + OffsetTime) * Size, Size, Size);
+				NumCheckerItems++;
+				if(NumCheckerItems == std::size(aCheckerItems))
+				{
+					Graphics()->QuadsDrawTL(aCheckerItems, NumCheckerItems);
+					NumCheckerItems = 0;
+				}
 			}
 		}
+		if(NumCheckerItems != 0)
+			Graphics()->QuadsDrawTL(aCheckerItems, NumCheckerItems);
+		Graphics()->QuadsEnd();
 	}
-	if(NumCheckerItems != 0)
-		Graphics()->QuadsDrawTL(aCheckerItems, NumCheckerItems);
-	Graphics()->QuadsEnd();
 
 	// render border fade
 	Graphics()->TextureSet(m_TextureBlob);

@@ -19,6 +19,13 @@
 
 using namespace std::chrono_literals;
 
+namespace {
+bool IsNoMenuTheme(const char *pTheme)
+{
+	return pTheme[0] == '\0' || str_comp_nocase(pTheme, "none") == 0 || str_comp_nocase(pTheme, "aether") == 0;
+}
+}
+
 std::array<vec2, CMenuBackground::NUM_POS> GenerateMenuBackgroundPositions()
 {
 	std::array<vec2, CMenuBackground::NUM_POS> Positions;
@@ -177,9 +184,10 @@ void CMenuBackground::LoadMenuBackground(bool HasDayHint, bool HasNightHint)
 
 	ResetPositions();
 
-	str_copy(m_aMapName, g_Config.m_ClMenuMap);
+	const bool NoTheme = IsNoMenuTheme(g_Config.m_ClMenuMap);
+	str_copy(m_aMapName, NoTheme ? "" : g_Config.m_ClMenuMap);
 
-	if(g_Config.m_ClMenuMap[0] != '\0')
+	if(!NoTheme)
 	{
 		m_Loading = true;
 

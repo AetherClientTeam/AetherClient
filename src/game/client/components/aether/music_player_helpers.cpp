@@ -177,10 +177,10 @@ bool SearchMatches(const char *pSearch, const char *pFeatureLabel, std::span<con
 {
 	if(!pSearch || pSearch[0] == '\0')
 		return true;
-	if(str_utf8_find_nocase(pFeatureLabel, pSearch))
+	if(pFeatureLabel && str_utf8_find_nocase(pFeatureLabel, pSearch))
 		return true;
 	return std::any_of(ChildLabels.begin(), ChildLabels.end(), [pSearch](const char *pLabel) {
-		return str_utf8_find_nocase(pLabel, pSearch) != nullptr;
+		return pLabel && str_utf8_find_nocase(pLabel, pSearch) != nullptr;
 	});
 }
 

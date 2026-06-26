@@ -19,7 +19,9 @@
 #include <vector>
 
 static constexpr const char *UPDATE_ARCHIVE_PATH = "update/aether-update.zip";
-static constexpr const char *UPDATE_SCRIPT_PATH = "update/apply_aether_update.ps1";
+static constexpr const char *UPDATER_BINARY_PATH = "tools/updater/AetherUpdater.exe";
+static constexpr const char *PENDING_UPDATER_BINARY_PATH = "tools/updater/AetherUpdater.exe.new";
+static constexpr const char *LEGACY_UPDATER_BINARY_PATH = "AetherUpdater.exe";
 
 static void BuildGitHubReleaseUrl(char *pBuf, int BufSize)
 {
@@ -269,6 +271,26 @@ void CUpdater::Init(CHttp *pHttp)
 	m_pClient = Kernel()->RequestInterface<IClient>();
 	m_pStorage = Kernel()->RequestInterface<IStorage>();
 	m_pHttp = pHttp;
+
+	if(m_pStorage)
+	{
+		char aPendingUpdaterPath[IO_MAX_PATH_LENGTH];
+		m_pStorage->GetBinaryPathAbsolute(PENDING_UPDATER_BINARY_PATH, aPendingUpdaterPath, sizeof(aPendingUpdaterPath));
+		if(m_pStorage->FileExists(aPendingUpdaterPath, IStorage::TYPE_ABSOLUTE))
+		{
+			m_pStorage->RemoveBinaryFile(UPDATER_BINARY_PATH);
+			m_pStorage->RenameBinaryFile(PENDING_UPDATER_BINARY_PATH, UPDATER_BINARY_PATH);
+		}
+
+		char aUpdaterPath[IO_MAX_PATH_LENGTH];
+		m_pStorage->GetBinaryPathAbsolute(UPDATER_BINARY_PATH, aUpdaterPath, sizeof(aUpdaterPath));
+		if(m_pStorage->FileExists(aUpdaterPath, IStorage::TYPE_ABSOLUTE))
+		{
+			// The old root-level updater is visible and can confuse users if they run it manually.
+			// It may be locked during the first update from an old build, so failure is harmless.
+			m_pStorage->RemoveBinaryFile(LEGACY_UPDATER_BINARY_PATH);
+		}
+	}
 }
 
 void CUpdater::SetCurrentState(EUpdaterState NewState)
@@ -416,96 +438,11 @@ void CUpdater::StartArchiveDownload()
 	m_pHttp->Run(m_pCurrentTask);
 }
 
-bool CUpdater::WriteApplyScript(char *pScriptPath, int ScriptPathSize, char *pInstallDir, int InstallDirSize, char *pExePath, int ExePathSize)
-{
-	m_pStorage->GetBinaryPath(UPDATE_SCRIPT_PATH, pScriptPath, ScriptPathSize);
-	m_pStorage->GetBinaryPathAbsolute(PLAT_CLIENT_EXEC, pExePath, ExePathSize);
-	str_copy(pInstallDir, pExePath, InstallDirSize);
-	StripFilename(pInstallDir);
-
-	if(fs_makedir_rec_for(pScriptPath) < 0)
-		return false;
-
-	static constexpr const char *pScript =
-		"param(\n"
-		"    [int]$PidToWait,\n"
-		"    [string]$ArchivePath,\n"
-		"    [string]$InstallDir,\n"
-		"    [string]$ExePath\n"
-		")\n"
-		"$ErrorActionPreference = 'Stop'\n"
-		"try {\n"
-		"    $updateDir = Join-Path $InstallDir 'update'\n"
-		"    New-Item -ItemType Directory -Path $updateDir -Force | Out-Null\n"
-		"    $logPath = Join-Path $updateDir 'apply_update.log'\n"
-		"    Add-Content -LiteralPath $logPath -Value ('[' + (Get-Date).ToString('s') + '] updater started')\n"
-		"    while(Get-Process -Id $PidToWait -ErrorAction SilentlyContinue) {\n"
-		"        Start-Sleep -Milliseconds 200\n"
-		"    }\n"
-		"    Add-Content -LiteralPath $logPath -Value ('[' + (Get-Date).ToString('s') + '] client process stopped')\n"
-		"    $extractDir = Join-Path $InstallDir 'update\\extract'\n"
-		"    if(Test-Path -LiteralPath $extractDir) {\n"
-		"        Remove-Item -LiteralPath $extractDir -Recurse -Force\n"
-		"    }\n"
-		"    New-Item -ItemType Directory -Path $extractDir -Force | Out-Null\n"
-		"    Expand-Archive -LiteralPath $ArchivePath -DestinationPath $extractDir -Force\n"
-		"    Add-Content -LiteralPath $logPath -Value ('[' + (Get-Date).ToString('s') + '] archive extracted')\n"
-		"    $copyRoot = $extractDir\n"
-		"    $items = @(Get-ChildItem -LiteralPath $extractDir -Force)\n"
-		"    if($items.Count -eq 1 -and $items[0].PSIsContainer) {\n"
-		"        $copyRoot = $items[0].FullName\n"
-		"    }\n"
-		"    $requiredFiles = @('Aether.exe', 'Aether-Server.exe', 'discord_game_sdk.dll')\n"
-		"    foreach($requiredFile in $requiredFiles) {\n"
-		"        if(-not (Test-Path -LiteralPath (Join-Path $copyRoot $requiredFile))) {\n"
-		"            throw ('Update archive is missing required file: ' + $requiredFile)\n"
-		"        }\n"
-		"    }\n"
-		"    foreach($item in Get-ChildItem -LiteralPath $copyRoot -Force) {\n"
-		"        Copy-Item -Path $item.FullName -Destination $InstallDir -Recurse -Force\n"
-		"    }\n"
-		"    Add-Content -LiteralPath $logPath -Value ('[' + (Get-Date).ToString('s') + '] files copied')\n"
-		"    $aetherExe = Join-Path $InstallDir 'Aether.exe'\n"
-		"    $legacyExecutables = @('Vera.exe', 'Via.exe', 'Vex.exe')\n"
-		"    if(Test-Path -LiteralPath $aetherExe) {\n"
-		"        foreach($legacyExe in $legacyExecutables) {\n"
-		"            $legacyExePath = Join-Path $InstallDir $legacyExe\n"
-		"            if(Test-Path -LiteralPath $legacyExePath) {\n"
-		"                Remove-Item -LiteralPath $legacyExePath -Force -ErrorAction SilentlyContinue\n"
-		"                Add-Content -LiteralPath $logPath -Value ('[' + (Get-Date).ToString('s') + '] legacy executable removed: ' + $legacyExe)\n"
-		"            }\n"
-		"        }\n"
-		"        $ExePath = $aetherExe\n"
-		"    }\n"
-		"    $legacyAetherDir = Join-Path $InstallDir 'data\\aether'\n"
-		"    $coreDir = Join-Path $InstallDir 'data\\core'\n"
-		"    if((Test-Path -LiteralPath $coreDir) -and (Test-Path -LiteralPath $legacyAetherDir)) {\n"
-		"        Remove-Item -LiteralPath $legacyAetherDir -Recurse -Force\n"
-		"        Add-Content -LiteralPath $logPath -Value ('[' + (Get-Date).ToString('s') + '] legacy data\\aether removed')\n"
-		"    }\n"
-		"    Remove-Item -LiteralPath $ArchivePath -Force -ErrorAction SilentlyContinue\n"
-		"    Remove-Item -LiteralPath $extractDir -Recurse -Force -ErrorAction SilentlyContinue\n"
-		"    Start-Process -FilePath $ExePath -WorkingDirectory $InstallDir\n"
-		"    Add-Content -LiteralPath $logPath -Value ('[' + (Get-Date).ToString('s') + '] client relaunched')\n"
-		"} catch {\n"
-		"    $logPath = Join-Path $InstallDir 'update\\apply_update_error.txt'\n"
-		"    $_ | Out-String | Set-Content -LiteralPath $logPath -Encoding UTF8\n"
-		"}\n";
-
-	IOHANDLE File = io_open(pScriptPath, IOFLAG_WRITE);
-	if(!File)
-		return false;
-
-	io_write(File, pScript, str_length(pScript));
-	io_close(File);
-	return true;
-}
-
-bool CUpdater::LaunchApplyScriptAndQuit()
+bool CUpdater::LaunchUpdaterAndQuit()
 {
 #if defined(CONF_FAMILY_WINDOWS)
 	char aArchivePath[IO_MAX_PATH_LENGTH];
-	char aScriptPath[IO_MAX_PATH_LENGTH];
+	char aUpdaterPath[IO_MAX_PATH_LENGTH];
 	char aInstallDir[IO_MAX_PATH_LENGTH];
 	char aExePath[IO_MAX_PATH_LENGTH];
 	char aPid[32];
@@ -517,31 +454,33 @@ bool CUpdater::LaunchApplyScriptAndQuit()
 		return false;
 	}
 
-	if(!WriteApplyScript(aScriptPath, sizeof(aScriptPath), aInstallDir, sizeof(aInstallDir), aExePath, sizeof(aExePath)))
+	m_pStorage->GetBinaryPathAbsolute(PLAT_CLIENT_EXEC, aExePath, sizeof(aExePath));
+	str_copy(aInstallDir, aExePath, sizeof(aInstallDir));
+	StripFilename(aInstallDir);
+	m_pStorage->GetBinaryPathAbsolute(UPDATER_BINARY_PATH, aUpdaterPath, sizeof(aUpdaterPath));
+	if(!m_pStorage->FileExists(aUpdaterPath, IStorage::TYPE_ABSOLUTE))
 	{
-		SetStatus("Failed to prepare updater script");
-		return false;
+		m_pStorage->GetBinaryPathAbsolute(LEGACY_UPDATER_BINARY_PATH, aUpdaterPath, sizeof(aUpdaterPath));
+		if(!m_pStorage->FileExists(aUpdaterPath, IStorage::TYPE_ABSOLUTE))
+		{
+			SetStatus("Aether updater missing");
+			return false;
+		}
 	}
 
 	str_format(aPid, sizeof(aPid), "%d", process_id());
 	const char *apArguments[] = {
-		"-NoProfile",
-		"-NonInteractive",
-		"-ExecutionPolicy",
-		"Bypass",
-		"-File",
-		aScriptPath,
-		"-PidToWait",
+		"--pid",
 		aPid,
-		"-ArchivePath",
+		"--archive",
 		aArchivePath,
-		"-InstallDir",
+		"--install-dir",
 		aInstallDir,
-		"-ExePath",
+		"--exe",
 		aExePath,
 	};
 
-	if(process_execute("powershell.exe", EShellExecuteWindowState::BACKGROUND, apArguments, std::size(apArguments)) == INVALID_PROCESS)
+	if(process_execute(aUpdaterPath, EShellExecuteWindowState::FOREGROUND, apArguments, std::size(apArguments), aInstallDir) == INVALID_PROCESS)
 	{
 		SetStatus("Failed to launch updater");
 		return false;
@@ -588,7 +527,7 @@ void CUpdater::ApplyUpdateAndRestart()
 	if(GetCurrentState() != IUpdater::NEED_RESTART)
 		return;
 
-	if(!LaunchApplyScriptAndQuit())
+	if(!LaunchUpdaterAndQuit())
 	{
 		m_AutoApplyAfterDownload = false;
 		SetCurrentState(IUpdater::FAIL);

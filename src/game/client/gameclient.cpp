@@ -6195,9 +6195,15 @@ void CGameClient::ConchainMenuMap(IConsole::IResult *pResult, void *pUserData, I
 	CGameClient *pSelf = (CGameClient *)pUserData;
 	if(pResult->NumArguments())
 	{
-		if(str_comp(g_Config.m_ClMenuMap, pResult->GetString(0)) != 0)
+		const char *pRequestedTheme = pResult->GetString(0);
+		char aNormalizedTheme[128];
+		if(pRequestedTheme[0] == '\0' || str_comp_nocase(pRequestedTheme, "none") == 0 || str_comp_nocase(pRequestedTheme, "aether") == 0)
+			aNormalizedTheme[0] = '\0';
+		else
+			str_copy(aNormalizedTheme, pRequestedTheme);
+		if(str_comp(g_Config.m_ClMenuMap, aNormalizedTheme) != 0)
 		{
-			str_copy(g_Config.m_ClMenuMap, pResult->GetString(0));
+			str_copy(g_Config.m_ClMenuMap, aNormalizedTheme);
 			pSelf->m_MenuBackground.LoadMenuBackground();
 		}
 	}

@@ -7439,6 +7439,13 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 	}
 	MainView.HSplitTop(8.0f * S, nullptr, &MainView);
 	const bool EnabledFilterPage = s_AetherActivePage == EAetherPage::VISUALS || s_AetherActivePage == EAetherPage::GAMEPLAY || s_AetherActivePage == EAetherPage::TOOLS;
+	const bool SearchActive = m_AetherSearchInput.GetString()[0] != '\0';
+	auto FeatureVisibleInAccordion = [&](const SFeature &Feature) {
+		if(Feature.m_Page == EAetherPage::CLAN || Feature.m_Page == EAetherPage::ASSETS || Feature.m_Page == EAetherPage::GAMES || Feature.m_Page == EAetherPage::INFO)
+			return !SearchActive && Feature.m_Page == s_AetherActivePage;
+		return SearchActive || Feature.m_Page == s_AetherActivePage;
+	};
+
 	if(EnabledFilterPage)
 	{
 		CUIRect FilterRow, FilterButton;
@@ -7470,24 +7477,25 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 	ScrollParams.m_Flags = CScrollRegionParams::FLAG_CONTENT_STATIC_WIDTH;
 	s_ScrollRegion.Begin(&MainView, &ScrollOffset, &ScrollParams);
 	MainView.y += ScrollOffset.y;
-	const bool SearchActive = m_AetherSearchInput.GetString()[0] != '\0';
 
 	auto SectionHasMatches = [&](ESection Section) {
 		for(const SFeature &Feature : aFeatures)
 			if(AetherFeatureAllowed(Feature.m_Id) &&
 				Feature.m_Section == Section &&
-				(SearchActive || Feature.m_Page == s_AetherActivePage) &&
+				FeatureVisibleInAccordion(Feature) &&
 				(!EnabledFilterPage || !m_AetherShowEnabledOnly || !Feature.m_pEnabled || *Feature.m_pEnabled) &&
 				AetherMusic::SearchMatches(m_AetherSearchInput.GetString(), Feature.m_pLabel, Feature.m_ChildLabels))
 				return true;
 		return false;
 	};
 
-	static CButtonContainer s_aExpandButtons[64];
+	constexpr size_t MaxAetherFeatureRows = 96;
+	static_assert(aFeatures.size() <= MaxAetherFeatureRows, "Aether Settings feature state arrays must cover every feature row.");
+	static std::array<CButtonContainer, MaxAetherFeatureRows> s_aExpandButtons = {};
 	static CButtonContainer s_OpenEditorButton;
 	static CButtonContainer s_OpenAssetsEditorButton;
 	static CButtonContainer s_OpenMapBackgroundBuilderButton;
-	static std::array<float, 64> s_aBodyAnimations = {};
+	static std::array<float, MaxAetherFeatureRows> s_aBodyAnimations = {};
 	const float AnimationStep = g_Config.m_AeOptimizer && g_Config.m_AeOptimizerDisableMenuAnimations ? 1.0f : std::clamp(Client()->RenderFrameTime() * 18.0f, 0.0f, 1.0f);
 
 	auto BodyHeight = [&](AetherMusic::EAetherFeatureId Id) {
@@ -9765,7 +9773,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 			const SFeature &Feature = aFeatures[Index];
 			if(!AetherFeatureAllowed(Feature.m_Id) ||
 				Feature.m_Section != Section ||
-				(!SearchActive && Feature.m_Page != s_AetherActivePage) ||
+				!FeatureVisibleInAccordion(Feature) ||
 				(EnabledFilterPage && m_AetherShowEnabledOnly && Feature.m_pEnabled && !*Feature.m_pEnabled) ||
 				!AetherMusic::SearchMatches(m_AetherSearchInput.GetString(), Feature.m_pLabel, Feature.m_ChildLabels))
 				continue;

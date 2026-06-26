@@ -1066,6 +1066,7 @@ set(EXPECTED_DATA
   core/logos/aether_lockup_1024.png
   core/logos/aether_lockup_256.png
   core/logos/aether_lockup_512.png
+  core/logos/aether_updater_2048.png
   core/logos/aether_vera_big_1024.png
   core/logos/aether_vera_logo.png
   core/logos/aether_vera_text.png
@@ -3139,6 +3140,20 @@ if(CLIENT)
   add_aether_client_target(game-client-via Via via)
   add_aether_client_target(game-client-vex Vex vex)
   add_custom_target(game-client-family DEPENDS game-client game-client-vera game-client-via game-client-vex)
+
+ if(TARGET_OS STREQUAL "windows")
+	add_executable(aether-updater WIN32
+		src/tools/aether_updater.cpp
+		other/icons/Aether-Updater.rc
+	)
+	set_property(TARGET aether-updater PROPERTY OUTPUT_NAME AetherUpdater)
+	set_property(TARGET aether-updater PROPERTY CXX_STANDARD 17)
+	set_property(TARGET aether-updater PROPERTY CXX_STANDARD_REQUIRED ON)
+	target_compile_definitions(aether-updater PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN UNICODE _UNICODE)
+	if(MSVC)
+		target_compile_options(aether-updater PRIVATE /EHsc)
+	endif()
+endif()
 endif()
 
 

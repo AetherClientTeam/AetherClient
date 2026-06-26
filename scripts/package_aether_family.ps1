@@ -3,7 +3,7 @@ param(
 	[string]$BuildRoot = "build-vs2026",
 	[string]$ReleaseDir = "Release",
 	[string]$OutRoot = "portable",
-	[string]$Version = "1.0.7",
+	[string]$Version = "1.0.8",
 	[string]$Name = "",
 	[switch]$SkipBuild
 )
@@ -22,6 +22,8 @@ $PortablePath = Join-Path $OutRootPath $Name
 $ZipPath = "$PortablePath.zip"
 $ExeNames = @("Aether.exe")
 $ServerExe = "Aether-Server.exe"
+$UpdaterExe = "AetherUpdater.exe"
+$UpdaterRelPath = "tools\updater\$UpdaterExe"
 $BadgeNames = @("founder.png", "tester.png", "chess_winner.png")
 $LogoNames = @(
 	"aether_icon_small_256.png", "vera_icon_small_256.png", "via_icon_small_256.png", "vex_icon_small_256.png",
@@ -38,10 +40,22 @@ function Remove-LegacyAetherData($Root)
 	}
 }
 
+function Copy-UpdaterToPackage($Root)
+{
+	$UpdaterDestination = Join-Path $Root $UpdaterRelPath
+	New-Item -ItemType Directory -Force -Path (Split-Path -Parent $UpdaterDestination) | Out-Null
+	Copy-Item -LiteralPath $UpdaterPath -Destination $UpdaterDestination -Force
+	$LegacyRootUpdater = Join-Path $Root $UpdaterExe
+	if(Test-Path $LegacyRootUpdater)
+	{
+		Remove-Item -LiteralPath $LegacyRootUpdater -Force
+	}
+}
+
 if(!$SkipBuild)
 {
 	cmake -S $RepoRoot -B $BuildPath -DAUTOUPDATE=ON -DDISCORD=ON -DSTEAM=ON -DSERVER_EXECUTABLE=Aether-Server
-	cmake --build $BuildPath --config Release --target game-client game-server
+	cmake --build $BuildPath --config Release --target game-client game-server aether-updater
 }
 
 $DataPath = Join-Path $BuildPath "data"
@@ -69,6 +83,11 @@ if(!(Test-Path $ServerPath))
 {
 	throw "Server executable missing: $ServerPath"
 }
+$UpdaterPath = Join-Path $BuildPath $UpdaterExe
+if(!(Test-Path $UpdaterPath))
+{
+	throw "Updater executable missing: $UpdaterPath"
+}
 $DiscordDllPath = Join-Path $BuildPath "discord_game_sdk.dll"
 if(!(Test-Path $DiscordDllPath))
 {
@@ -91,6 +110,7 @@ foreach($Exe in $ExeNames)
 	Copy-Item -LiteralPath (Join-Path $BuildPath $Exe) -Destination (Join-Path $ReleasePath $Exe) -Force
 }
 Copy-Item -LiteralPath $ServerPath -Destination (Join-Path $ReleasePath $ServerExe) -Force
+Copy-UpdaterToPackage $ReleasePath
 Get-ChildItem -LiteralPath $BuildPath -Filter "*.dll" | ForEach-Object {
 	Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $ReleasePath $_.Name) -Force
 }
@@ -111,6 +131,7 @@ foreach($Exe in $ExeNames)
 	Copy-Item -LiteralPath (Join-Path $BuildPath $Exe) -Destination (Join-Path $PortablePath $Exe) -Force
 }
 Copy-Item -LiteralPath $ServerPath -Destination (Join-Path $PortablePath $ServerExe) -Force
+Copy-UpdaterToPackage $PortablePath
 Get-ChildItem -LiteralPath $BuildPath -Filter "*.dll" | ForEach-Object {
 	Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $PortablePath $_.Name) -Force
 }
@@ -134,6 +155,14 @@ foreach($Root in @($ReleasePath, $PortablePath))
 	if(!(Test-Path (Join-Path $Root $ServerExe)))
 	{
 		throw "Packaged server executable missing in $Root"
+	}
+	if(!(Test-Path (Join-Path $Root $UpdaterRelPath)))
+	{
+		throw "Packaged updater executable missing in $Root"
+	}
+	if(Test-Path (Join-Path $Root $UpdaterExe))
+	{
+		throw "Legacy root updater executable must not be packaged in $Root"
 	}
 	if(!(Test-Path (Join-Path $Root "discord_game_sdk.dll")))
 	{
@@ -193,4 +222,5 @@ Compress-Archive -Path (Join-Path $PortablePath "*") -DestinationPath $ZipPath -
 	ReleasePath = $ReleasePath
 	Executables = $ExeNames
 	ServerExecutable = $ServerExe
+	UpdaterExecutable = $UpdaterRelPath
 }

@@ -647,7 +647,7 @@ protected:
 	IGraphics::CTextureHandle m_TextureBlob;
 
 public:
-	void RenderBackground();
+	void RenderBackground(bool DrawChecker = true);
 	void RenderAetherAnimatedBackdrop(const CUIRect &View);
 
 	CMenus();

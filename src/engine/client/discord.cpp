@@ -27,6 +27,14 @@ const char *AetherDiscordLargeImage()
 	return "vera_1024";
 }
 
+void AetherApplyDiscordAssets(DiscordActivity &Activity)
+{
+	str_copy(Activity.assets.large_image, AetherDiscordLargeImage(), sizeof(Activity.assets.large_image));
+	str_copy(Activity.assets.large_text, AetherDiscordClientName(), sizeof(Activity.assets.large_text));
+	str_copy(Activity.assets.small_image, AetherDiscordLargeImage(), sizeof(Activity.assets.small_image));
+	str_copy(Activity.assets.small_text, AetherDiscordClientName(), sizeof(Activity.assets.small_text));
+}
+
 #if defined(CONF_DISCORD_DYNAMIC)
 #include <dlfcn.h>
 FDiscordCreate GetDiscordCreate()
@@ -135,8 +143,7 @@ public:
 	{
 		mem_zero(&m_Activity, sizeof(DiscordActivity));
 
-		str_copy(m_Activity.assets.large_image, AetherDiscordLargeImage(), sizeof(m_Activity.assets.large_image));
-		str_copy(m_Activity.assets.large_text, AetherDiscordClientName(), sizeof(m_Activity.assets.large_text));
+		AetherApplyDiscordAssets(m_Activity);
 		m_Activity.timestamps.start = time_timestamp();
 		str_copy(m_Activity.details, "In menus", sizeof(m_Activity.details));
 		str_copy(m_Activity.state, AetherDiscordClientName(), sizeof(m_Activity.state));
@@ -150,8 +157,7 @@ public:
 		(void)Registered;
 		mem_zero(&m_Activity, sizeof(DiscordActivity));
 
-		str_copy(m_Activity.assets.large_image, AetherDiscordLargeImage(), sizeof(m_Activity.assets.large_image));
-		str_copy(m_Activity.assets.large_text, AetherDiscordClientName(), sizeof(m_Activity.assets.large_text));
+		AetherApplyDiscordAssets(m_Activity);
 		m_Activity.timestamps.start = time_timestamp();
 		str_copy(m_Activity.name, AetherDiscordClientName(), sizeof(m_Activity.name));
 		m_Activity.instance = false;
