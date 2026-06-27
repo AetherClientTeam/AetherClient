@@ -31,8 +31,8 @@ void AetherApplyDiscordAssets(DiscordActivity &Activity)
 {
 	str_copy(Activity.assets.large_image, AetherDiscordLargeImage(), sizeof(Activity.assets.large_image));
 	str_copy(Activity.assets.large_text, AetherDiscordClientName(), sizeof(Activity.assets.large_text));
-	str_copy(Activity.assets.small_image, AetherDiscordLargeImage(), sizeof(Activity.assets.small_image));
-	str_copy(Activity.assets.small_text, AetherDiscordClientName(), sizeof(Activity.assets.small_text));
+	Activity.assets.small_image[0] = '\0';
+	Activity.assets.small_text[0] = '\0';
 }
 
 #if defined(CONF_DISCORD_DYNAMIC)

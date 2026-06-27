@@ -8,6 +8,7 @@
 #include <game/client/component.h>
 
 #include <array>
+#include <string>
 
 class CAetherMusicPlayer : public CComponent
 {
@@ -18,8 +19,8 @@ class CAetherMusicPlayer : public CComponent
 		RESIZING,
 	};
 
-	static constexpr float PANEL_WIDTH = 76.0f;
-	static constexpr float PANEL_HEIGHT = 22.0f;
+	static constexpr float PANEL_WIDTH = 96.0f;
+	static constexpr float PANEL_HEIGHT = 30.0f;
 
 	CAetherMediaBackend m_MediaBackend;
 	IGraphics::CTextureHandle m_ArtworkTexture;
@@ -46,7 +47,9 @@ class CAetherMusicPlayer : public CComponent
 	float m_LastRmsEnergy = 0.0f;
 	float m_BassPulse = 0.0f;
 	int64_t m_LastVisualizerUpdateMs = 0;
+	int64_t m_MediaTitleChangeMs = 0;
 	bool m_FallbackLogoTried = false;
+	std::string m_LastMediaDisplayName;
 
 	float PanelScale() const;
 	float DynamicPanelWidth(float Scale) const;
@@ -58,6 +61,8 @@ class CAetherMusicPlayer : public CComponent
 	void RenderPanel(const CAetherMediaBackend::SSnapshot &Snapshot);
 	void RenderFallbackMonogram(const AetherMusic::SRect &ArtworkRect, float Alpha);
 	void RenderVisualizer(const AetherMusic::SRect &PanelRect, const CAetherMediaBackend::SSnapshot &Snapshot, AetherMusic::SColor Accent, float Alpha);
+	void RenderMediaTitle(const AetherMusic::SRect &TitleRect, const std::string &DisplayName, float Scale, float Alpha, float ScreenWidth, float ScreenHeight, AetherMusic::SColor Background);
+	bool FreezeCounterText(char *pBuf, int Size) const;
 	void ClampOffsets();
 	void ApplyCenterSnap(float ScreenWidth, float ScreenHeight, float PanelWidth, float PanelHeight);
 	void SetScaleKeepingCenter(int NewScale, vec2 Center);

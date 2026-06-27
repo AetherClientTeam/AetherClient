@@ -49,13 +49,16 @@ float CAetherMusicPlayer::PanelScale() const
 float CAetherMusicPlayer::DynamicPanelWidth(float Scale) const
 {
 	constexpr float Padding = 2.0f;
-	constexpr float Artwork = 20.0f;
+	constexpr float Artwork = 28.0f;
 	constexpr float Gap = 5.0f;
 	constexpr float Visualizer = 22.0f;
 	const AetherMusic::STimerModel Timer = GameClient()->m_Hud.GameTimerModel();
 	const float TimerFontSize = 8.0f * Scale;
+	const float CounterFontSize = 6.4f * Scale;
 	const float TimerWidth = Timer.m_Visible ? TextRender()->TextWidth(TimerFontSize, Timer.m_Text.c_str(), -1, -1.0f) / Scale : 0.0f;
-	return std::max(PANEL_WIDTH, Padding * 2.0f + Artwork + Gap + std::max(28.0f, TimerWidth) + Gap + Visualizer);
+	const float CounterWidth = g_Config.m_AeMusicFreezeCounter ? TextRender()->TextWidth(CounterFontSize, "64 / 64", -1, -1.0f) / Scale + 6.0f : 0.0f;
+	const float CenterWidth = std::max(44.0f, TimerWidth + (CounterWidth > 0.0f ? CounterWidth + 4.0f : 0.0f));
+	return std::max(PANEL_WIDTH, Padding * 2.0f + Artwork + Gap + CenterWidth + Gap + Visualizer);
 }
 
 AetherMusic::SRect CAetherMusicPlayer::ResizeHandleRect() const
@@ -193,10 +196,9 @@ void CAetherMusicPlayer::RenderVisualizer(const AetherMusic::SRect &PanelRect, c
 	const float Scale = PanelRect.m_H / PANEL_HEIGHT;
 	const float VisualizerWidth = (VisualizerStyle == 1 ? 20.0f : 17.0f) * Scale;
 	const float VisualizerX = PanelRect.m_X + PanelRect.m_W - (3.0f * Scale) - VisualizerWidth;
-	const float CenterY = PanelRect.m_Y + PanelRect.m_H * 0.5f;
-	const float ClipPad = 3.0f * Scale;
-	const float ClipTop = PanelRect.m_Y + ClipPad;
-	const float ClipBottom = PanelRect.m_Y + PanelRect.m_H - ClipPad;
+	const float CenterY = PanelRect.m_Y + 11.2f * Scale;
+	const float ClipTop = PanelRect.m_Y + 3.0f * Scale;
+	const float ClipBottom = PanelRect.m_Y + 21.0f * Scale;
 	const float HalfAvailableHeight = std::max(1.0f * Scale, (ClipBottom - ClipTop) * 0.5f);
 	const float GlowAmount = std::clamp(g_Config.m_AeMusicVisualizerGlow / 100.0f, 0.0f, 1.0f);
 	const bool AudioActive = Snapshot.m_PlaybackState == AetherMusic::EPlaybackState::PLAYING || Snapshot.m_AudioActive || Snapshot.m_RootMeanSquare > 0.0005f;
@@ -307,6 +309,105 @@ void CAetherMusicPlayer::RenderVisualizer(const AetherMusic::SRect &PanelRect, c
 	}
 }
 
+void CAetherMusicPlayer::RenderMediaTitle(const AetherMusic::SRect &TitleRect, const std::string &DisplayName, float Scale, float Alpha, float ScreenWidth, float ScreenHeight, AetherMusic::SColor Background)
+{
+	if(DisplayName.empty() || TitleRect.m_W <= 4.0f * Scale || TitleRect.m_H <= 3.0f * Scale)
+		return;
+	(void)Background;
+
+	const float FontSize = 5.6f * Scale;
+	const float TextWidth = TextRender()->TextWidth(FontSize, DisplayName.c_str());
+	const float Offset = AetherMusic::MarqueeOffset(TextWidth / Scale, TitleRect.m_W / Scale, SteadyMilliseconds() - m_MediaTitleChangeMs) * Scale;
+	const float Gap = 20.0f * Scale;
+	const float TextY = TitleRect.m_Y + (TitleRect.m_H - FontSize) * 0.5f - 0.15f * Scale;
+	const float BaseAlpha = Alpha * 0.82f;
+	const ColorRGBA OldTextColor = TextRender()->GetTextColor();
+	const ColorRGBA OldOutlineColor = TextRender()->GetTextOutlineColor();
+	const ColorRGBA FullTextColor(0.84f, 0.88f, 0.94f, BaseAlpha);
+	const ColorRGBA TransparentOutline(0.0f, 0.0f, 0.0f, 0.0f);
+
+	auto DrawTitleText = [&]() {
+		TextRender()->Text(TitleRect.m_X - Offset, TextY, FontSize, DisplayName.c_str());
+		if(TextWidth > TitleRect.m_W)
+			TextRender()->Text(TitleRect.m_X - Offset + TextWidth + Gap, TextY, FontSize, DisplayName.c_str());
+	};
+	auto DrawClipped = [&](float ClipLeft, float ClipWidth, float Strength) {
+		if(ClipWidth <= 0.05f * Scale)
+			return;
+		const int ClipX = round_to_int(ClipLeft / std::max(ScreenWidth, 1.0f) * Graphics()->WindowWidth());
+		const int ClipY = round_to_int(TitleRect.m_Y / std::max(ScreenHeight, 1.0f) * Graphics()->WindowHeight());
+		const int ClipW = round_to_int(ClipWidth / std::max(ScreenWidth, 1.0f) * Graphics()->WindowWidth());
+		const int ClipH = round_to_int(TitleRect.m_H / std::max(ScreenHeight, 1.0f) * Graphics()->WindowHeight());
+		if(ClipW <= 0 || ClipH <= 0)
+			return;
+		const float T = std::clamp(Strength, 0.0f, 1.0f);
+		const ColorRGBA TextColor(FullTextColor.r, FullTextColor.g, FullTextColor.b, BaseAlpha * T);
+		Graphics()->ClipEnable(ClipX, ClipY, ClipW, ClipH);
+		TextRender()->TextColor(TextColor);
+		TextRender()->TextOutlineColor(TransparentOutline);
+		DrawTitleText();
+		Graphics()->ClipDisable();
+	};
+
+	if(TextWidth <= TitleRect.m_W)
+		DrawClipped(TitleRect.m_X, TitleRect.m_W, 1.0f);
+	else
+	{
+		constexpr int FadeSteps = 14;
+		const float FadeWidth = std::min(20.0f * Scale, TitleRect.m_W * 0.42f);
+		const float StepWidth = FadeWidth / FadeSteps;
+		DrawClipped(TitleRect.m_X + FadeWidth, std::max(0.0f, TitleRect.m_W - FadeWidth * 2.0f), 1.0f);
+		for(int Step = 0; Step < FadeSteps; ++Step)
+		{
+			const float T = (Step + 0.5f) / FadeSteps;
+			const float FadeStrength = T * T * (3.0f - 2.0f * T);
+			DrawClipped(TitleRect.m_X + Step * StepWidth, StepWidth + 0.35f * Scale, FadeStrength);
+			DrawClipped(TitleRect.m_X + TitleRect.m_W - (Step + 1) * StepWidth, StepWidth + 0.35f * Scale, FadeStrength);
+		}
+	}
+	TextRender()->TextColor(OldTextColor);
+	TextRender()->TextOutlineColor(OldOutlineColor);
+}
+
+bool CAetherMusicPlayer::FreezeCounterText(char *pBuf, int Size) const
+{
+	if(Size <= 0)
+		return false;
+	pBuf[0] = '\0';
+	if(!g_Config.m_AeMusicFreezeCounter || !GameClient()->m_GameInfo.m_EntitiesDDRace)
+		return false;
+
+	int TeamClientId = -1;
+	if(GameClient()->m_Snap.m_SpecInfo.m_Active == 1 &&
+		GameClient()->m_Snap.m_SpecInfo.m_SpectatorId >= 0 &&
+		GameClient()->m_Snap.m_SpecInfo.m_SpectatorId < MAX_CLIENTS)
+	{
+		TeamClientId = GameClient()->m_Snap.m_SpecInfo.m_SpectatorId;
+	}
+	else if(GameClient()->m_Snap.m_LocalClientId >= 0 && GameClient()->m_Snap.m_LocalClientId < MAX_CLIENTS)
+		TeamClientId = GameClient()->m_Snap.m_LocalClientId;
+
+	if(TeamClientId < 0 || !GameClient()->m_Snap.m_apPlayerInfos[TeamClientId])
+		return false;
+
+	const int LocalTeamId = GameClient()->m_Teams.Team(TeamClientId);
+	int NumInTeam = 0;
+	int NumFrozen = 0;
+	for(int i = 0; i < MAX_CLIENTS; ++i)
+	{
+		if(!GameClient()->m_Snap.m_apPlayerInfos[i] || GameClient()->m_Teams.Team(i) != LocalTeamId)
+			continue;
+		++NumInTeam;
+		if(GameClient()->m_aClients[i].m_FreezeEnd > 0 || GameClient()->m_aClients[i].m_DeepFrozen)
+			++NumFrozen;
+	}
+	if(NumInTeam <= 0)
+		return false;
+
+	str_format(pBuf, Size, "%d / %d", NumFrozen, NumInTeam);
+	return true;
+}
+
 void CAetherMusicPlayer::RenderPanel(const CAetherMediaBackend::SSnapshot &Snapshot)
 {
 	const float ScreenWidth = 300.0f * Graphics()->ScreenAspect();
@@ -360,45 +461,51 @@ void CAetherMusicPlayer::RenderPanel(const CAetherMediaBackend::SSnapshot &Snaps
 			}
 		}
 
+		Graphics()->WrapClamp();
 		Graphics()->TextureSet(m_ArtworkTexture);
 		Graphics()->QuadsBegin();
 		Graphics()->SetColor(1.0f, 1.0f, 1.0f, DrawAlpha);
-		Graphics()->QuadsSetSubset(U0, V0, U1, V1);
-		IGraphics::CQuadItem ArtworkQuad(Rect.m_X, Rect.m_Y, Rect.m_W, Rect.m_H);
-		Graphics()->QuadsDrawTL(&ArtworkQuad, 1);
+		const float Radius = std::min({3.0f * Scale, Rect.m_W * 0.26f, Rect.m_H * 0.26f});
+		constexpr int Steps = 18;
+		for(int Step = 0; Step < Steps; ++Step)
+		{
+			const float Y0 = Rect.m_H * Step / Steps;
+			const float Y1 = Rect.m_H * (Step + 1) / Steps;
+			const float MidY = (Y0 + Y1) * 0.5f;
+			float Inset = 0.0f;
+			if(MidY < Radius)
+			{
+				const float Dy = Radius - MidY;
+				Inset = Radius - std::sqrt(std::max(0.0f, Radius * Radius - Dy * Dy));
+			}
+			else if(MidY > Rect.m_H - Radius)
+			{
+				const float Dy = MidY - (Rect.m_H - Radius);
+				Inset = Radius - std::sqrt(std::max(0.0f, Radius * Radius - Dy * Dy));
+			}
+			const float DrawX = Rect.m_X + Inset;
+			const float DrawY = Rect.m_Y + Y0;
+			const float DrawW = std::max(0.0f, Rect.m_W - Inset * 2.0f);
+			const float DrawH = Y1 - Y0;
+			if(DrawW <= 0.01f || DrawH <= 0.01f)
+				continue;
+			const float StripU0 = U0 + (U1 - U0) * (Inset / Rect.m_W);
+			const float StripU1 = U1 - (U1 - U0) * (Inset / Rect.m_W);
+			const float StripV0 = V0 + (V1 - V0) * (Y0 / Rect.m_H);
+			const float StripV1 = V0 + (V1 - V0) * (Y1 / Rect.m_H);
+			Graphics()->QuadsSetSubset(StripU0, StripV0, StripU1, StripV1);
+			IGraphics::CQuadItem ArtworkQuad(DrawX, DrawY, DrawW, DrawH);
+			Graphics()->QuadsDrawTL(&ArtworkQuad, 1);
+		}
 		Graphics()->QuadsEnd();
 		Graphics()->QuadsSetSubset(0.0f, 0.0f, 1.0f, 1.0f);
 		Graphics()->TextureClear();
-
-		const float Radius = std::min({4.0f * Scale, Rect.m_W * 0.45f, Rect.m_H * 0.45f});
-		const int Steps = 10;
-		auto MaskCorner = [&](bool Right, bool Bottom) {
-			for(int Step = 0; Step < Steps; ++Step)
-			{
-				const float Strip0 = Radius * Step / Steps;
-				const float Strip1 = Radius * (Step + 1) / Steps;
-				const float StripMid = (Strip0 + Strip1) * 0.5f;
-				const float DistanceFromOuterEdge = Bottom ? Radius - StripMid : StripMid;
-				const float CenterDistance = DistanceFromOuterEdge - Radius;
-				const float VisibleWidth = std::sqrt(std::max(0.0f, Radius * Radius - CenterDistance * CenterDistance));
-				const float CoverWidth = std::max(0.0f, Radius - VisibleWidth);
-				if(CoverWidth <= 0.01f)
-					continue;
-				const float X = Right ? Rect.m_X + Rect.m_W - CoverWidth : Rect.m_X;
-				const float Y = Bottom ? Rect.m_Y + Rect.m_H - Radius + Strip0 : Rect.m_Y + Strip0;
-				Graphics()->DrawRect(X, Y, CoverWidth, Strip1 - Strip0,
-					ColorRGBA(Background.m_R, Background.m_G, Background.m_B, 1.0f), 0, 0.0f);
-			}
-		};
-		MaskCorner(false, false);
-		MaskCorner(true, false);
-		MaskCorner(false, true);
-		MaskCorner(true, true);
+		Graphics()->WrapNormal();
 	};
 
-	const float ArtworkSize = std::min(20.0f * Scale, m_LastPanelRect.m_H - 2.0f * Scale);
+	const float ArtworkSize = std::min(28.0f * Scale, m_LastPanelRect.m_H - 2.0f * Scale);
 	const AetherMusic::SRect ArtworkRect{m_LastPanelRect.m_X + 1.0f * Scale, m_LastPanelRect.m_Y + (m_LastPanelRect.m_H - ArtworkSize) * 0.5f, ArtworkSize, ArtworkSize};
-	Graphics()->DrawRect(ArtworkRect.m_X, ArtworkRect.m_Y, ArtworkRect.m_W, ArtworkRect.m_H, ColorRGBA(0.04f, 0.05f, 0.07f, Opacity * 0.42f), IGraphics::CORNER_ALL, 4.0f * Scale);
+	Graphics()->DrawRect(ArtworkRect.m_X, ArtworkRect.m_Y, ArtworkRect.m_W, ArtworkRect.m_H, ColorRGBA(0.04f, 0.05f, 0.07f, Opacity * 0.18f), IGraphics::CORNER_ALL, 3.0f * Scale);
 	if(ArtworkState != AetherMusic::EArtworkState::FALLBACK && m_ArtworkTexture.IsValid())
 	{
 		DrawArtworkToRect(ArtworkRect, ContentAlpha);
@@ -406,14 +513,50 @@ void CAetherMusicPlayer::RenderPanel(const CAetherMediaBackend::SSnapshot &Snaps
 	else
 		RenderFallbackMonogram(ArtworkRect, Opacity);
 
+	char aFreezeCounter[32];
+	const bool ShowFreezeCounter = FreezeCounterText(aFreezeCounter, sizeof(aFreezeCounter));
+	const float VisualizerReserve = (g_Config.m_AeMusicVisualizerStyle == 1 ? 33.0f : 27.0f) * Scale;
+	const float ContentLeft = ArtworkRect.m_X + ArtworkRect.m_W + 5.0f * Scale;
+	const float ContentRight = m_LastPanelRect.m_X + m_LastPanelRect.m_W - VisualizerReserve;
+	const float CounterFontSize = 6.4f * Scale;
+	const float CounterWidth = ShowFreezeCounter ? TextRender()->TextWidth(CounterFontSize, aFreezeCounter) + 6.0f * Scale : 0.0f;
+	const float CounterGap = ShowFreezeCounter ? 4.0f * Scale : 0.0f;
+	const float TimerLeft = ContentLeft;
+	const float TimerRight = std::max(TimerLeft + 20.0f * Scale, ContentRight - CounterWidth - CounterGap);
 	if(g_Config.m_ClShowhudTimer)
 	{
 		const float TimerFontSize = 8.0f * Scale;
-		const float TimerY = m_LastPanelRect.m_Y + m_LastPanelRect.m_H * 0.5f - TimerFontSize * 0.50f;
-		const float TimerLeft = ArtworkRect.m_X + ArtworkRect.m_W + 5.0f * Scale;
-		const float TimerRight = m_LastPanelRect.m_X + m_LastPanelRect.m_W - (g_Config.m_AeMusicVisualizerStyle == 1 ? 33.0f : 27.0f) * Scale;
+		const float TimerY = m_LastPanelRect.m_Y + 7.0f * Scale;
 		GameClient()->m_Hud.RenderGameTimerAt((TimerLeft + TimerRight) * 0.5f, TimerY, TimerFontSize, Opacity);
 	}
+
+	if(ShowFreezeCounter)
+	{
+		const float CounterX = ContentRight - CounterWidth;
+		const float CounterY = m_LastPanelRect.m_Y + 6.4f * Scale;
+		Graphics()->DrawRect(CounterX, CounterY, CounterWidth, 9.0f * Scale, ColorRGBA(0.0f, 0.0f, 0.0f, Opacity * 0.18f), IGraphics::CORNER_ALL, 3.0f * Scale);
+		TextRender()->TextColor(1.0f, 1.0f, 1.0f, Opacity * 0.84f);
+		TextRender()->Text(CounterX + 3.0f * Scale, CounterY + 1.2f * Scale, CounterFontSize, aFreezeCounter);
+		TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+	}
+
+	if(g_Config.m_AeMusicMediaTitle)
+	{
+		std::string DisplayName = AetherMusic::MediaDisplayName(Snapshot.m_Title, Snapshot.m_Artist, Snapshot.m_Source);
+		if(DisplayName != m_LastMediaDisplayName)
+		{
+			m_LastMediaDisplayName = DisplayName;
+			m_MediaTitleChangeMs = SteadyMilliseconds();
+		}
+		const AetherMusic::SRect TitleRect{
+			ContentLeft,
+			m_LastPanelRect.m_Y + 20.3f * Scale,
+			std::max(0.0f, ContentRight - ContentLeft),
+			7.0f * Scale};
+		RenderMediaTitle(TitleRect, m_LastMediaDisplayName, Scale, ContentAlpha, ScreenWidth, ScreenHeight, Background);
+	}
+	else
+		m_LastMediaDisplayName.clear();
 
 	RenderVisualizer(m_LastPanelRect, Snapshot, Accent, Opacity);
 

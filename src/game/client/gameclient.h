@@ -649,9 +649,14 @@ public:
 		int m_AetherFastLastFreezeTime;
 		vec2 m_AetherFastLastVel;
 		bool m_AetherFastLastVelValid;
+		int64_t m_AetherLagGuardUntil;
+		vec2 m_AetherLagGuardLastUnpredPos;
+		bool m_AetherLagGuardLastUnpredValid;
+		int m_AetherLagGuardLastSnapTick;
 		bool m_SpecCharPresent;
 		vec2 m_SpecChar;
 
+		void ResetAetherRenderState();
 		void UpdateSkinInfo();
 		void UpdateSkin7HatSprite(int Dummy);
 		void UpdateSkin7BotDecoration(int Dummy);
@@ -1029,9 +1034,10 @@ public:
 
 	const std::vector<CSnapEntities> &SnapEntities() { return m_vSnapEntities; }
 
-	vec2 GetSmoothPos(int ClientId);
+	vec2 GetSmoothPos(int ClientId, bool AllowFastInputOthers = true);
 	vec2 GetFreezePos(int ClientId);
 	vec2 GetFastInputPos(int ClientId);
+	bool AetherFastInputHistoryExact(int ClientId, int Tick) const;
 
 	int m_MultiViewTeam;
 	float m_MultiViewPersonalZoom;

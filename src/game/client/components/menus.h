@@ -91,6 +91,8 @@ public:
 		struct SEntitiesImage
 		{
 			IGraphics::CTextureHandle m_Texture;
+			int m_Width = 1024;
+			int m_Height = 1024;
 		};
 		SEntitiesImage m_aImages[MAP_IMAGE_MOD_TYPE_COUNT];
 	};
@@ -645,10 +647,17 @@ protected:
 	void UpdateColors();
 
 	IGraphics::CTextureHandle m_TextureBlob;
+	IGraphics::CTextureHandle m_AetherCustomMenuThemeTexture;
+	char m_aAetherCustomMenuThemePath[IO_MAX_PATH_LENGTH] = "";
+	int m_AetherCustomMenuThemeWidth = 0;
+	int m_AetherCustomMenuThemeHeight = 0;
+	bool m_AetherCustomMenuThemeTried = false;
 
 public:
-	void RenderBackground(bool DrawChecker = true);
+	bool RenderBackground(bool DrawChecker = true, bool AllowCustomTheme = true);
+	void RenderAetherMenuThemeOverride();
 	void RenderAetherAnimatedBackdrop(const CUIRect &View);
+	bool RenderAetherCustomMenuTheme(float ScreenWidth, float ScreenHeight);
 
 	CMenus();
 	int Sizeof() const override { return sizeof(*this); }
@@ -904,8 +913,10 @@ private:
 	void RenderSettingsAetherKeystrokes(CUIRect Body);
 	void RenderSettingsAetherStabilityTrainer(CUIRect Body);
 	void RenderSettingsAetherMusicPlayer(CUIRect Body);
+	void RenderSettingsAetherCustomMenuTheme(CUIRect Body);
 	void RenderSettingsAetherNinjaTeePreview(CUIRect Body);
 	void RenderSettingsAetherNinjaTimer(CUIRect Body);
+	void RenderSettingsAetherTeamOverlays(CUIRect Body);
 	void RenderSettingsAetherSweatWeapon(CUIRect Body);
 	void RenderSettingsAetherOrbitAura(CUIRect Body);
 	void RenderSettingsAetherJellyTee(CUIRect Body);

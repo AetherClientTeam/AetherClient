@@ -35,6 +35,8 @@ public:
 		float m_RootMeanSquare = 0.0f;
 		uint64_t m_CapturedFrames = 0;
 		std::string m_Source;
+		std::string m_Title;
+		std::string m_Artist;
 		uint64_t m_ArtworkGeneration = 0;
 		std::shared_ptr<const std::vector<uint8_t>> m_pArtworkRgba;
 		uint32_t m_ArtworkWidth = 0;

@@ -519,6 +519,17 @@ public:
 		AetherMusic::EPlaybackState MediaPlaybackState = AetherMusic::EPlaybackState::UNAVAILABLE;
 		std::array<float, 5> aSmoothedBands{};
 		std::vector<uint8_t> vLastArtworkEncoded;
+		std::string LastArtworkIdentity;
+		auto ClearArtworkSnapshot = [&]() {
+			const bool HadArtwork = m_Snapshot.m_pArtworkRgba || m_Snapshot.m_ArtworkWidth != 0 || m_Snapshot.m_ArtworkHeight != 0 || m_Snapshot.m_ArtworkReceivedMs != 0;
+			m_Snapshot.m_pArtworkRgba.reset();
+			m_Snapshot.m_ArtworkWidth = 0;
+			m_Snapshot.m_ArtworkHeight = 0;
+			m_Snapshot.m_ArtworkReceivedMs = 0;
+			m_Snapshot.m_LastPlayingMs = 0;
+			if(HadArtwork)
+				++m_Snapshot.m_ArtworkGeneration;
+		};
 		winrt::Windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager Manager{nullptr};
 		try
 		{
@@ -570,9 +581,15 @@ public:
 						}
 
 						std::vector<uint8_t> vArtwork;
+						std::string Title;
+						std::string Artist;
 						try
 						{
 							auto Properties = Session.TryGetMediaPropertiesAsync().get();
+							Title = winrt::to_string(Properties.Title());
+							Artist = winrt::to_string(Properties.Artist());
+							if(Artist.empty())
+								Artist = winrt::to_string(Properties.AlbumArtist());
 							auto Thumbnail = Properties.Thumbnail();
 							if(Thumbnail)
 							{
@@ -592,7 +609,9 @@ public:
 							log_debug("aether/media", "artwork read failed hr=0x%08X", (unsigned)Error.code().value);
 						}
 
-						const bool ArtworkChanged = vArtwork != vLastArtworkEncoded;
+						const std::string ArtworkIdentity = Source + "\n" + Title + "\n" + Artist;
+						const bool IdentityChanged = ArtworkIdentity != LastArtworkIdentity;
+						const bool ArtworkChanged = vArtwork != vLastArtworkEncoded || (IdentityChanged && vArtwork.empty());
 						std::shared_ptr<const std::vector<uint8_t>> pArtworkRgba;
 						uint32_t ArtworkWidth = 0;
 						uint32_t ArtworkHeight = 0;
@@ -606,6 +625,8 @@ public:
 						std::lock_guard Lock(m_Mutex);
 						m_Snapshot.m_MediaPlaybackState = MediaPlaybackState;
 						m_Snapshot.m_Source = Source;
+						m_Snapshot.m_Title = Title;
+						m_Snapshot.m_Artist = Artist;
 						m_Snapshot.m_ProcessId = ProcessId;
 						if(MediaPlaybackState == AetherMusic::EPlaybackState::PLAYING)
 							m_Snapshot.m_LastPlayingMs = Now;
@@ -621,8 +642,11 @@ public:
 								if(m_Snapshot.m_LastPlayingMs == 0)
 									m_Snapshot.m_LastPlayingMs = Now;
 							}
+							else
+								m_Snapshot.m_ArtworkReceivedMs = 0;
 							vLastArtworkEncoded = std::move(vArtwork);
 						}
+						LastArtworkIdentity = ArtworkIdentity;
 					}
 					else
 					{
@@ -644,6 +668,11 @@ public:
 						m_Snapshot.m_RootMeanSquare = 0.0f;
 						m_Snapshot.m_CapturedFrames = 0;
 						m_Snapshot.m_Source.clear();
+						m_Snapshot.m_Title.clear();
+						m_Snapshot.m_Artist.clear();
+						ClearArtworkSnapshot();
+						vLastArtworkEncoded.clear();
+						LastArtworkIdentity.clear();
 					}
 				}
 				catch(const winrt::hresult_error &)
@@ -668,6 +697,12 @@ public:
 					m_Snapshot.m_SessionPeak = 0.0f;
 					m_Snapshot.m_RootMeanSquare = 0.0f;
 					m_Snapshot.m_CapturedFrames = 0;
+					m_Snapshot.m_Source.clear();
+					m_Snapshot.m_Title.clear();
+					m_Snapshot.m_Artist.clear();
+					ClearArtworkSnapshot();
+					vLastArtworkEncoded.clear();
+					LastArtworkIdentity.clear();
 				}
 			}
 
@@ -818,6 +853,16 @@ public:
 		m_Snapshot.m_VisualizerAvailable = false;
 		m_Snapshot.m_AudioActive = false;
 		m_Snapshot.m_CaptureStatus = ECaptureStatus::DISABLED;
+		m_Snapshot.m_Source.clear();
+		m_Snapshot.m_Title.clear();
+		m_Snapshot.m_Artist.clear();
+		m_Snapshot.m_LastPlayingMs = 0;
+		m_Snapshot.m_ArtworkReceivedMs = 0;
+		if(m_Snapshot.m_pArtworkRgba || m_Snapshot.m_ArtworkWidth != 0 || m_Snapshot.m_ArtworkHeight != 0)
+			++m_Snapshot.m_ArtworkGeneration;
+		m_Snapshot.m_pArtworkRgba.reset();
+		m_Snapshot.m_ArtworkWidth = 0;
+		m_Snapshot.m_ArtworkHeight = 0;
 	}
 };
 

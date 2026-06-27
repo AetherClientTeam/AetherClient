@@ -2085,7 +2085,10 @@ void CClient::ProcessServerPacket(CNetChunk *pPacket, int Conn, bool Dummy)
 			}
 
 			if(Target)
-				m_PredictedTime.Update(&m_InputtimeMarginGraph, Target, TimeLeft, CSmoothTime::ADJUSTDIRECTION_UP);
+			{
+				const bool LagGuard = g_Config.m_AeInputLagGuard && (g_Config.m_AeFastInput || g_Config.m_TcFastInput);
+				m_PredictedTime.Update(&m_InputtimeMarginGraph, Target, TimeLeft, CSmoothTime::ADJUSTDIRECTION_UP, LagGuard);
+			}
 		}
 		else if(Msg == NETMSG_SNAP || Msg == NETMSG_SNAPSINGLE || Msg == NETMSG_SNAPEMPTY)
 		{
@@ -5243,6 +5246,11 @@ int CClient::GetPredictionTime()
 	return (int)((m_PredictedTime.Get(Now) - m_aGameTime[g_Config.m_ClDummy].Get(Now)) * 1000 / (float)time_freq());
 }
 
+int CClient::GetPredictionMargin() const
+{
+	return PredictionMargin();
+}
+
 int CClient::GetPredictionTick()
 {
 	int PredictionTick = GetPredictionTime() * GameTickSpeed() / 1000.0f;
@@ -5337,6 +5345,8 @@ int CClient::PredictionMargin() const
 				FastInputMargin = std::clamp(g_Config.m_TcFastInputAmount, 1, 100);
 			else if(g_Config.m_AeFastInputMode == 2)
 				FastInputMargin = (std::clamp(g_Config.m_AeSaikoPlusAmount, 0, 500) + 2) / 5;
+			else if(g_Config.m_AeFastInputMode == 5)
+				FastInputMargin = (std::clamp(g_Config.m_AeLewnPlusAmount, 140, 500) + 2) / 5;
 			else
 				FastInputMargin = std::max(std::clamp(g_Config.m_AeFastInputMovementAmount, 0, 50), std::clamp(g_Config.m_AeFastInputActionAmount, 0, 50));
 		}

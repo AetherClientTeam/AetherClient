@@ -183,6 +183,8 @@ bool AetherFeatureAllowed(AetherMusic::EAetherFeatureId Id)
 	{
 		switch(Id)
 		{
+		case EAetherFeatureId::AETHER_MENU_THEME:
+		case EAetherFeatureId::CUSTOM_MENU_THEME:
 		case EAetherFeatureId::KEYSTROKES:
 		case EAetherFeatureId::MUSIC_PLAYER:
 		case EAetherFeatureId::INPUT_VISUALIZER:
@@ -190,6 +192,7 @@ bool AetherFeatureAllowed(AetherMusic::EAetherFeatureId Id)
 		case EAetherFeatureId::SESSION_STATS:
 		case EAetherFeatureId::REAL_HITBOX:
 		case EAetherFeatureId::NINJA_TEE_PREVIEW:
+		case EAetherFeatureId::TEAM_OVERLAYS:
 		case EAetherFeatureId::FINISH_PREDICTION:
 		case EAetherFeatureId::LOADING_THEME_BACKGROUND:
 		case EAetherFeatureId::CLIENT_BADGES:
@@ -220,11 +223,14 @@ bool AetherFeatureAllowed(AetherMusic::EAetherFeatureId Id)
 	{
 		switch(Id)
 		{
+		case EAetherFeatureId::AETHER_MENU_THEME:
+		case EAetherFeatureId::CUSTOM_MENU_THEME:
 		case EAetherFeatureId::FAST_SPEC:
 		case EAetherFeatureId::ORBIT_AURA:
 		case EAetherFeatureId::KEYSTROKES:
 		case EAetherFeatureId::DDRACE_CONFIGS:
 		case EAetherFeatureId::NINJA_TIMER:
+		case EAetherFeatureId::TEAM_OVERLAYS:
 		case EAetherFeatureId::MUSIC_PLAYER:
 		case EAetherFeatureId::REAL_HITBOX:
 		case EAetherFeatureId::NINJA_TEE_PREVIEW:
@@ -255,12 +261,15 @@ bool AetherFeatureAllowed(AetherMusic::EAetherFeatureId Id)
 	{
 		switch(Id)
 		{
+		case EAetherFeatureId::AETHER_MENU_THEME:
+		case EAetherFeatureId::CUSTOM_MENU_THEME:
 		case EAetherFeatureId::BLOCK_AWARENESS:
 		case EAetherFeatureId::ORBIT_AURA:
 		case EAetherFeatureId::KEYSTROKES:
 		case EAetherFeatureId::MUSIC_PLAYER:
 		case EAetherFeatureId::REAL_HITBOX:
 		case EAetherFeatureId::NINJA_TEE_PREVIEW:
+		case EAetherFeatureId::TEAM_OVERLAYS:
 		case EAetherFeatureId::FINISH_PREDICTION:
 		case EAetherFeatureId::LOADING_THEME_BACKGROUND:
 		case EAetherFeatureId::CLIENT_BADGES:
@@ -320,6 +329,7 @@ const char *AetherLocalize(const char *pText)
 		{"Clan", "Klan"},
 		{"Games", "Oyunlar"},
 		{"Info", "Bilgi"},
+		{"Off", "Kapalı"},
 		{"Open", "Aç"},
 		{"Close", "Kapat"},
 		{"Refresh", "Yenile"},
@@ -358,6 +368,7 @@ const char *AetherLocalize(const char *pText)
 		{"Show Grid", "Grid göster"},
 
 		{"Gradient Effects", "Gradient Efektleri"},
+		{"Last & Frozen Display", "Son Kalan & Frozen Göstergesi"},
 		{"Music Player", "Müzik Çalar"},
 		{"Keystrokes", "Tuş Göstergesi"},
 		{"Input Visualizer", "Input Görselleştirici"},
@@ -371,6 +382,7 @@ const char *AetherLocalize(const char *pText)
 		{"Jelly Tee", "Jelly Tee"},
 		{"Finish Prediction", "Finish Tahmini"},
 		{"3D Particles", "3D Parçacıklar"},
+		{"Aether Menu Theme", "Aether Menü Teması"},
 		{"Loading Theme Background", "Yükleme Teması Arka Planı"},
 		{"Client Badges", "Client Rozetleri"},
 		{"Chat Bubbles", "Chat Balonları"},
@@ -387,6 +399,10 @@ const char *AetherLocalize(const char *pText)
 		{"Gores Mode", "Gores Mode"},
 		{"Gores Maps", "Gores Haritaları"},
 		{"DDRace Configs", "DDRace Configleri"},
+		{"Custom Menu Theme", "Özel Menü Teması"},
+		{"Vault CFG Save", "Vault CFG Kaydet"},
+		{"Custom Aspect Ratio", "Özel Ekran Oranı"},
+		{"Optimizer", "Optimize Edici"},
 		{"Silent Typing", "Sessiz Yazma"},
 		{"Auto Team Lock", "Otomatik Team Lock"},
 		{"Save Unsent Messages", "Gönderilmemiş Mesajları Sakla"},
@@ -405,10 +421,19 @@ const char *AetherLocalize(const char *pText)
 		{"Dynamic cover color", "Kapak rengine uyarla"},
 		{"Background color", "Arka plan rengi"},
 		{"Panel opacity", "Panel opaklığı"},
+		{"Freeze counter", "Freeze sayacı"},
+		{"Media title", "Medya adı"},
 		{"Visualizer", "Görselleştirici"},
 		{"Visualizer style", "Görselleştirici stili"},
 		{"Visualizer sensitivity", "Görselleştirici hassasiyeti"},
 		{"Visualizer glow", "Görselleştirici parlaması"},
+		{"Coded background", "Kodlu arka plan"},
+		{"Parallax", "Parallax"},
+		{"Override", "Üste yazma"},
+		{"PNG image", "PNG görseli"},
+		{"Image dim", "Görsel karartma"},
+		{"No PNG files yet", "Henüz PNG dosyası yok"},
+		{"Put PNG files in aether/menu_themes, then reload and select one.", "PNG dosyalarını aether/menu_themes içine koy, sonra yenileyip birini seç."},
 		{"Bars", "Çubuklar"},
 		{"Mountain", "Dağ"},
 		{"Horizontal layout", "Yatay düzen"},
@@ -450,6 +475,17 @@ const char *AetherLocalize(const char *pText)
 		{"Keep music player visible", "Müzik çaları görünür tut"},
 		{"Disable if you have shotgun, grenade or laser", "Shotgun, grenade veya laser varken kapat"},
 		{"Lock delay after joining team", "Team'e girdikten sonra kilit gecikmesi"},
+		{"Last alive display", "Son kalan göstergesi"},
+		{"Last text", "Son kalan yazısı"},
+		{"Last color", "Son kalan rengi"},
+		{"Last background", "Son kalan arka planı"},
+		{"Frozen tee counter", "Frozen tee sayacı"},
+		{"Alive", "Canlı"},
+		{"Frozen", "Frozen"},
+		{"Counter color", "Sayaç rengi"},
+		{"Counter background", "Sayaç arka planı"},
+		{"Position and scale are HUD Editor only.", "Konum ve ölçek sadece HUD Editor'den ayarlanır."},
+		{"Independent from the old TClient last text and frozen tee display settings.", "Eski TClient last text ve frozen tee display ayarlarından bağımsızdır."},
 
 		{"TClient", "TClient"},
 		{"Adaptive", "Adaptive"},
@@ -462,6 +498,9 @@ const char *AetherLocalize(const char *pText)
 		{"Stability", "Stabilite"},
 		{"Correction", "Düzeltme"},
 		{"Control input other tees", "Diğer teelere Control input"},
+		{"Control ping assist", "Control ping desteği"},
+		{"Control interaction assist", "Control etkileşim desteği"},
+		{"Control interaction strength", "Control etkileşim gücü"},
 		{"Movement amount", "Hareket miktarı"},
 		{"Hook/fire amount", "Hook/fire miktarı"},
 		{"Correction sharpness", "Düzeltme sertliği"},
@@ -480,6 +519,7 @@ const char *AetherLocalize(const char *pText)
 		{"Apply to dummy", "Dummy'ye uygula"},
 		{"Sub-Tick aiming", "Sub-Tick nişan"},
 		{"Auto margin", "Otomatik güven payı"},
+		{"Lag guard", "Lag koruması"},
 		{"Show debug info", "Debug bilgisini göster"},
 		{"Enable Fast Spec", "Fast Spec'i aç"},
 		{"Fast Spec key", "Fast Spec tuşu"},
@@ -557,6 +597,16 @@ const char *AetherLocalize(const char *pText)
 		{"Only colored pixels", "Sadece renkli pikseller"},
 		{"Full bright", "Full bright"},
 		{"Keep black outline, fill inside", "Siyah çizgiyi koru, içi doldur"},
+		{"Scale X", "X olcegi"},
+		{"Scale Y", "Y olcegi"},
+		{"Anchor X", "X sabitleme"},
+		{"Anchor Y", "Y sabitleme"},
+		{"Left", "Sol"},
+		{"Center", "Orta"},
+		{"Right", "Sag"},
+		{"Top", "Ust"},
+		{"Middle", "Orta"},
+		{"Bottom", "Alt"},
 		{"Color", "Renk"},
 		{"Pick color", "Renk seç"},
 		{"Picking...", "Seçiliyor..."},
@@ -590,8 +640,10 @@ const char *AetherLocalize(const char *pText)
 		{"Core tuning is fixed to the stable default profile.", "Ana ayarlar sabit stabil varsayılan profile kilitli."},
 		{"HUD Editor can move and resize this compact ninja timer.", "Bu kompakt ninja zamanlayıcı HUD Editor ile taşınıp ölçeklenebilir."},
 
+		{"Uses a selected PNG as the main menu background.", "Seçili PNG görselini ana menü arka planı olarak kullanır."},
 		{"Adds local and synced color effects to names and team colors.", "İsimlere ve takım renklerine yerel veya senkron renk efektleri ekler."},
 		{"In-game music controls, playlist playback and visualizer HUD.", "Oyun içinde müzik kontrolü, playlist oynatma ve görselleştirici HUD sağlar."},
+		{"Overrides regular and custom menu themes with the coded Aether parallax background.", "Normal ve özel menü temalarının üstüne kodlu Aether parallax arka planını çizer."},
 		{"Shows movement, jump, hook and fire inputs as a movable HUD.", "Hareket, zıplama, hook ve fire inputlarını taşınabilir HUD olarak gösterir."},
 		{"Draws a small input graph so you can see recent key and mouse timing.", "Son tuş ve mouse zamanlamanı görebilmen için küçük bir input grafiği çizer."},
 		{"Training overlay for practicing stable movement and controlled inputs.", "Stabil hareket ve kontrollü input çalışmak için antrenman overlay'i gösterir."},
@@ -599,6 +651,7 @@ const char *AetherLocalize(const char *pText)
 		{"Shows the real tee collision box for practice and debugging.", "Pratik ve test için gerçek tee çarpışma kutusunu gösterir."},
 		{"Previews the ninja tee state without changing gameplay.", "Oynanışı değiştirmeden ninja tee görünümünü önizler."},
 		{"Shows remaining DDRace ninja time while ninja is active.", "Ninja aktifken kalan DDRace ninja süresini gösterir."},
+		{"Modern replacement for TClient last alive text and frozen tee display.", "TClient last alive yazısı ve frozen tee display için modern Aether karşılığıdır."},
 		{"Adds a visual sweat-style weapon effect.", "Silahlara sweat tarzı görsel efekt ekler."},
 		{"Draws a configurable aura effect around your tee.", "Tee etrafına ayarlanabilir aura efekti çizer."},
 		{"Adds a soft visual jelly motion to your tee.", "Tee'ye yumuşak jelly hareket efekti ekler."},
@@ -660,10 +713,12 @@ const char *AetherLocalize(const char *pText)
 		{"Also applies Aether fast input to dummy prediction when possible.", "Mümkün olduğunda Aether fast input'u dummy prediction'a da uygular."},
 		{"Samples mouse aim closer to the real hook/fire time.", "Mouse nişanını gerçek hook/fire zamanına daha yakın örnekler."},
 		{"Keeps a small safety margin to avoid over-predicting unstable frames.", "Stabil olmayan framelerde fazla prediction'ı önlemek için küçük güven payı tutar."},
+		{"Reduces isolated timing spikes and other-tee jitter after network spikes.", "Network spike sonrası tekil timing sıçramalarını ve diğer tee titremesini azaltır."},
 		{"Shows debug numbers for tuning and testing fast input.", "Fast input ayarlamak ve test etmek için debug sayılarını gösterir."},
 		{"Local aim training targets for mouse accuracy practice.", "Mouse doğruluğu çalışmak için yerel aim training targetları gösterir."},
 		{"Practice Sensitivity Analyzer for comparing low and high values.", "Düşük ve yüksek değerleri karşılaştırmak için hassasiyet analiz aracı."},
 		{"Cloud clan membership, members and warlist sharing for general clans.", "Cloud clan üyeliği, üye listesi ve general clan warlist paylaşımı sağlar."},
+		{"Uses the coded Aether parallax menu background as an override. Turn off to let normal themes or Custom Menu Theme draw the menu.", "Kodlu Aether parallax menü arka planını override olarak kullanır. Normal temalar veya Özel Menü Teması çizsin istiyorsan kapat."},
 
 		{"How long Aether waits before sending the automatic team lock command after you join a DDNet team.", "DDNet team'e girdikten sonra otomatik team lock komutu göndermeden önce Aether'ın ne kadar bekleyeceği."},
 		{"Turns Gores Mode off while you have stronger weapons, so it does not fight weapon-specific gameplay.", "Shotgun, grenade veya laser varken Gores Mode'u kapatır; böylece silaha özel oynanışla çakışmaz."},
@@ -676,6 +731,10 @@ const char *AetherLocalize(const char *pText)
 		{"Only shows Aether/Vera/Via/Vex client identity badges and hides role badges.", "Sadece Aether/Vera/Via/Vex client rozetlerini gösterir, rol rozetlerini gizler."},
 		{"Shows the normal friend heart as the right-most badge slot.", "Normal arkadaş kalbini en sağdaki rozet slotu olarak gösterir."},
 		{"Enables Aether ping markers from the ping wheel and cloud ping events.", "Ping çarkı ve cloud ping olaylarından gelen Aether ping işaretlerini açar."},
+		{"Shows the modern last-alive text when your DDNet team is down to one active tee.", "DDNet takımında tek aktif tee kaldığında modern son kalan yazısını gösterir."},
+		{"Draws a compact background behind the last-alive text.", "Son kalan yazısının arkasına kompakt bir arka plan çizer."},
+		{"Draws a compact background behind the frozen/alive team counter.", "Frozen/canlı takım sayacının arkasına kompakt bir arka plan çizer."},
+		{"Darkens the selected custom menu PNG so foreground buttons remain readable.", "Ön plandaki butonlar okunaklı kalsın diye seçili özel menü PNG'sini karartır."},
 		{"How long chat bubbles stay above tees.", "Chat balonlarının teelerin üstünde ne kadar kalacağını belirler."},
 		{"Transparency of chat bubble panels.", "Chat balonu panellerinin şeffaflığını ayarlar."},
 		{"Maximum width of each chat bubble before wrapping.", "Chat balonu satır kırmadan önce maksimum genişliğini ayarlar."},
@@ -819,10 +878,14 @@ const char *AetherFeatureTooltip(AetherMusic::EAetherFeatureId Id)
 	using AetherMusic::EAetherFeatureId;
 	switch(Id)
 	{
+	case EAetherFeatureId::CUSTOM_MENU_THEME:
+		return "Uses a selected PNG as the main menu background.";
 	case EAetherFeatureId::GRADIENT_TEAM_COLORS:
 		return "Adds local and synced color effects to names and team colors.";
 	case EAetherFeatureId::MUSIC_PLAYER:
 		return "In-game music controls, playlist playback and visualizer HUD.";
+	case EAetherFeatureId::AETHER_MENU_THEME:
+		return "Overrides regular and custom menu themes with the coded Aether parallax background.";
 	case EAetherFeatureId::KEYSTROKES:
 		return "Shows movement, jump, hook and fire inputs as a movable HUD.";
 	case EAetherFeatureId::INPUT_VISUALIZER:
@@ -837,6 +900,8 @@ const char *AetherFeatureTooltip(AetherMusic::EAetherFeatureId Id)
 		return "Previews the ninja tee state without changing gameplay.";
 	case EAetherFeatureId::NINJA_TIMER:
 		return "Shows remaining DDRace ninja time while ninja is active.";
+	case EAetherFeatureId::TEAM_OVERLAYS:
+		return "Modern replacement for TClient last alive text and frozen tee display.";
 	case EAetherFeatureId::SWEAT_WEAPON:
 		return "Adds a visual sweat-style weapon effect.";
 	case EAetherFeatureId::ORBIT_AURA:
@@ -934,6 +999,10 @@ const char *AetherControlTooltip(const char *pLabel)
 		{"Show client badges only", "Only shows Aether/Vera/Via/Vex client identity badges and hides role badges."},
 		{"Show friend heart", "Shows the normal friend heart as the right-most badge slot."},
 		{"Show Aether pings", "Enables Aether ping markers from the ping wheel and cloud ping events."},
+		{"Last alive display", "Shows the modern last-alive text when your DDNet team is down to one active tee."},
+		{"Last background", "Draws a compact background behind the last-alive text."},
+		{"Counter background", "Draws a compact background behind the frozen/alive team counter."},
+		{"Image dim", "Darkens the selected custom menu PNG so foreground buttons remain readable."},
 		{"Bubble duration", "How long chat bubbles stay above tees."},
 		{"Bubble opacity", "Transparency of chat bubble panels."},
 		{"Bubble width", "Maximum width of each chat bubble before wrapping."},
@@ -951,6 +1020,9 @@ const char *AetherControlTooltip(const char *pLabel)
 		{"Stability", "Higher values smooth small prediction noise; lower values follow prediction more directly."},
 		{"Correction", "How quickly Control mode catches up after server correction."},
 		{"Control input other tees", "Applies a smaller stable offset to other tees for smoother hooks and drags."},
+		{"Control ping assist", "Restores the old Control-only prediction-time follow adjustment without changing other modes."},
+		{"Control interaction assist", "Adds Control-only render smoothing around close tee interactions."},
+		{"Control interaction strength", "Controls how strongly Control-only interaction smoothing is applied."},
 		{"Movement amount", "How far A/D and jump input are predicted ahead in Adaptive mode."},
 		{"Hook/fire amount", "How far hook, fire and weapon input are predicted. Lower values feel closer to vanilla; higher values feel more immediate."},
 		{"Correction sharpness", "How strongly prediction snaps back toward the server result after correction."},
@@ -966,6 +1038,7 @@ const char *AetherControlTooltip(const char *pLabel)
 		{"Apply to dummy", "Also applies Aether Fast Input to dummy prediction where possible."},
 		{"Sub-Tick aiming", "Samples mouse aim closer to hook/fire time for better aim timing."},
 		{"Auto margin", "Keeps a small safety margin to avoid unstable over-prediction."},
+		{"Lag guard", "Reduces isolated timing spikes and other-tee jitter after network spikes."},
 		{"Show debug info", "Shows tuning/debug numbers for Fast Input testing."},
 		{"Enable Fast Spec", "Enables the quick spec/return helper used for DDRace strong/weak handling."},
 		{"Auto translate incoming messages", "Automatically translates incoming chat when the translator feature is enabled."},
@@ -1108,11 +1181,17 @@ const char *AetherControlTooltip(const char *pLabel)
 		{"Use donor part", "Uses a selected donor part for this mixed asset slot."},
 		{"Tint color", "Applies a tint to the selected asset part."},
 		{"Only colored pixels", "Limits tinting to colored pixels and keeps neutral pixels cleaner."},
+		{"Scale X", "Shrinks the selected part horizontally without rotating it."},
+		{"Scale Y", "Shrinks the selected part vertically without rotating it."},
+		{"Anchor X", "Chooses which horizontal edge stays fixed while scaling."},
+		{"Anchor Y", "Chooses which vertical edge stays fixed while scaling."},
 		{"Full bright", "Exports the selected part as full-bright where supported."},
 		{"Keep black outline, fill inside", "Keeps dark outlines while recoloring the inside area."},
 		{"Opacity", "Opacity of the selected asset part."},
 		{"Dynamic cover color", "Tints the music player with colors sampled from cover art."},
 		{"Panel opacity", "Transparency of the music player panel."},
+		{"Freeze counter", "Shows frozen tees in your current DDNet team inside the music player."},
+		{"Media title", "Shows the current media title under the timer."},
 		{"Visualizer", "Shows the music visualizer in the player panel."},
 		{"Visualizer sensitivity", "How strongly audio affects visualizer height."},
 		{"Visualizer glow", "Glow amount around the visualizer."},
@@ -1700,6 +1779,30 @@ void AetherScanPngNames(IStorage *pStorage, const char *pPath, std::vector<std::
 	}
 }
 
+int AetherMenuThemePngScan(const char *pName, int IsDir, int StorageType, void *pUser)
+{
+	(void)StorageType;
+	if(IsDir || pName[0] == '.' || !AetherPngFile(pName))
+		return 0;
+	auto *pNames = static_cast<std::vector<std::string> *>(pUser);
+	char aName[IO_MAX_PATH_LENGTH];
+	str_truncate(aName, sizeof(aName), pName, str_length(pName) - 4);
+	pNames->emplace_back(aName);
+	return 0;
+}
+
+void AetherScanMenuThemePngs(IStorage *pStorage, std::vector<std::string> &vNames)
+{
+	vNames.clear();
+	if(!pStorage)
+		return;
+	pStorage->CreateFolder("aether", IStorage::TYPE_SAVE);
+	pStorage->CreateFolder("aether/menu_themes", IStorage::TYPE_SAVE);
+	pStorage->ListDirectory(IStorage::TYPE_ALL, "aether/menu_themes", AetherMenuThemePngScan, &vNames);
+	std::sort(vNames.begin(), vNames.end());
+	vNames.erase(std::unique(vNames.begin(), vNames.end()), vNames.end());
+}
+
 void AetherScanEntityNames(IStorage *pStorage, std::vector<std::string> &vNames)
 {
 	AetherScanPngNames(pStorage, "assets/entities", vNames, true);
@@ -2023,6 +2126,12 @@ struct SAetherSpriteRect
 	int m_H = 0;
 };
 
+constexpr int AETHER_ASSET_TRANSFORM_SCALE_MIN = 25;
+constexpr int AETHER_ASSET_TRANSFORM_SCALE_MAX = 100;
+constexpr int AETHER_ASSET_TRANSFORM_ANCHOR_START = 0;
+constexpr int AETHER_ASSET_TRANSFORM_ANCHOR_CENTER = 1;
+constexpr int AETHER_ASSET_TRANSFORM_ANCHOR_END = 2;
+
 bool AetherGetSpriteRect(const CDataSprite *pSprite, const CImageInfo &Image, SAetherSpriteRect &Rect)
 {
 	if(!pSprite || !pSprite->m_pSet || Image.m_Width <= 0 || Image.m_Height <= 0 || pSprite->m_pSet->m_Gridx <= 0 || pSprite->m_pSet->m_Gridy <= 0)
@@ -2057,22 +2166,96 @@ bool AetherGetAssetPartRect(int SpriteId, const CImageInfo &Image, SAetherSprite
 	return Rect.m_W > 0 && Rect.m_H > 0;
 }
 
-ColorRGBA AetherApplyAssetTint(ColorRGBA SrcColor, unsigned TintColor, bool TintEnabled, int Opacity, bool OnlyColored, bool FullBright, bool FillInside, bool EntityTile)
+int AetherAssetAnchorOffset(int FullSize, int DrawSize, int Anchor)
+{
+	const int Free = std::max(0, FullSize - DrawSize);
+	if(Anchor <= AETHER_ASSET_TRANSFORM_ANCHOR_START)
+		return 0;
+	if(Anchor >= AETHER_ASSET_TRANSFORM_ANCHOR_END)
+		return Free;
+	return Free / 2;
+}
+
+SAetherSpriteRect AetherTransformedSpriteRect(const SAetherSpriteRect &Rect, int ScaleX, int ScaleY, int AnchorX, int AnchorY)
+{
+	ScaleX = std::clamp(ScaleX, AETHER_ASSET_TRANSFORM_SCALE_MIN, AETHER_ASSET_TRANSFORM_SCALE_MAX);
+	ScaleY = std::clamp(ScaleY, AETHER_ASSET_TRANSFORM_SCALE_MIN, AETHER_ASSET_TRANSFORM_SCALE_MAX);
+	AnchorX = std::clamp(AnchorX, AETHER_ASSET_TRANSFORM_ANCHOR_START, AETHER_ASSET_TRANSFORM_ANCHOR_END);
+	AnchorY = std::clamp(AnchorY, AETHER_ASSET_TRANSFORM_ANCHOR_START, AETHER_ASSET_TRANSFORM_ANCHOR_END);
+
+	SAetherSpriteRect Result = Rect;
+	Result.m_W = std::clamp(round_to_int(Rect.m_W * (ScaleX / 100.0f)), 1, Rect.m_W);
+	Result.m_H = std::clamp(round_to_int(Rect.m_H * (ScaleY / 100.0f)), 1, Rect.m_H);
+	Result.m_X += AetherAssetAnchorOffset(Rect.m_W, Result.m_W, AnchorX);
+	Result.m_Y += AetherAssetAnchorOffset(Rect.m_H, Result.m_H, AnchorY);
+	return Result;
+}
+
+CUIRect AetherTransformedUiRect(const CUIRect &Rect, int ScaleX, int ScaleY, int AnchorX, int AnchorY)
+{
+	ScaleX = std::clamp(ScaleX, AETHER_ASSET_TRANSFORM_SCALE_MIN, AETHER_ASSET_TRANSFORM_SCALE_MAX);
+	ScaleY = std::clamp(ScaleY, AETHER_ASSET_TRANSFORM_SCALE_MIN, AETHER_ASSET_TRANSFORM_SCALE_MAX);
+	AnchorX = std::clamp(AnchorX, AETHER_ASSET_TRANSFORM_ANCHOR_START, AETHER_ASSET_TRANSFORM_ANCHOR_END);
+	AnchorY = std::clamp(AnchorY, AETHER_ASSET_TRANSFORM_ANCHOR_START, AETHER_ASSET_TRANSFORM_ANCHOR_END);
+
+	CUIRect Result = Rect;
+	Result.w = Rect.w * (ScaleX / 100.0f);
+	Result.h = Rect.h * (ScaleY / 100.0f);
+	const float FreeX = std::max(0.0f, Rect.w - Result.w);
+	const float FreeY = std::max(0.0f, Rect.h - Result.h);
+	Result.x += AnchorX == AETHER_ASSET_TRANSFORM_ANCHOR_START ? 0.0f : (AnchorX == AETHER_ASSET_TRANSFORM_ANCHOR_END ? FreeX : FreeX * 0.5f);
+	Result.y += AnchorY == AETHER_ASSET_TRANSFORM_ANCHOR_START ? 0.0f : (AnchorY == AETHER_ASSET_TRANSFORM_ANCHOR_END ? FreeY : FreeY * 0.5f);
+	return Result;
+}
+
+void AetherClearAssetRect(CImageInfo &Dest, const SAetherSpriteRect &Rect)
+{
+	for(int y = 0; y < Rect.m_H; ++y)
+	{
+		for(int x = 0; x < Rect.m_W; ++x)
+			Dest.SetPixelColor((size_t)Rect.m_X + x, (size_t)Rect.m_Y + y, ColorRGBA(0.0f, 0.0f, 0.0f, 0.0f));
+	}
+}
+
+ColorRGBA AetherApplyAssetTint(ColorRGBA SrcColor, unsigned TintColor, bool TintEnabled, int Opacity, bool OnlyColored, bool FullBright, bool FillInside, bool PreserveTextureDetail)
 {
 	const ColorHSLA TintHsl(TintColor, false);
 	const float OpacityScale = std::clamp(Opacity / 100.0f, 0.0f, 1.0f);
 	ColorHSLA SrcHsl = color_cast<ColorHSLA>(SrcColor);
 	// "Only colored pixels" is about the source sprite, not the picked tint:
 	// keep white/black/gray highlights intact while allowing any target color.
-	const bool ColoredSource = SrcHsl.s > 0.08f;
-	const bool PreserveOutline = !EntityTile && FillInside && SrcColor.r < 0.08f && SrcColor.g < 0.08f && SrcColor.b < 0.08f;
-	if(TintEnabled && !PreserveOutline && (EntityTile || !OnlyColored || ColoredSource))
+	const float MaxChannel = std::max({SrcColor.r, SrcColor.g, SrcColor.b});
+	const float MinChannel = std::min({SrcColor.r, SrcColor.g, SrcColor.b});
+	const bool ColoredSource = SrcColor.a > 0.001f && SrcHsl.s > 0.08f && MaxChannel - MinChannel > 0.045f && MaxChannel > 0.08f;
+	const bool PreserveOutline = FillInside && SrcColor.a > 0.001f && MaxChannel < 0.08f;
+	if(TintEnabled && PreserveTextureDetail && !PreserveOutline && (!OnlyColored || ColoredSource))
+	{
+		const float SourceLight = std::clamp(SrcHsl.l, 0.0f, 1.0f);
+		const float DetailLight = std::clamp((SourceLight - 0.5f) * 1.85f + 0.5f, 0.0f, 1.0f);
+		if(TintHsl.s > 0.02f)
+		{
+			SrcHsl.h = TintHsl.h;
+			SrcHsl.s = std::clamp(TintHsl.s * 0.92f + SrcHsl.s * 0.08f, 0.0f, 1.0f);
+		}
+		else
+			SrcHsl.s = 0.0f;
+
+		const float LowLight = std::clamp(TintHsl.l * 0.30f, 0.0f, 1.0f);
+		const float HighLight = std::clamp(TintHsl.l + (1.0f - TintHsl.l) * 0.62f, 0.0f, 1.0f);
+		SrcHsl.l = LowLight + (HighLight - LowLight) * DetailLight;
+		if(FullBright)
+			SrcHsl.l = std::max(SrcHsl.l, TintHsl.s > 0.02f ? 0.72f : 1.0f);
+		SrcColor = color_cast<ColorRGBA>(SrcHsl);
+		SrcColor.a = std::clamp(SrcColor.a * OpacityScale, 0.0f, 1.0f);
+		return SrcColor;
+	}
+	if(TintEnabled && !PreserveOutline && (!OnlyColored || ColoredSource))
 	{
 		if(TintHsl.s > 0.02f)
 		{
 			SrcHsl.h = TintHsl.h;
 			SrcHsl.s = FillInside ? TintHsl.s : std::clamp(TintHsl.s * 0.85f + SrcHsl.s * 0.15f, 0.0f, 1.0f);
-			if(FillInside)
+			if(FillInside && !PreserveTextureDetail)
 				SrcHsl.l = TintHsl.l;
 			else
 			{
@@ -2084,7 +2267,7 @@ ColorRGBA AetherApplyAssetTint(ColorRGBA SrcColor, unsigned TintColor, bool Tint
 		else
 		{
 			SrcHsl.s = 0.0f;
-			if(FillInside)
+			if(FillInside && !PreserveTextureDetail)
 				SrcHsl.l = TintHsl.l;
 			else
 			{
@@ -2101,27 +2284,54 @@ ColorRGBA AetherApplyAssetTint(ColorRGBA SrcColor, unsigned TintColor, bool Tint
 	return SrcColor;
 }
 
-void AetherBlendSprite(CImageInfo &Dest, const CImageInfo &Src, int SourceSpriteId, int TargetSpriteId, bool TintEnabled, unsigned TintColor, int Opacity, bool OnlyColored, bool FullBright, bool FillInside)
+void AetherPatchUnhookableRightEdge(CImageInfo &Dest, const SAetherSpriteRect &DstRect, int TargetSpriteId, int ScaleX, int ScaleY)
+{
+	if(TargetSpriteId != -TILE_NOHOOK - 1 || ScaleX != AETHER_ASSET_TRANSFORM_SCALE_MAX || ScaleY != AETHER_ASSET_TRANSFORM_SCALE_MAX || DstRect.m_W < 2)
+		return;
+
+	const size_t RightX = (size_t)DstRect.m_X + DstRect.m_W - 1;
+	const size_t SourceX = RightX - 1;
+	for(int y = 0; y < DstRect.m_H; ++y)
+	{
+		const size_t PixelY = (size_t)DstRect.m_Y + y;
+		const ColorRGBA Right = Dest.PixelColor(RightX, PixelY);
+		const ColorRGBA Source = Dest.PixelColor(SourceX, PixelY);
+		if(Right.a <= 0.001f && Source.a > 0.001f)
+			Dest.SetPixelColor(RightX, PixelY, Source);
+	}
+}
+
+void AetherBlendSpritePixels(CImageInfo &Dest, const CImageInfo &Src, const SAetherSpriteRect &SrcRect, const SAetherSpriteRect &DstRect, bool TintEnabled, unsigned TintColor, int Opacity, bool OnlyColored, bool FullBright, bool FillInside, bool PreserveTextureDetail, int ScaleX, int ScaleY, int AnchorX, int AnchorY)
+{
+	const SAetherSpriteRect DrawRect = AetherTransformedSpriteRect(DstRect, ScaleX, ScaleY, AnchorX, AnchorY);
+	if(DrawRect.m_W != DstRect.m_W || DrawRect.m_H != DstRect.m_H || DrawRect.m_X != DstRect.m_X || DrawRect.m_Y != DstRect.m_Y)
+		AetherClearAssetRect(Dest, DstRect);
+
+	for(int y = 0; y < DrawRect.m_H; ++y)
+	{
+		for(int x = 0; x < DrawRect.m_W; ++x)
+		{
+			const int MappedX = std::clamp((int)((x + 0.5f) * SrcRect.m_W / DrawRect.m_W), 0, SrcRect.m_W - 1);
+			const int MappedY = std::clamp((int)((y + 0.5f) * SrcRect.m_H / DrawRect.m_H), 0, SrcRect.m_H - 1);
+			const size_t SrcX = (size_t)SrcRect.m_X + MappedX;
+			const size_t SrcY = (size_t)SrcRect.m_Y + MappedY;
+			const size_t DstX = (size_t)DrawRect.m_X + x;
+			const size_t DstY = (size_t)DrawRect.m_Y + y;
+			ColorRGBA SrcColor = Src.PixelColor(SrcX, SrcY);
+			Dest.SetPixelColor(DstX, DstY, AetherApplyAssetTint(SrcColor, TintColor, TintEnabled, Opacity, OnlyColored, FullBright, FillInside, PreserveTextureDetail));
+		}
+	}
+}
+
+void AetherBlendSprite(CImageInfo &Dest, const CImageInfo &Src, int SourceSpriteId, int TargetSpriteId, bool TintEnabled, unsigned TintColor, int Opacity, bool OnlyColored, bool FullBright, bool FillInside, int ScaleX, int ScaleY, int AnchorX, int AnchorY)
 {
 	SAetherSpriteRect SrcRect;
 	SAetherSpriteRect DstRect;
 	if(!AetherGetAssetPartRect(SourceSpriteId, Src, SrcRect) || !AetherGetAssetPartRect(TargetSpriteId, Dest, DstRect))
 		return;
 	const bool EntityTile = SourceSpriteId < 0 || TargetSpriteId < 0;
-	for(int y = 0; y < DstRect.m_H; ++y)
-	{
-		for(int x = 0; x < DstRect.m_W; ++x)
-		{
-			const int MappedX = std::clamp((int)((x + 0.5f) * SrcRect.m_W / DstRect.m_W), 0, SrcRect.m_W - 1);
-			const int MappedY = std::clamp((int)((y + 0.5f) * SrcRect.m_H / DstRect.m_H), 0, SrcRect.m_H - 1);
-			const size_t SrcX = (size_t)SrcRect.m_X + MappedX;
-			const size_t SrcY = (size_t)SrcRect.m_Y + MappedY;
-			const size_t DstX = (size_t)DstRect.m_X + x;
-			const size_t DstY = (size_t)DstRect.m_Y + y;
-			ColorRGBA SrcColor = Src.PixelColor(SrcX, SrcY);
-			Dest.SetPixelColor(DstX, DstY, AetherApplyAssetTint(SrcColor, TintColor, TintEnabled, Opacity, OnlyColored, FullBright, FillInside, EntityTile));
-		}
-	}
+	AetherBlendSpritePixels(Dest, Src, SrcRect, DstRect, TintEnabled, TintColor, Opacity, OnlyColored, FullBright, FillInside, EntityTile, ScaleX, ScaleY, AnchorX, AnchorY);
+	AetherPatchUnhookableRightEdge(Dest, DstRect, TargetSpriteId, ScaleX, ScaleY);
 }
 
 struct SAetherAssetPart
@@ -2331,6 +2541,10 @@ struct SAetherAssetPartState
 	bool m_FullBright = false;
 	bool m_FillInside = false;
 	int m_Opacity = 100;
+	int m_ScaleX = AETHER_ASSET_TRANSFORM_SCALE_MAX;
+	int m_ScaleY = AETHER_ASSET_TRANSFORM_SCALE_MAX;
+	int m_AnchorX = AETHER_ASSET_TRANSFORM_ANCHOR_CENTER;
+	int m_AnchorY = AETHER_ASSET_TRANSFORM_ANCHOR_CENTER;
 };
 
 constexpr int AETHER_ASSET_EDITOR_ENTITIES_CATEGORY = 5;
@@ -2342,6 +2556,10 @@ void AetherClampAssetEditorState(SAetherAssetPartState &State, int NumSources)
 {
 	State.m_SourceIndex = std::clamp(State.m_SourceIndex, 0, maximum(0, NumSources - 1));
 	State.m_Opacity = std::clamp(State.m_Opacity, 0, 100);
+	State.m_ScaleX = std::clamp(State.m_ScaleX, AETHER_ASSET_TRANSFORM_SCALE_MIN, AETHER_ASSET_TRANSFORM_SCALE_MAX);
+	State.m_ScaleY = std::clamp(State.m_ScaleY, AETHER_ASSET_TRANSFORM_SCALE_MIN, AETHER_ASSET_TRANSFORM_SCALE_MAX);
+	State.m_AnchorX = std::clamp(State.m_AnchorX, AETHER_ASSET_TRANSFORM_ANCHOR_START, AETHER_ASSET_TRANSFORM_ANCHOR_END);
+	State.m_AnchorY = std::clamp(State.m_AnchorY, AETHER_ASSET_TRANSFORM_ANCHOR_START, AETHER_ASSET_TRANSFORM_ANCHOR_END);
 }
 
 bool AetherSavePngToStorage(IStorage *pStorage, const char *pRelPath, const CImageInfo &Image)
@@ -2388,19 +2606,9 @@ bool AetherBuildAssetPartPreviewImage(const CImageInfo &Src, int SourceSpriteId,
 		return false;
 	mem_zero(Dest.m_pData, Dest.DataSize());
 
+	const SAetherSpriteRect LocalDstRect = {0, 0, DstRect.m_W, DstRect.m_H};
 	const bool EntityTile = SourceSpriteId < 0 || TargetSpriteId < 0;
-	for(int y = 0; y < DstRect.m_H; ++y)
-	{
-		for(int x = 0; x < DstRect.m_W; ++x)
-		{
-			const int MappedX = std::clamp((int)((x + 0.5f) * SrcRect.m_W / DstRect.m_W), 0, SrcRect.m_W - 1);
-			const int MappedY = std::clamp((int)((y + 0.5f) * SrcRect.m_H / DstRect.m_H), 0, SrcRect.m_H - 1);
-			const size_t SrcX = (size_t)SrcRect.m_X + MappedX;
-			const size_t SrcY = (size_t)SrcRect.m_Y + MappedY;
-			ColorRGBA SrcColor = Src.PixelColor(SrcX, SrcY);
-			Dest.SetPixelColor(x, y, AetherApplyAssetTint(SrcColor, State.m_Color, State.m_TintEnabled, State.m_Opacity, State.m_OnlyColored, State.m_FullBright, State.m_FillInside, EntityTile));
-		}
-	}
+	AetherBlendSpritePixels(Dest, Src, SrcRect, LocalDstRect, State.m_TintEnabled, State.m_Color, State.m_Opacity, State.m_OnlyColored, State.m_FullBright, State.m_FillInside, EntityTile, State.m_ScaleX, State.m_ScaleY, State.m_AnchorX, State.m_AnchorY);
 	return true;
 }
 
@@ -2469,7 +2677,7 @@ bool AetherBuildMixedAssetImage(IGraphics *pGraphics, int Category, const std::v
 		for(int i = 0; i < TargetPart.m_NumSprites; ++i)
 		{
 			const int SourceSprite = SourcePart.m_aSprites[std::min(i, SourcePart.m_NumSprites - 1)];
-			AetherBlendSprite(Dest, *pSrc, SourceSprite, TargetPart.m_aSprites[i], PartState.m_TintEnabled, PartState.m_Color, PartState.m_Opacity, PartState.m_OnlyColored, PartState.m_FullBright, PartState.m_FillInside);
+			AetherBlendSprite(Dest, *pSrc, SourceSprite, TargetPart.m_aSprites[i], PartState.m_TintEnabled, PartState.m_Color, PartState.m_Opacity, PartState.m_OnlyColored, PartState.m_FullBright, PartState.m_FillInside, PartState.m_ScaleX, PartState.m_ScaleY, PartState.m_AnchorX, PartState.m_AnchorY);
 		}
 	}
 	return true;
@@ -2968,7 +3176,7 @@ void CMenus::RenderSettingsAetherDescription(CUIRect Body, const char *pText)
 	Body.Draw(AetherPanelColor(0.34f), IGraphics::CORNER_ALL, 6.0f);
 	Body.Margin(12.0f * S, &Body);
 	TextRender()->TextColor(0.75f, 0.80f, 0.88f, 1.0f);
-	Ui()->DoLabel(&Body, pText, 12.0f * S, TEXTALIGN_ML);
+	Ui()->DoLabel(&Body, AetherLocalize(pText), 12.0f * S, TEXTALIGN_ML);
 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
@@ -3398,6 +3606,7 @@ void CMenus::RenderSettingsAetherFastInput(CUIRect Body)
 {
 	static CButtonContainer s_ModeTClient;
 	static CButtonContainer s_ModeAdaptive;
+	static CButtonContainer s_ModeLewnPlus;
 	static CButtonContainer s_ModeControl;
 	static CButtonContainer s_ModeSaikoPlus;
 	const float S = AetherSettingsScale();
@@ -3406,12 +3615,12 @@ void CMenus::RenderSettingsAetherFastInput(CUIRect Body)
 
 	CUIRect Control;
 	Body.HSplitTop(24.0f * S, &Control, &Body);
-	if(g_Config.m_AeFastInputMode > 4)
+	if(g_Config.m_AeFastInputMode > 5)
 		g_Config.m_AeFastInputMode = 1;
-	const int ActiveMode = g_Config.m_AeFastInputMode == 3 ? 1 : (g_Config.m_AeFastInputMode == 4 ? 3 : (g_Config.m_AeFastInputMode == 2 ? 4 : 2));
-	CUIRect B1, B2, B3, B4, Rest;
+	const int ActiveMode = g_Config.m_AeFastInputMode == 3 ? 1 : (g_Config.m_AeFastInputMode == 5 ? 3 : (g_Config.m_AeFastInputMode == 4 ? 4 : (g_Config.m_AeFastInputMode == 2 ? 5 : 2)));
+	CUIRect B1, B2, B3, B4, B5, Rest;
 	const float Spacing = 2.0f * S;
-	const float SlotW = (Control.w - Spacing * 3.0f) / 4.0f;
+	const float SlotW = (Control.w - Spacing * 4.0f) / 5.0f;
 	Control.VSplitLeft(SlotW, &B1, &Rest);
 	Rest.VSplitLeft(Spacing, nullptr, &Rest);
 	Rest.VSplitLeft(SlotW, &B2, &Rest);
@@ -3419,6 +3628,8 @@ void CMenus::RenderSettingsAetherFastInput(CUIRect Body)
 	Rest.VSplitLeft(SlotW, &B3, &Rest);
 	Rest.VSplitLeft(Spacing, nullptr, &Rest);
 	Rest.VSplitLeft(SlotW, &B4, &Rest);
+	Rest.VSplitLeft(Spacing, nullptr, &Rest);
+	Rest.VSplitLeft(SlotW, &B5, &Rest);
 
 	if(DoButton_Menu(&s_ModeTClient, "TClient", ActiveMode == 1, &B1, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_L))
 	{
@@ -3430,18 +3641,23 @@ void CMenus::RenderSettingsAetherFastInput(CUIRect Body)
 		g_Config.m_AeFastInputMode = 1;
 	}
 	AetherDoTooltip(Ui(), GameClient(), &s_ModeAdaptive, B2, "Aether's balanced mode. Movement and hook/fire can use separate timing.");
-	if(DoButton_Menu(&s_ModeControl, "Control", ActiveMode == 3, &B3, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_NONE))
+	if(DoButton_Menu(&s_ModeControl, "Control", ActiveMode == 4, &B3, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_NONE))
 	{
 		g_Config.m_AeFastInputMode = 4;
 	}
 	AetherDoTooltip(Ui(), GameClient(), &s_ModeControl, B3, "Experimental stability-focused mode. It keeps prediction controlled and reduces jitter.");
-	if(DoButton_Menu(&s_ModeSaikoPlus, "Saiko+", ActiveMode == 4, &B4, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_R))
+	if(DoButton_Menu(&s_ModeLewnPlus, "Lewn+", ActiveMode == 3, &B4, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_NONE))
+	{
+		g_Config.m_AeFastInputMode = 5;
+	}
+	AetherDoTooltip(Ui(), GameClient(), &s_ModeLewnPlus, B4, "Experimental Lewn+ input. Very fast response with sharp but smoothed render correction.");
+	if(DoButton_Menu(&s_ModeSaikoPlus, "Saiko+", ActiveMode == 5, &B5, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_R))
 	{
 		g_Config.m_AeFastInputMode = 2;
 		if(g_Config.m_AeSaikoPlusAmount <= 0)
 			g_Config.m_AeSaikoPlusAmount = std::clamp(g_Config.m_AeFastInputMovementAmount * 5, 0, 500);
 	}
-	AetherDoTooltip(Ui(), GameClient(), &s_ModeSaikoPlus, B4, "Sharper Saiko-style prediction. Stronger and more direct than Adaptive.");
+	AetherDoTooltip(Ui(), GameClient(), &s_ModeSaikoPlus, B5, "Sharper Saiko-style prediction. Stronger and more direct than Adaptive.");
 
 	Body.HSplitTop(8.0f * S, nullptr, &Body);
 
@@ -3455,7 +3671,7 @@ void CMenus::RenderSettingsAetherFastInput(CUIRect Body)
 			g_Config.m_TcFastInputOthers ^= 1;
 		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_TcFastInputOthers, Control, "Also predicts other tees in TClient mode. Helps drag/hook feel more responsive.");
 	}
-	else if(ActiveMode == 4)
+	else if(ActiveMode == 5)
 	{
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		char aBuf[64];
@@ -3474,6 +3690,29 @@ void CMenus::RenderSettingsAetherFastInput(CUIRect Body)
 	else if(ActiveMode == 3)
 	{
 		Body.HSplitTop(22.0f * S, &Control, &Body);
+		char aBuf[64];
+		str_format(aBuf, sizeof(aBuf), "Lewn+ amount: %.2f", std::clamp(g_Config.m_AeLewnPlusAmount, 140, 500) / 100.0f);
+		CUIRect Label, ScrollBar;
+		Control.VSplitMid(&Label, &ScrollBar, minimum(10.0f * S, Control.w * 0.05f));
+		Ui()->DoLabel(&Label, aBuf, Label.h * CUi::ms_FontmodHeight * 0.78f, TEXTALIGN_ML);
+		const float Relative = (std::clamp(g_Config.m_AeLewnPlusAmount, 140, 500) - 140) / 360.0f;
+		g_Config.m_AeLewnPlusAmount = std::clamp(140 + round_to_int(Ui()->DoScrollbarH(&g_Config.m_AeLewnPlusAmount, &ScrollBar, Relative) * 360.0f), 140, 500);
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeLewnPlusAmount, Control, "Lewn+ prediction amount. Default 1.40 keeps the direct feel without the low-amount glide.");
+		Body.HSplitTop(22.0f * S, &Control, &Body);
+		Ui()->DoScrollbarOption(&g_Config.m_AeLewnPlusCorrection, &g_Config.m_AeLewnPlusCorrection, &Control, "Lewn+ correction", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeLewnPlusCorrection, Control, "How sharply Lewn+ follows prediction corrections. Higher feels more instant, lower flows softer.");
+		Body.HSplitTop(22.0f * S, &Control, &Body);
+		if(DoButton_CheckBox(&g_Config.m_AeLewnPlusOthers, "Lewn+ input others", g_Config.m_AeLewnPlusOthers, &Control))
+			g_Config.m_AeLewnPlusOthers ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeLewnPlusOthers, Control, "Predicts other tees with a slightly softer Lewn+ offset for direct hooks and drags.");
+		Body.HSplitTop(22.0f * S, &Control, &Body);
+		if(DoButton_CheckBox(&g_Config.m_AeFastInputDummy, "Apply to dummy", g_Config.m_AeFastInputDummy, &Control))
+			g_Config.m_AeFastInputDummy ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeFastInputDummy, Control, "Also applies Aether Fast Input to dummy prediction where possible.");
+	}
+	else if(ActiveMode == 4)
+	{
+		Body.HSplitTop(22.0f * S, &Control, &Body);
 		Ui()->DoScrollbarOption(&g_Config.m_AeFastInputControlResponse, &g_Config.m_AeFastInputControlResponse, &Control, "Response amount", 0, 50, &CUi::ms_LinearScrollbarScale, 0, "ms");
 		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeFastInputControlResponse, Control, "How far Control mode predicts your input. Keep this moderate for stable A/D control.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
@@ -3486,6 +3725,20 @@ void CMenus::RenderSettingsAetherFastInput(CUIRect Body)
 		if(DoButton_CheckBox(&g_Config.m_AeFastInputControlOthers, "Control input other tees", g_Config.m_AeFastInputControlOthers, &Control))
 			g_Config.m_AeFastInputControlOthers ^= 1;
 		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeFastInputControlOthers, Control, "Predicts other tees with a smaller stable offset for smoother hooks and drags.");
+		Body.HSplitTop(22.0f * S, &Control, &Body);
+		if(DoButton_CheckBox(&g_Config.m_AeFastInputControlPingAssist, "Control ping assist", g_Config.m_AeFastInputControlPingAssist, &Control))
+			g_Config.m_AeFastInputControlPingAssist ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeFastInputControlPingAssist, Control, "Restores the old Control-only ping follow adjustment without affecting Adaptive, Lewn+, Saiko+ or TClient.");
+		Body.HSplitTop(22.0f * S, &Control, &Body);
+		if(DoButton_CheckBox(&g_Config.m_AeFastInputControlInteractionAssist, "Control interaction assist", g_Config.m_AeFastInputControlInteractionAssist, &Control))
+			g_Config.m_AeFastInputControlInteractionAssist ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeFastInputControlInteractionAssist, Control, "Applies close tee interaction smoothing only while Control mode is active.");
+		if(g_Config.m_AeFastInputControlInteractionAssist)
+		{
+			Body.HSplitTop(22.0f * S, &Control, &Body);
+			Ui()->DoScrollbarOption(&g_Config.m_AeFastInputControlInteractionStrength, &g_Config.m_AeFastInputControlInteractionStrength, &Control, "Control interaction strength", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+			AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeFastInputControlInteractionStrength, Control, "How strongly Control smooths local render corrections during close tee interactions.");
+		}
 	}
 	else if(ActiveMode == 2)
 	{
@@ -3583,6 +3836,10 @@ void CMenus::RenderSettingsAetherFastInput(CUIRect Body)
 		if(DoButton_CheckBox(&g_Config.m_AeFastInputAutoMargin, "Auto margin", g_Config.m_AeFastInputAutoMargin, &Control))
 			g_Config.m_AeFastInputAutoMargin ^= 1;
 		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeFastInputAutoMargin, Control, "Keeps a small safety margin to avoid over-predicting unstable frames.");
+		Body.HSplitTop(22.0f * S, &Control, &Body);
+		if(DoButton_CheckBox(&g_Config.m_AeInputLagGuard, "Lag guard", g_Config.m_AeInputLagGuard, &Control))
+			g_Config.m_AeInputLagGuard ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeInputLagGuard, Control, "Reduces isolated timing spikes and other-tee jitter after network spikes.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		if(DoButton_CheckBox(&g_Config.m_AeFastInputDebug, "Show debug info", g_Config.m_AeFastInputDebug, &Control))
 			g_Config.m_AeFastInputDebug ^= 1;
@@ -4378,6 +4635,70 @@ void CMenus::RenderSettingsAetherNinjaTimer(CUIRect Body)
 	Body.HSplitTop(18.0f * S, &Control, &Body);
 	TextRender()->TextColor(0.75f, 0.80f, 0.88f, 1.0f);
 	Ui()->DoLabel(&Control, "HUD Editor can move and resize this compact ninja timer.", 12.0f * S, TEXTALIGN_ML);
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+}
+
+void CMenus::RenderSettingsAetherTeamOverlays(CUIRect Body)
+{
+	static CLineInput s_LastTextInput(g_Config.m_AeTeamLastText, sizeof(g_Config.m_AeTeamLastText));
+	static CButtonContainer s_LastColorReset;
+	static CButtonContainer s_CounterColorReset;
+	static CButtonContainer s_aCounterModeButtons[3];
+	const float S = AetherSettingsScale();
+
+	Body.Draw(AetherPanelColor(0.34f), IGraphics::CORNER_ALL, 6.0f);
+	Body.Margin(12.0f * S, &Body);
+	CUIRect Row, Label, Control;
+
+	Body.HSplitTop(22.0f * S, &Row, &Body);
+	if(DoButton_CheckBox(&g_Config.m_AeTeamLastOverlay, "Last alive display", g_Config.m_AeTeamLastOverlay, &Row))
+		g_Config.m_AeTeamLastOverlay ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeTeamLastOverlay, Row, "Last alive display");
+
+	Body.HSplitTop(24.0f * S, &Row, &Body);
+	AetherOptionRow(Row, S, &Label, &Control);
+	Ui()->DoLabel(&Label, AetherLocalize("Last text"), 13.0f * S, TEXTALIGN_ML);
+	s_LastTextInput.SetBuffer(g_Config.m_AeTeamLastText, sizeof(g_Config.m_AeTeamLastText));
+	s_LastTextInput.SetEmptyText("LAST");
+	Ui()->DoEditBox(&s_LastTextInput, &Control, 13.0f * S, IGraphics::CORNER_ALL, {}, 5.0f * S);
+
+	DoLine_ColorPicker(&s_LastColorReset, 24.0f * S, 13.0f * S, 3.0f * S, &Body, "Last color", &g_Config.m_AeTeamLastColor, ColorRGBA(1.0f, 0.42f, 0.30f), false);
+	Body.HSplitTop(22.0f * S, &Row, &Body);
+	if(DoButton_CheckBox(&g_Config.m_AeTeamLastBackground, "Last background", g_Config.m_AeTeamLastBackground, &Row))
+		g_Config.m_AeTeamLastBackground ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeTeamLastBackground, Row, "Last background");
+
+	Body.HSplitTop(8.0f * S, nullptr, &Body);
+	Body.HSplitTop(24.0f * S, &Row, &Body);
+	AetherOptionRow(Row, S, &Label, &Control);
+	Ui()->DoLabel(&Label, AetherLocalize("Frozen tee counter"), 13.0f * S, TEXTALIGN_ML);
+	const char *apModeLabels[] = {"Off", "Alive", "Frozen"};
+	for(int i = 0; i < 3; ++i)
+	{
+		CUIRect Button;
+		const float ButtonWidth = Control.w / (3 - i);
+		Control.VSplitLeft(ButtonWidth, &Button, &Control);
+		const int Corners = i == 0 ? IGraphics::CORNER_L : (i == 2 ? IGraphics::CORNER_R : 0);
+		if(DoButton_Menu(&s_aCounterModeButtons[i], apModeLabels[i], g_Config.m_AeTeamFreezeCounter == i, &Button, BUTTONFLAG_LEFT, nullptr, Corners, 4.0f * S))
+			g_Config.m_AeTeamFreezeCounter = i;
+	}
+
+	DoLine_ColorPicker(&s_CounterColorReset, 24.0f * S, 13.0f * S, 3.0f * S, &Body, "Counter color", &g_Config.m_AeTeamFreezeCounterColor, ColorRGBA(0.66f, 0.84f, 1.0f), false);
+	Body.HSplitTop(22.0f * S, &Row, &Body);
+	if(DoButton_CheckBox(&g_Config.m_AeTeamFreezeCounterBackground, "Counter background", g_Config.m_AeTeamFreezeCounterBackground, &Row))
+		g_Config.m_AeTeamFreezeCounterBackground ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeTeamFreezeCounterBackground, Row, "Counter background");
+
+	Body.HSplitTop(6.0f * S, nullptr, &Body);
+	Body.HSplitTop(22.0f * S, &Row, &Body);
+	TextRender()->TextColor(0.72f, 0.78f, 0.86f, 1.0f);
+	Ui()->DoLabel(&Row, AetherLocalize("Position and scale are HUD Editor only."), 11.0f * S, TEXTALIGN_ML);
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+
+	Body.HSplitTop(6.0f * S, nullptr, &Body);
+	Body.HSplitTop(30.0f * S, &Row, &Body);
+	TextRender()->TextColor(0.72f, 0.78f, 0.86f, 1.0f);
+	Ui()->DoLabel(&Row, AetherLocalize("Independent from the old TClient last text and frozen tee display settings."), 11.0f * S, TEXTALIGN_ML);
 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
@@ -6099,9 +6420,13 @@ void CMenus::RenderSettingsAetherAssetsEditorPopup(CUIRect Screen)
 		static CUi::SDropDownState s_ModeDropState;
 		static CUi::SDropDownState s_DonorDropState;
 		static CUi::SDropDownState s_MainDropState;
+		static CUi::SDropDownState s_AnchorXDropState;
+		static CUi::SDropDownState s_AnchorYDropState;
 		static CScrollRegion s_ModeDropScroll;
 		static CScrollRegion s_DonorDropScroll;
 		static CScrollRegion s_MainDropScroll;
+		static CScrollRegion s_AnchorXDropScroll;
+		static CScrollRegion s_AnchorYDropScroll;
 		static CButtonContainer s_CloseButton, s_ReloadButton, s_ExportButton, s_ShowGridButton, s_ResetAllButton, s_ResetPartButton;
 		static CButtonContainer s_TintEnabledButton, s_OnlyColoredButton, s_FullBrightButton, s_FillInsideButton, s_PickColorButton, s_ColorResetButton, s_EditPanelCloseButton;
 		static std::array<CButtonContainer, AETHER_ASSET_EDITOR_MAX_PARTS> s_aDonorCanvasButtons;
@@ -6558,14 +6883,16 @@ void CMenus::RenderSettingsAetherAssetsEditorPopup(CUIRect Screen)
 					if(s_AetherAssetsEditorCategory == AETHER_ASSET_EDITOR_ENTITIES_CATEGORY)
 					{
 						char aLivePartKey[512];
-						str_format(aLivePartKey, sizeof(aLivePartKey), "%s|%d|%d|%d|%d|%u|%d|%d|%d|%d|%d",
+						str_format(aLivePartKey, sizeof(aLivePartKey), "%s|%d|%d|%d|%d|%u|%d|%d|%d|%d|%d|%d|%d|%d|%d",
 							vNames[LiveState.m_SourceIndex].c_str(), SourceSprite, TargetSprite,
 							s_AetherAssetsEditorMixedWidth, s_AetherAssetsEditorMixedHeight,
 							LiveState.m_Color, LiveState.m_Opacity,
 							LiveState.m_TintEnabled ? 1 : 0,
 							LiveState.m_OnlyColored ? 1 : 0,
 							LiveState.m_FullBright ? 1 : 0,
-							LiveState.m_FillInside ? 1 : 0);
+							LiveState.m_FillInside ? 1 : 0,
+							LiveState.m_ScaleX, LiveState.m_ScaleY,
+							LiveState.m_AnchorX, LiveState.m_AnchorY);
 						if(str_comp(s_aAetherAssetsEditorLivePartKey, aLivePartKey) != 0)
 						{
 							AetherResetAssetsEditorLivePartTexture(Graphics());
@@ -6587,7 +6914,10 @@ void CMenus::RenderSettingsAetherAssetsEditorPopup(CUIRect Screen)
 					SourceMeta.m_Width = s_AetherAssetsEditorLiveSourceWidth;
 					SourceMeta.m_Height = s_AetherAssetsEditorLiveSourceHeight;
 					if(AetherGetAssetPartRect(SourceSprite, SourceMeta, SourceRect))
-						AetherDrawTextureSubsetInRect(Graphics(), s_AetherAssetsEditorLiveSourceTexture, TargetRect, s_AetherAssetsEditorLiveSourceWidth, s_AetherAssetsEditorLiveSourceHeight, SourceRect, LiveColor);
+					{
+						const CUIRect DrawRect = AetherTransformedUiRect(TargetRect, LiveState.m_ScaleX, LiveState.m_ScaleY, LiveState.m_AnchorX, LiveState.m_AnchorY);
+						AetherDrawTextureSubsetInRect(Graphics(), s_AetherAssetsEditorLiveSourceTexture, DrawRect, s_AetherAssetsEditorLiveSourceWidth, s_AetherAssetsEditorLiveSourceHeight, SourceRect, LiveColor);
+					}
 				}
 			}
 		};
@@ -6722,11 +7052,11 @@ void CMenus::RenderSettingsAetherAssetsEditorPopup(CUIRect Screen)
 					Window.x + Window.w - 384.0f * S,
 					Window.y + 58.0f * S,
 					360.0f * S,
-					282.0f * S};
+					398.0f * S};
 				s_AetherAssetsEditorEditPanelInit = true;
 			}
 			s_AetherAssetsEditorEditPanel.w = 360.0f * S;
-			s_AetherAssetsEditorEditPanel.h = 282.0f * S;
+			s_AetherAssetsEditorEditPanel.h = 398.0f * S;
 			s_AetherAssetsEditorEditPanel.x = std::clamp(s_AetherAssetsEditorEditPanel.x, Window.x + 10.0f * S, Window.x + Window.w - s_AetherAssetsEditorEditPanel.w - 10.0f * S);
 			s_AetherAssetsEditorEditPanel.y = std::clamp(s_AetherAssetsEditorEditPanel.y, Window.y + 44.0f * S, Window.y + Window.h - s_AetherAssetsEditorEditPanel.h - 44.0f * S);
 			CUIRect EditPanel = s_AetherAssetsEditorEditPanel;
@@ -6852,6 +7182,36 @@ void CMenus::RenderSettingsAetherAssetsEditorPopup(CUIRect Screen)
 			EditPanel.HSplitTop(22.0f * S, &Row, &EditPanel);
 			Ui()->DoScrollbarOption(&EditState.m_Opacity, &EditState.m_Opacity, &Row, "Opacity", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
 			AetherDoLabelTooltip(Ui(), GameClient(), &EditState.m_Opacity, Row, "Opacity");
+			const int PrevScaleX = EditState.m_ScaleX;
+			const int PrevScaleY = EditState.m_ScaleY;
+			const int PrevAnchorX = EditState.m_AnchorX;
+			const int PrevAnchorY = EditState.m_AnchorY;
+			EditPanel.HSplitTop(8.0f * S, nullptr, &EditPanel);
+			EditPanel.HSplitTop(22.0f * S, &Row, &EditPanel);
+			Ui()->DoScrollbarOption(&EditState.m_ScaleX, &EditState.m_ScaleX, &Row, "Scale X", AETHER_ASSET_TRANSFORM_SCALE_MIN, AETHER_ASSET_TRANSFORM_SCALE_MAX, &CUi::ms_LinearScrollbarScale, 0, "%");
+			AetherDoLabelTooltip(Ui(), GameClient(), &EditState.m_ScaleX, Row, "Scale X");
+			EditPanel.HSplitTop(22.0f * S, &Row, &EditPanel);
+			Ui()->DoScrollbarOption(&EditState.m_ScaleY, &EditState.m_ScaleY, &Row, "Scale Y", AETHER_ASSET_TRANSFORM_SCALE_MIN, AETHER_ASSET_TRANSFORM_SCALE_MAX, &CUi::ms_LinearScrollbarScale, 0, "%");
+			AetherDoLabelTooltip(Ui(), GameClient(), &EditState.m_ScaleY, Row, "Scale Y");
+			static const char *s_apAnchorXLabels[] = {"Left", "Center", "Right"};
+			static const char *s_apAnchorYLabels[] = {"Top", "Middle", "Bottom"};
+			EditPanel.HSplitTop(8.0f * S, nullptr, &EditPanel);
+			EditPanel.HSplitTop(26.0f * S, &Row, &EditPanel);
+			CUIRect AnchorLabel, AnchorDrop;
+			Row.VSplitLeft(86.0f * S, &AnchorLabel, &AnchorDrop);
+			Ui()->DoLabel(&AnchorLabel, "Anchor X", 13.0f * S, TEXTALIGN_ML);
+			s_AnchorXDropState.m_SelectionPopupContext.m_pScrollRegion = &s_AnchorXDropScroll;
+			const int NewAnchorX = Ui()->DoDropDown(&AnchorDrop, EditState.m_AnchorX, s_apAnchorXLabels, std::size(s_apAnchorXLabels), s_AnchorXDropState);
+			if(NewAnchorX >= 0 && NewAnchorX < (int)std::size(s_apAnchorXLabels))
+				EditState.m_AnchorX = NewAnchorX;
+			EditPanel.HSplitTop(4.0f * S, nullptr, &EditPanel);
+			EditPanel.HSplitTop(26.0f * S, &Row, &EditPanel);
+			Row.VSplitLeft(86.0f * S, &AnchorLabel, &AnchorDrop);
+			Ui()->DoLabel(&AnchorLabel, "Anchor Y", 13.0f * S, TEXTALIGN_ML);
+			s_AnchorYDropState.m_SelectionPopupContext.m_pScrollRegion = &s_AnchorYDropScroll;
+			const int NewAnchorY = Ui()->DoDropDown(&AnchorDrop, EditState.m_AnchorY, s_apAnchorYLabels, std::size(s_apAnchorYLabels), s_AnchorYDropState);
+			if(NewAnchorY >= 0 && NewAnchorY < (int)std::size(s_apAnchorYLabels))
+				EditState.m_AnchorY = NewAnchorY;
 			if(EditState.m_Color != PrevColor || EditState.m_Opacity != PrevOpacity)
 			{
 				EnsureEditableBaseSource();
@@ -6866,6 +7226,14 @@ void CMenus::RenderSettingsAetherAssetsEditorPopup(CUIRect Screen)
 				s_AetherAssetsEditorForcePreviewBuild = !DeferEntityEditCommit;
 				if(!DeferEntityEditCommit)
 					s_LastMixedPreviewBuildTime = 0;
+			}
+			if(EditState.m_ScaleX != PrevScaleX || EditState.m_ScaleY != PrevScaleY || EditState.m_AnchorX != PrevAnchorX || EditState.m_AnchorY != PrevAnchorY)
+			{
+				EnsureEditableBaseSource();
+				AetherClampAssetEditorState(EditState, (int)vNames.size());
+				s_AetherAssetsEditorMixedDirty = true;
+				s_AetherAssetsEditorForcePreviewBuild = true;
+				s_LastMixedPreviewBuildTime = 0;
 			}
 		}
 
@@ -6948,6 +7316,107 @@ void CMenus::RenderSettingsAetherSaveUnsentMessages(CUIRect Body)
 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
+void CMenus::RenderSettingsAetherCustomMenuTheme(CUIRect Body)
+{
+	static std::vector<std::string> s_vThemes;
+	static std::vector<std::string> s_vDisplayThemes;
+	static std::vector<const char *> s_vpDisplayThemes;
+	static bool s_Scanned = false;
+	static CUi::SDropDownState s_DropState;
+	static CScrollRegion s_DropScroll;
+	static CButtonContainer s_ReloadButton;
+	static CButtonContainer s_OpenFolderButton;
+	static CButtonContainer s_ClearButton;
+	const float S = AetherSettingsScale();
+
+	auto RefreshThemes = [&]() {
+		AetherScanMenuThemePngs(Storage(), s_vThemes);
+		s_Scanned = true;
+	};
+	if(!s_Scanned)
+		RefreshThemes();
+
+	Body.Draw(AetherPanelColor(0.34f), IGraphics::CORNER_ALL, 6.0f);
+	Body.Margin(12.0f * S, &Body);
+
+	CUIRect Row, Label, Control;
+
+	s_vDisplayThemes = s_vThemes;
+	int Selected = -1;
+	for(size_t i = 0; i < s_vDisplayThemes.size(); ++i)
+	{
+		if(str_comp(s_vDisplayThemes[i].c_str(), g_Config.m_AeCustomMenuThemeImage) == 0)
+			Selected = (int)i;
+	}
+	if(Selected < 0 && g_Config.m_AeCustomMenuThemeImage[0] != '\0')
+	{
+		Selected = (int)s_vDisplayThemes.size();
+		s_vDisplayThemes.emplace_back(g_Config.m_AeCustomMenuThemeImage);
+	}
+	s_vpDisplayThemes.resize(s_vDisplayThemes.size());
+	for(size_t i = 0; i < s_vDisplayThemes.size(); ++i)
+		s_vpDisplayThemes[i] = s_vDisplayThemes[i].c_str();
+
+	Body.HSplitTop(26.0f * S, &Row, &Body);
+	AetherOptionRow(Row, S, &Label, &Control);
+	Ui()->DoLabel(&Label, AetherLocalize("PNG image"), 13.0f * S, TEXTALIGN_ML);
+	if(!s_vpDisplayThemes.empty())
+	{
+		s_DropState.m_SelectionPopupContext.m_pScrollRegion = &s_DropScroll;
+		const int NewSelected = Ui()->DoDropDown(&Control, std::max(0, Selected), s_vpDisplayThemes.data(), (int)s_vpDisplayThemes.size(), s_DropState);
+		if(NewSelected >= 0 && NewSelected < (int)s_vDisplayThemes.size() && NewSelected != Selected)
+		{
+			str_copy(g_Config.m_AeCustomMenuThemeImage, s_vDisplayThemes[NewSelected].c_str());
+			g_Config.m_AeCustomMenuTheme = 1;
+		}
+	}
+	else
+	{
+		Control.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.18f), IGraphics::CORNER_ALL, 4.0f * S);
+		Control.Margin(7.0f * S, &Control);
+		TextRender()->TextColor(0.72f, 0.78f, 0.86f, 1.0f);
+		Ui()->DoLabel(&Control, AetherLocalize("No PNG files yet"), 12.0f * S, TEXTALIGN_ML);
+		TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+	}
+
+	Body.HSplitTop(8.0f * S, nullptr, &Body);
+	Body.HSplitTop(22.0f * S, &Row, &Body);
+	Ui()->DoScrollbarOption(&g_Config.m_AeCustomMenuThemeDim, &g_Config.m_AeCustomMenuThemeDim, &Row, AetherLocalize("Image dim"), 0, 80, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeCustomMenuThemeDim, Row, "Image dim");
+
+	Body.HSplitTop(10.0f * S, nullptr, &Body);
+	Body.HSplitTop(28.0f * S, &Row, &Body);
+	const float Gap = 6.0f * S;
+	CUIRect Reload, Folder, Clear;
+	const float ButtonW = (Row.w - Gap * 2.0f) / 3.0f;
+	Row.VSplitLeft(ButtonW, &Reload, &Row);
+	Row.VSplitLeft(Gap, nullptr, &Row);
+	Row.VSplitLeft(ButtonW, &Folder, &Row);
+	Row.VSplitLeft(Gap, nullptr, &Row);
+	Clear = Row;
+	if(DoButton_Menu(&s_ReloadButton, "Reload", 0, &Reload))
+		RefreshThemes();
+	if(DoButton_Menu(&s_OpenFolderButton, "Open folder", 0, &Folder))
+	{
+		Storage()->CreateFolder("aether", IStorage::TYPE_SAVE);
+		Storage()->CreateFolder("aether/menu_themes", IStorage::TYPE_SAVE);
+		char aDir[IO_MAX_PATH_LENGTH];
+		Storage()->GetCompletePath(IStorage::TYPE_SAVE, "aether/menu_themes", aDir, sizeof(aDir));
+		Client()->ViewFile(aDir);
+	}
+	if(DoButton_Menu(&s_ClearButton, "Clear", 0, &Clear))
+	{
+		g_Config.m_AeCustomMenuThemeImage[0] = '\0';
+		g_Config.m_AeCustomMenuTheme = 0;
+	}
+
+	Body.HSplitTop(8.0f * S, nullptr, &Body);
+	Body.HSplitTop(18.0f * S, &Row, &Body);
+	TextRender()->TextColor(0.72f, 0.78f, 0.86f, 1.0f);
+	Ui()->DoLabel(&Row, AetherLocalize("Put PNG files in aether/menu_themes, then reload and select one."), 11.0f * S, TEXTALIGN_ML);
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+}
+
 void CMenus::RenderSettingsAetherMusicPlayer(CUIRect Body)
 {
 	static CButtonContainer s_BackgroundColorReset;
@@ -6965,6 +7434,14 @@ void CMenus::RenderSettingsAetherMusicPlayer(CUIRect Body)
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeMusicOpacity, &g_Config.m_AeMusicOpacity, &Control, Localize("Panel opacity"), 10, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
 	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeMusicOpacity, Control, "Panel opacity");
+	Body.HSplitTop(22.0f * S, &Control, &Body);
+	if(DoButton_CheckBox(&g_Config.m_AeMusicFreezeCounter, Localize("Freeze counter"), g_Config.m_AeMusicFreezeCounter, &Control))
+		g_Config.m_AeMusicFreezeCounter ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeMusicFreezeCounter, Control, "Freeze counter");
+	Body.HSplitTop(22.0f * S, &Control, &Body);
+	if(DoButton_CheckBox(&g_Config.m_AeMusicMediaTitle, Localize("Media title"), g_Config.m_AeMusicMediaTitle, &Control))
+		g_Config.m_AeMusicMediaTitle ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeMusicMediaTitle, Control, "Media title");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeMusicVisualizer, Localize("Visualizer"), g_Config.m_AeMusicVisualizer, &Control))
 		g_Config.m_AeMusicVisualizer ^= 1;
@@ -7005,14 +7482,21 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		RenderSettingsAetherMapBackgroundBuilderPopup(MainView);
 		return;
 	}
-	static const std::array<const char *, 7> s_apMusicChildren = {
+	static const std::array<const char *, 9> s_apMusicChildren = {
 		"Dynamic cover color",
 		"Background color",
 		"Panel opacity",
+		"Freeze counter",
+		"Media title",
 		"Visualizer",
 		"Visualizer style",
 		"Visualizer sensitivity",
 		"Visualizer glow"};
+	static const std::array<const char *, 4> s_apCustomMenuThemeChildren = {
+		"PNG image",
+		"Image dim",
+		"Reload",
+		"Open folder"};
 	static const std::array<const char *, 5> s_apKeystrokesChildren = {
 		"Movement keys",
 		"Horizontal layout",
@@ -7054,6 +7538,16 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 	static const std::array<const char *, 2> s_apNinjaTimerChildren = {
 		"Timer",
 		"HUD editor"};
+	static const std::array<const char *, 9> s_apTeamOverlaysChildren = {
+		"Last alive display",
+		"Last text",
+		"Last color",
+		"Last background",
+		"Frozen tee counter",
+		"Alive",
+		"Frozen",
+		"Counter color",
+		"Counter background"};
 	static const std::array<const char *, 16> s_apSweatWeaponChildren = {
 		"Crystal laser",
 		"Sand shotgun",
@@ -7179,15 +7673,22 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		"Edge2Edge Freeze Tiles",
 		"Keybinds",
 		"Open folder"};
-	static const std::array<const char *, 29> s_apFastInputChildren = {
+	static const std::array<const char *, 37> s_apFastInputChildren = {
 		"TClient",
 		"Adaptive",
+		"Lewn+",
 		"Control",
 		"Saiko+",
+		"Lewn+ amount",
+		"Lewn+ correction",
+		"Lewn+ input others",
 		"Response amount",
 		"Stability",
 		"Correction",
 		"Control input other tees",
+		"Control ping assist",
+		"Control interaction assist",
+		"Control interaction strength",
 		"Movement amount",
 		"Hook fire amount",
 		"Saiko amount",
@@ -7202,8 +7703,10 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		"Aggressive",
 		"Other tees amount",
 		"Correction sharpness",
+		"Apply to dummy",
 		"Sub-Tick aiming",
 		"Auto margin",
+		"Lag guard",
 		"Ping assist",
 		"Interaction assist",
 		"Interaction strength",
@@ -7332,8 +7835,14 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		"Fog rectangle",
 		"Fog radius"};
 	static const std::array<const char *, 0> s_apEditorChildren = {};
-	const std::array<SFeature, 44> aFeatures = {{
+	static const std::array<const char *, 3> s_apAetherMenuThemeChildren = {
+		"Coded background",
+		"Parallax",
+		"Override"};
+	const std::array<SFeature, 47> aFeatures = {{
+		{AetherMusic::EAetherFeatureId::TEAM_OVERLAYS, EAetherPage::VISUALS, ESection::VISUALS, "Last & Frozen Display", nullptr, s_apTeamOverlaysChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::GRADIENT_TEAM_COLORS, EAetherPage::VISUALS, ESection::VISUALS, "Gradient Effects", nullptr, s_apGradientTeamColorChildren, EEditorAction::NONE},
+		{AetherMusic::EAetherFeatureId::AETHER_MENU_THEME, EAetherPage::VISUALS, ESection::VISUALS, "Aether Menu Theme", &g_Config.m_AeMenuThemeOverride, s_apAetherMenuThemeChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::MUSIC_PLAYER, EAetherPage::VISUALS, ESection::VISUALS, "Music Player", &g_Config.m_AeMusicPlayer, s_apMusicChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::KEYSTROKES, EAetherPage::VISUALS, ESection::VISUALS, "Keystrokes", &g_Config.m_AeKeystrokes, s_apKeystrokesChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::INPUT_VISUALIZER, EAetherPage::VISUALS, ESection::VISUALS, "Input Visualizer", &g_Config.m_AeInputVisualizer, s_apInputVisualizerChildren, EEditorAction::NONE},
@@ -7376,6 +7885,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		{AetherMusic::EAetherFeatureId::ROLLBACK_DEMO, EAetherPage::TOOLS, ESection::TOOLS, "Rollback Demo", &g_Config.m_AeRollbackDemo, s_apRollbackDemoChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::AIM_TRAINING, EAetherPage::TOOLS, ESection::TOOLS, "Aim Training", &g_Config.m_AeAimTraining, s_apAimTrainingChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::PSA, EAetherPage::TOOLS, ESection::TOOLS, "PSA", &g_Config.m_AePsa, s_apPsaChildren, EEditorAction::NONE},
+		{AetherMusic::EAetherFeatureId::CUSTOM_MENU_THEME, EAetherPage::TOOLS, ESection::TOOLS, "Custom Menu Theme", &g_Config.m_AeCustomMenuTheme, s_apCustomMenuThemeChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::CLOUD_CLAN, EAetherPage::CLAN, ESection::TOOLS, "Cloud Clan", nullptr, s_apClanChildren, EEditorAction::NONE},
 	}};
 
@@ -7438,8 +7948,9 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 			s_AetherActivePage = aPages[i].first;
 	}
 	MainView.HSplitTop(8.0f * S, nullptr, &MainView);
-	const bool EnabledFilterPage = s_AetherActivePage == EAetherPage::VISUALS || s_AetherActivePage == EAetherPage::GAMEPLAY || s_AetherActivePage == EAetherPage::TOOLS;
-	const bool SearchActive = m_AetherSearchInput.GetString()[0] != '\0';
+	const char *pAetherSearch = m_AetherSearchInput.GetString() ? m_AetherSearchInput.GetString() : "";
+	const bool SearchActive = pAetherSearch[0] != '\0';
+	const bool EnabledFilterPage = SearchActive || s_AetherActivePage == EAetherPage::VISUALS || s_AetherActivePage == EAetherPage::GAMEPLAY || s_AetherActivePage == EAetherPage::TOOLS;
 	auto FeatureVisibleInAccordion = [&](const SFeature &Feature) {
 		if(Feature.m_Page == EAetherPage::CLAN || Feature.m_Page == EAetherPage::ASSETS || Feature.m_Page == EAetherPage::GAMES || Feature.m_Page == EAetherPage::INFO)
 			return !SearchActive && Feature.m_Page == s_AetherActivePage;
@@ -7458,13 +7969,13 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		MainView.HSplitTop(8.0f * S, nullptr, &MainView);
 	}
 
-	if(s_AetherActivePage == EAetherPage::CLAN)
+	if(!SearchActive && s_AetherActivePage == EAetherPage::CLAN)
 	{
 		RenderSettingsAetherClan(MainView);
 		return;
 	}
 
-	if(s_AetherActivePage == EAetherPage::ASSETS)
+	if(!SearchActive && s_AetherActivePage == EAetherPage::ASSETS)
 	{
 		RenderSettingsAetherAssetsCloud(MainView);
 		return;
@@ -7484,7 +7995,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 				Feature.m_Section == Section &&
 				FeatureVisibleInAccordion(Feature) &&
 				(!EnabledFilterPage || !m_AetherShowEnabledOnly || !Feature.m_pEnabled || *Feature.m_pEnabled) &&
-				AetherMusic::SearchMatches(m_AetherSearchInput.GetString(), Feature.m_pLabel, Feature.m_ChildLabels))
+				AetherMusic::SearchMatches(pAetherSearch, Feature.m_pLabel, Feature.m_ChildLabels))
 				return true;
 		return false;
 	};
@@ -7496,12 +8007,19 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 	static CButtonContainer s_OpenAssetsEditorButton;
 	static CButtonContainer s_OpenMapBackgroundBuilderButton;
 	static std::array<float, MaxAetherFeatureRows> s_aBodyAnimations = {};
+	static char s_aLastSearch[sizeof(m_aAetherSearch)] = "";
+	if(str_comp(s_aLastSearch, pAetherSearch) != 0)
+	{
+		str_copy(s_aLastSearch, pAetherSearch);
+		m_AetherExpandedFeature = AetherMusic::EAetherFeatureId::NONE;
+		s_aBodyAnimations.fill(0.0f);
+	}
 	const float AnimationStep = g_Config.m_AeOptimizer && g_Config.m_AeOptimizerDisableMenuAnimations ? 1.0f : std::clamp(Client()->RenderFrameTime() * 18.0f, 0.0f, 1.0f);
 
 	auto BodyHeight = [&](AetherMusic::EAetherFeatureId Id) {
 		switch(Id)
 		{
-		case AetherMusic::EAetherFeatureId::MUSIC_PLAYER: return 168.0f * S;
+		case AetherMusic::EAetherFeatureId::MUSIC_PLAYER: return 212.0f * S;
 		case AetherMusic::EAetherFeatureId::KEYSTROKES: return 84.0f * S;
 		case AetherMusic::EAetherFeatureId::INPUT_VISUALIZER:
 		{
@@ -7521,6 +8039,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		case AetherMusic::EAetherFeatureId::REAL_HITBOX: return 74.0f * S;
 		case AetherMusic::EAetherFeatureId::NINJA_TEE_PREVIEW: return 116.0f * S;
 		case AetherMusic::EAetherFeatureId::NINJA_TIMER: return 54.0f * S;
+		case AetherMusic::EAetherFeatureId::TEAM_OVERLAYS: return 248.0f * S;
 		case AetherMusic::EAetherFeatureId::SWEAT_WEAPON:
 			return (430.0f +
 				(g_Config.m_AeSweatWeaponShine ? 24.0f : 0.0f) +
@@ -7531,6 +8050,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		case AetherMusic::EAetherFeatureId::JELLY_TEE: return 94.0f * S;
 		case AetherMusic::EAetherFeatureId::FINISH_PREDICTION: return 128.0f * S;
 		case AetherMusic::EAetherFeatureId::THREE_D_PARTICLES: return (g_Config.m_Ae3DParticlesColorMode == 0 ? 266.0f : 230.0f) * S;
+		case AetherMusic::EAetherFeatureId::AETHER_MENU_THEME: return 68.0f * S;
 		case AetherMusic::EAetherFeatureId::LOADING_THEME_BACKGROUND: return 52.0f * S;
 		case AetherMusic::EAetherFeatureId::CLIENT_BADGES: return 170.0f * S;
 		case AetherMusic::EAetherFeatureId::PING_WHEEL: return 126.0f * S;
@@ -7548,6 +8068,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 				(g_Config.m_AeAimTrainingDespawn ? 22.0f : 0.0f)) *
 			       S;
 		case AetherMusic::EAetherFeatureId::PSA: return (GameClient()->m_AetherPsa.IsActive() ? 230.0f : 116.0f) * S;
+		case AetherMusic::EAetherFeatureId::CUSTOM_MENU_THEME: return 158.0f * S;
 		case AetherMusic::EAetherFeatureId::VAULT_CFG: return 352.0f * S;
 		case AetherMusic::EAetherFeatureId::CLOUD_CLAN: return 430.0f * S;
 		case AetherMusic::EAetherFeatureId::GORES_MAPS: return 430.0f * S;
@@ -7559,12 +8080,14 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		case AetherMusic::EAetherFeatureId::DDRACE_CONFIGS: return 172.0f * S;
 		case AetherMusic::EAetherFeatureId::FAST_INPUT:
 		{
-			const int Mode = g_Config.m_AeFastInputMode == 3 ? 1 : g_Config.m_AeFastInputMode == 4 ? 3 : g_Config.m_AeFastInputMode == 2 ? 4 : 2;
-			if(Mode == 1 || Mode == 4)
-				return 188.0f * S;
+			const int Mode = g_Config.m_AeFastInputMode == 3 ? 1 : g_Config.m_AeFastInputMode == 5 ? 3 : g_Config.m_AeFastInputMode == 4 ? 4 : g_Config.m_AeFastInputMode == 2 ? 5 : 2;
+			if(Mode == 1 || Mode == 5)
+				return 210.0f * S;
 			if(Mode == 3)
-				return 232.0f * S;
-			float Height = 392.0f;
+				return 254.0f * S;
+			if(Mode == 4)
+				return (298.0f + (g_Config.m_AeFastInputControlInteractionAssist ? 22.0f : 0.0f)) * S;
+			float Height = 414.0f;
 			if(g_Config.m_AeFastInputBrakePriority || g_Config.m_AeFastInputBrakeReleasePriority)
 				Height += 22.0f;
 			if(g_Config.m_AeFastInputAdaptiveOthers)
@@ -7589,6 +8112,9 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		case AetherMusic::EAetherFeatureId::MUSIC_PLAYER:
 			RenderSettingsAetherMusicPlayer(Body);
 			break;
+		case AetherMusic::EAetherFeatureId::CUSTOM_MENU_THEME:
+			RenderSettingsAetherCustomMenuTheme(Body);
+			break;
 		case AetherMusic::EAetherFeatureId::KEYSTROKES:
 			RenderSettingsAetherKeystrokes(Body);
 			break;
@@ -7610,6 +8136,9 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		case AetherMusic::EAetherFeatureId::NINJA_TIMER:
 			RenderSettingsAetherNinjaTimer(Body);
 			break;
+		case AetherMusic::EAetherFeatureId::TEAM_OVERLAYS:
+			RenderSettingsAetherTeamOverlays(Body);
+			break;
 		case AetherMusic::EAetherFeatureId::SWEAT_WEAPON:
 			RenderSettingsAetherSweatWeapon(Body);
 			break;
@@ -7624,6 +8153,9 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 			break;
 		case AetherMusic::EAetherFeatureId::THREE_D_PARTICLES:
 			RenderSettingsAetherThreeDParticles(Body);
+			break;
+		case AetherMusic::EAetherFeatureId::AETHER_MENU_THEME:
+			RenderSettingsAetherDescription(Body, "Uses the coded Aether parallax menu background as an override. Turn off to let normal themes or Custom Menu Theme draw the menu.");
 			break;
 		case AetherMusic::EAetherFeatureId::LOADING_THEME_BACKGROUND:
 			RenderSettingsAetherDescription(Body, "Uses the current menu theme as the loading screen background. Turn off for the plain fallback loading background.");
@@ -9764,7 +10296,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		{
 			TextRender()->TextColor(0.94f, 0.64f, 1.0f, 1.0f);
 			const char *pSectionLabel = Section == ESection::VISUALS ? "VISUALS" : Section == ESection::GAMEPLAY ? "GAMEPLAY" : Section == ESection::TOOLS ? "TOOLS" : "EDITORS";
-			Ui()->DoLabel(&SectionHeader, Localize(pSectionLabel), 15.0f * S, TEXTALIGN_ML);
+			Ui()->DoLabel(&SectionHeader, AetherLocalize(pSectionLabel), 15.0f * S, TEXTALIGN_ML);
 			TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 		}
 
@@ -9775,7 +10307,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 				Feature.m_Section != Section ||
 				!FeatureVisibleInAccordion(Feature) ||
 				(EnabledFilterPage && m_AetherShowEnabledOnly && Feature.m_pEnabled && !*Feature.m_pEnabled) ||
-				!AetherMusic::SearchMatches(m_AetherSearchInput.GetString(), Feature.m_pLabel, Feature.m_ChildLabels))
+				!AetherMusic::SearchMatches(pAetherSearch, Feature.m_pLabel, Feature.m_ChildLabels))
 				continue;
 
 			CUIRect Row;
@@ -9789,7 +10321,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 					CUIRect Label, OpenButton;
 					Row.Margin(8.0f * S, &Row);
 					Row.VSplitRight(90.0f * S, &Label, &OpenButton);
-					Ui()->DoLabel(&Label, Localize(Feature.m_pLabel), 16.0f * S, TEXTALIGN_ML);
+					Ui()->DoLabel(&Label, AetherLocalize(Feature.m_pLabel), 16.0f * S, TEXTALIGN_ML);
 					if(Feature.m_EditorAction == EEditorAction::OPEN_HUD_EDITOR &&
 						DoButton_Menu(&s_OpenEditorButton, Localize("Open"), 0, &OpenButton))
 					{
@@ -9806,7 +10338,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 							EditorOpened |= GameClient()->m_AetherFinishPrediction.OpenEditor();
 						if(g_Config.m_AeStabilityTrainer)
 							EditorOpened |= GameClient()->m_AetherStabilityTrainer.OpenEditor();
-						if(g_Config.m_AeNinjaTimer || g_Config.m_TcShowFrozenText || g_Config.m_TcShowFrozenHud)
+						if(g_Config.m_AeNinjaTimer || g_Config.m_AeTeamLastOverlay || g_Config.m_AeTeamFreezeCounter > 0 || (g_Config.m_AeTimerPanel && g_Config.m_ClShowhudTimer && !g_Config.m_AeMusicPlayer) || g_Config.m_TcShowFrozenText || g_Config.m_TcShowFrozenHud)
 							EditorOpened |= GameClient()->m_Hud.OpenTClientFrozenTextEditor();
 						if(EditorOpened)
 						{
@@ -9853,7 +10385,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 						m_AetherExpandedFeature = AetherMusic::ToggleAccordion(m_AetherExpandedFeature, Feature.m_Id);
 					AetherDoTooltip(Ui(), GameClient(), &s_aExpandButtons[Index], ExpandButton, AetherFeatureTooltip(Feature.m_Id), 330.0f);
 					ExpandArea.VSplitLeft(8.0f * S, nullptr, &ExpandArea);
-					Ui()->DoLabel(&ExpandArea, Localize(Feature.m_pLabel), 16.0f * S, TEXTALIGN_ML);
+					Ui()->DoLabel(&ExpandArea, AetherLocalize(Feature.m_pLabel), 16.0f * S, TEXTALIGN_ML);
 					TextRender()->SetFontPreset(EFontPreset::ICON_FONT);
 					Ui()->DoLabel(&Arrow, m_AetherExpandedFeature == Feature.m_Id ? FontIcon::CHEVRON_UP : FontIcon::CHEVRON_RIGHT, 13.0f * S, TEXTALIGN_MC);
 					TextRender()->SetFontPreset(EFontPreset::DEFAULT_FONT);

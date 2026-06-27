@@ -28,6 +28,8 @@ enum class EAetherFeatureId
 {
 	NONE,
 	MUSIC_PLAYER,
+	AETHER_MENU_THEME,
+	CUSTOM_MENU_THEME,
 	KEYSTROKES,
 	INPUT_VISUALIZER,
 	STABILITY_TRAINER,
@@ -35,6 +37,7 @@ enum class EAetherFeatureId
 	REAL_HITBOX,
 	NINJA_TEE_PREVIEW,
 	NINJA_TIMER,
+	TEAM_OVERLAYS,
 	SWEAT_WEAPON,
 	ORBIT_AURA,
 	JELLY_TEE,
@@ -116,6 +119,8 @@ SColor DominantColor(std::span<const uint8_t> RgbaPixels);
 SColor DarkenForPanel(SColor Color);
 EArtworkState ArtworkState(EPlaybackState PlaybackState, bool HasArtwork, int64_t LastPlayingMs, int64_t NowMs);
 EPlaybackState EffectivePlaybackState(EPlaybackState MediaState, int64_t LastAudioMs, int64_t NowMs);
+std::string MediaDisplayName(const std::string &Title, const std::string &Artist, const std::string &Source);
+float MarqueeOffset(float TextWidth, float ViewWidth, int64_t ElapsedMs);
 int ResizeScalePercent(float AnchorX, float AnchorY, float MouseX, float MouseY, float BaseWidth, float BaseHeight);
 SRect ClampTopCenter(float ScreenWidth, float ScreenHeight, float Width, float Height, float OffsetX, float OffsetY);
 bool SearchMatches(const char *pSearch, const char *pFeatureLabel, std::span<const char *const> ChildLabels);

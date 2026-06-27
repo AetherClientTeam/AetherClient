@@ -13,11 +13,11 @@ TEST(AetherMusicPlayer, TimerModel)
 	STimerInput Input;
 	Input.m_GameTick = 50 * 75;
 	Input.m_TickSpeed = 50;
-	EXPECT_EQ(TimerModel(Input).m_Text, "01:15");
+	EXPECT_EQ(TimerModel(Input).m_Text, "1:15");
 
 	Input.m_TimeLimitMinutes = 2;
 	Input.m_RoundStartTick = 0;
-	EXPECT_EQ(TimerModel(Input).m_Text, "00:45");
+	EXPECT_EQ(TimerModel(Input).m_Text, "0:45");
 	EXPECT_TRUE(TimerModel(Input).m_Urgent);
 
 	Input.m_SuddenDeath = true;
@@ -68,6 +68,24 @@ TEST(AetherMusicPlayer, EffectivePlaybackUsesRecentProcessAudio)
 	EXPECT_EQ(EffectivePlaybackState(EPlaybackState::PAUSED, 1000, 1400), EPlaybackState::PLAYING);
 	EXPECT_EQ(EffectivePlaybackState(EPlaybackState::PAUSED, 1000, 1501), EPlaybackState::PAUSED);
 	EXPECT_EQ(EffectivePlaybackState(EPlaybackState::PLAYING, 0, 5000), EPlaybackState::PLAYING);
+}
+
+TEST(AetherMusicPlayer, MediaDisplayNamePrefersMetadata)
+{
+	EXPECT_EQ(MediaDisplayName("Song", "Artist", "Spotify"), "Song - Artist");
+	EXPECT_EQ(MediaDisplayName("Song", "", "Spotify"), "Song");
+	EXPECT_EQ(MediaDisplayName(" Same ", "Same", "Spotify"), "Same");
+	EXPECT_EQ(MediaDisplayName("", "", "SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify"), "Spotify");
+	EXPECT_EQ(MediaDisplayName("\xF0\x9D\x90\x8C\xF0\x9D\x90\x84\xF0\x9D\x90\x93\xF0\x9D\x90\x87\xF0\x9D\x90\x8E\xF0\x9D\x90\x97\xF0\x9D\x90\x88\xF0\x9D\x90\x83\xF0\x9D\x90\x84", "", "Spotify"), "METHOXIDE");
+	EXPECT_TRUE(MediaDisplayName("", "", "   ").empty());
+}
+
+TEST(AetherMusicPlayer, MarqueeOffsetWaitsThenWraps)
+{
+	EXPECT_FLOAT_EQ(MarqueeOffset(40.0f, 80.0f, 5000), 0.0f);
+	EXPECT_FLOAT_EQ(MarqueeOffset(120.0f, 80.0f, 1000), 0.0f);
+	EXPECT_GT(MarqueeOffset(120.0f, 80.0f, 2200), 0.0f);
+	EXPECT_NEAR(MarqueeOffset(120.0f, 80.0f, 1200 + 7000), MarqueeOffset(120.0f, 80.0f, 1200 + 7000 + 7778), 0.02f);
 }
 
 TEST(AetherMusicPlayer, ResizeScaleKeepsAspectAndLimits)

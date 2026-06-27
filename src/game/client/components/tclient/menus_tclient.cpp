@@ -742,62 +742,6 @@ void CMenus::RenderSettingsTClientSettings(CUIRect MainView)
 	}
 	s_SectionBoxes.back().h = Column.y - s_SectionBoxes.back().y;
 
-	// ***** Pet ***** //
-	Column.HSplitTop(MarginBetweenSections, nullptr, &Column);
-	s_SectionBoxes.push_back(Column);
-	Column.HSplitTop(HeadlineHeight, &Label, &Column);
-	Ui()->DoLabel(&Label, TCLocalize("Pet"), HeadlineFontSize, TEXTALIGN_ML);
-	Column.HSplitTop(MarginSmall, nullptr, &Column);
-
-	DoButton_CheckBoxAutoVMarginAndSet(&g_Config.m_TcPetShow, TCLocalize("Show the pet"), &g_Config.m_TcPetShow, &Column, LineSize);
-	Column.HSplitTop(LineSize, &Button, &Column);
-	Ui()->DoScrollbarOption(&g_Config.m_TcPetSize, &g_Config.m_TcPetSize, &Button, TCLocalize("Pet size"), 10, 500, &CUi::ms_LinearScrollbarScale, 0, "%");
-	Column.HSplitTop(LineSize, &Button, &Column);
-	Ui()->DoScrollbarOption(&g_Config.m_TcPetAlpha, &g_Config.m_TcPetAlpha, &Button, TCLocalize("Pet alpha"), 10, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
-	Column.HSplitTop(LineSize + MarginExtraSmall, &Button, &Column);
-	Button.VSplitMid(&Label, &Button);
-	Ui()->DoLabel(&Label, TCLocalize("Pet Skin:"), FontSize, TEXTALIGN_ML);
-	static CLineInput s_PetSkin(g_Config.m_TcPetSkin, sizeof(g_Config.m_TcPetSkin));
-	Ui()->DoEditBox(&s_PetSkin, &Button, EditBoxFontSize);
-
-	// Pet Preview
-	Column.HSplitTop(MarginSmall, nullptr, &Column);
-	CUIRect Preview;
-	Column.HSplitTop(64.0f, &Preview, &Column);
-
-	CTeeRenderInfo TeeInfo;
-	const CSkin *pSkin = GameClient()->m_Skins.Find(g_Config.m_TcPetSkin);
-	if(!pSkin || str_comp(pSkin->GetName(), g_Config.m_TcPetSkin) != 0)
-		pSkin = GameClient()->m_Skins.Find("default");
-
-	TeeInfo.m_OriginalRenderSkin = pSkin->m_OriginalSkin;
-	TeeInfo.m_ColorableRenderSkin = pSkin->m_ColorableSkin;
-	TeeInfo.m_SkinMetrics = pSkin->m_Metrics;
-	TeeInfo.m_CustomColoredSkin = false;
-	TeeInfo.m_ColorBody = ColorRGBA(1.0f, 1.0f, 1.0f);
-	TeeInfo.m_ColorFeet = ColorRGBA(1.0f, 1.0f, 1.0f);
-	TeeInfo.m_Size = 64.0f;
-
-	const CAnimState *pIdleState = CAnimState::GetIdle();
-	vec2 OffsetToMid;
-	CRenderTools::GetRenderTeeOffsetToRenderedTee(pIdleState, &TeeInfo, OffsetToMid);
-	vec2 TeeRenderPos = Preview.Center();
-	TeeRenderPos.y += OffsetToMid.y;
-
-	vec2 Dir = Ui()->MousePos() - TeeRenderPos;
-	const float Length = length(Dir);
-	if(Length > 0.0f)
-		Dir /= Length;
-	if(Length < 0.4f * 64.0f)
-	{
-		Dir = vec2(1.0f, 0.0f);
-	}
-
-	int PetEmote = g_Config.m_ClPlayerDefaultEyes;
-	RenderTools()->RenderTee(pIdleState, &TeeInfo, PetEmote, Dir, TeeRenderPos);
-
-	s_SectionBoxes.back().h = Column.y - s_SectionBoxes.back().y;
-
 	// ***** RightView ***** //
 	LeftView = Column;
 	Column = RightView;
@@ -819,30 +763,6 @@ void CMenus::RenderSettingsTClientSettings(CUIRect MainView)
 		Ui()->DoScrollbarOption(&g_Config.m_TcRenderCursorSpecAlpha, &g_Config.m_TcRenderCursorSpecAlpha, &Button, TCLocalize("Spectate cursor alpha"), 0, 100);
 	}
 
-	DoButton_CheckBoxAutoVMarginAndSet(&g_Config.m_TcNotifyWhenLast, TCLocalize("Show when you are the last alive"), &g_Config.m_TcNotifyWhenLast, &Column, LineSize);
-	CUIRect NotificationConfig;
-	Column.HSplitTop(LineSize + MarginSmall, &NotificationConfig, &Column);
-	if(g_Config.m_TcNotifyWhenLast)
-	{
-		NotificationConfig.VSplitMid(&Button, &NotificationConfig);
-		static CLineInput s_LastInput(g_Config.m_TcNotifyWhenLastText, sizeof(g_Config.m_TcNotifyWhenLastText));
-		s_LastInput.SetEmptyText(TCLocalize("Last!"));
-		Button.HSplitTop(MarginSmall, nullptr, &Button);
-		Ui()->DoEditBox(&s_LastInput, &Button, EditBoxFontSize);
-		static CButtonContainer s_ClientNotifyWhenLastColor;
-		DoLine_ColorPicker(&s_ClientNotifyWhenLastColor, ColorPickerLineSize, ColorPickerLabelSize, ColorPickerLineSpacing, &NotificationConfig, "", &g_Config.m_TcNotifyWhenLastColor, ColorRGBA(1.0f, 1.0f, 1.0f), false);
-		Column.HSplitTop(LineSize, &Button, &Column);
-		Ui()->DoScrollbarOption(&g_Config.m_TcNotifyWhenLastX, &g_Config.m_TcNotifyWhenLastX, &Button, TCLocalize("Horizontal Position"), 1, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
-		Column.HSplitTop(LineSize, &Button, &Column);
-		Ui()->DoScrollbarOption(&g_Config.m_TcNotifyWhenLastY, &g_Config.m_TcNotifyWhenLastY, &Button, TCLocalize("Vertical Position"), 1, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
-		Column.HSplitTop(LineSize, &Button, &Column);
-		Ui()->DoScrollbarOption(&g_Config.m_TcNotifyWhenLastSize, &g_Config.m_TcNotifyWhenLastSize, &Button, TCLocalize("Font Size"), 1, 50);
-	}
-	else
-	{
-		Column.HSplitTop(LineSize * 3.0f, nullptr, &Column);
-	}
-
 	DoButton_CheckBoxAutoVMarginAndSet(&g_Config.m_TcShowCenter, TCLocalize("Show screen center lines"), &g_Config.m_TcShowCenter, &Column, LineSize);
 	Column.HSplitTop(LineSize + MarginSmall, &Button, &Column);
 	if(g_Config.m_TcShowCenter)
@@ -858,38 +778,6 @@ void CMenus::RenderSettingsTClientSettings(CUIRect MainView)
 	}
 
 	Column.HSplitTop(MarginExtraSmall, nullptr, &Column);
-	s_SectionBoxes.back().h = Column.y - s_SectionBoxes.back().y;
-
-	// ***** Frozen Tee Display ***** //
-	Column.HSplitTop(MarginBetweenSections, nullptr, &Column);
-	s_SectionBoxes.push_back(Column);
-	Column.HSplitTop(HeadlineHeight, &Label, &Column);
-	Ui()->DoLabel(&Label, TCLocalize("Frozen Tee Display"), HeadlineFontSize, TEXTALIGN_ML);
-	Column.HSplitTop(MarginSmall, nullptr, &Column);
-
-	DoButton_CheckBoxAutoVMarginAndSet(&g_Config.m_TcShowFrozenHud, TCLocalize("Show frozen tee display"), &g_Config.m_TcShowFrozenHud, &Column, LineSize);
-	DoButton_CheckBoxAutoVMarginAndSet(&g_Config.m_TcShowFrozenHudSkins, TCLocalize("Use skins instead of ninja tees"), &g_Config.m_TcShowFrozenHudSkins, &Column, LineSize);
-	DoButton_CheckBoxAutoVMarginAndSet(&g_Config.m_TcFrozenHudTeamOnly, TCLocalize("Only show after joining a team"), &g_Config.m_TcFrozenHudTeamOnly, &Column, LineSize);
-
-	Column.HSplitTop(LineSize, &Button, &Column);
-	Ui()->DoScrollbarOption(&g_Config.m_TcFrozenMaxRows, &g_Config.m_TcFrozenMaxRows, &Button, TCLocalize("Max Rows"), 1, 6);
-	Column.HSplitTop(LineSize, &Button, &Column);
-	Ui()->DoScrollbarOption(&g_Config.m_TcFrozenHudTeeSize, &g_Config.m_TcFrozenHudTeeSize, &Button, TCLocalize("Tee Size"), 8, 27);
-
-	{
-		CUIRect CheckBoxRect, CheckBoxRect2;
-		Column.HSplitTop(LineSize, &CheckBoxRect, &Column);
-		Column.HSplitTop(LineSize, &CheckBoxRect2, &Column);
-		if(DoButton_CheckBox(&g_Config.m_TcShowFrozenText, TCLocalize("Tees left alive text"), g_Config.m_TcShowFrozenText >= 1, &CheckBoxRect))
-			g_Config.m_TcShowFrozenText = g_Config.m_TcShowFrozenText >= 1 ? 0 : 1;
-
-		if(g_Config.m_TcShowFrozenText)
-		{
-			static int s_CountFrozenText = 0;
-			if(DoButton_CheckBox(&s_CountFrozenText, TCLocalize("Count frozen tees"), g_Config.m_TcShowFrozenText == 2, &CheckBoxRect2))
-				g_Config.m_TcShowFrozenText = g_Config.m_TcShowFrozenText != 2 ? 2 : 1;
-		}
-	}
 	s_SectionBoxes.back().h = Column.y - s_SectionBoxes.back().y;
 
 	// ***** Tile Outlines ***** //
@@ -1077,6 +965,62 @@ void CMenus::RenderSettingsTClientSettings(CUIRect MainView)
 	Ui()->DoLabel(&Label, TCLocalize("Finish Name:"), FontSize, TEXTALIGN_ML);
 	static CLineInput s_FinishName(g_Config.m_TcFinishName, sizeof(g_Config.m_TcFinishName));
 	Ui()->DoEditBox(&s_FinishName, &Button, EditBoxFontSize);
+	s_SectionBoxes.back().h = Column.y - s_SectionBoxes.back().y;
+
+	// ***** Pet ***** //
+	Column.HSplitTop(MarginBetweenSections, nullptr, &Column);
+	s_SectionBoxes.push_back(Column);
+	Column.HSplitTop(HeadlineHeight, &Label, &Column);
+	Ui()->DoLabel(&Label, TCLocalize("Pet"), HeadlineFontSize, TEXTALIGN_ML);
+	Column.HSplitTop(MarginSmall, nullptr, &Column);
+
+	DoButton_CheckBoxAutoVMarginAndSet(&g_Config.m_TcPetShow, TCLocalize("Show the pet"), &g_Config.m_TcPetShow, &Column, LineSize);
+	Column.HSplitTop(LineSize, &Button, &Column);
+	Ui()->DoScrollbarOption(&g_Config.m_TcPetSize, &g_Config.m_TcPetSize, &Button, TCLocalize("Pet size"), 10, 500, &CUi::ms_LinearScrollbarScale, 0, "%");
+	Column.HSplitTop(LineSize, &Button, &Column);
+	Ui()->DoScrollbarOption(&g_Config.m_TcPetAlpha, &g_Config.m_TcPetAlpha, &Button, TCLocalize("Pet alpha"), 10, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+	Column.HSplitTop(LineSize + MarginExtraSmall, &Button, &Column);
+	Button.VSplitMid(&Label, &Button);
+	Ui()->DoLabel(&Label, TCLocalize("Pet Skin:"), FontSize, TEXTALIGN_ML);
+	static CLineInput s_PetSkin(g_Config.m_TcPetSkin, sizeof(g_Config.m_TcPetSkin));
+	Ui()->DoEditBox(&s_PetSkin, &Button, EditBoxFontSize);
+
+	// Pet Preview
+	Column.HSplitTop(MarginSmall, nullptr, &Column);
+	CUIRect Preview;
+	Column.HSplitTop(64.0f, &Preview, &Column);
+
+	CTeeRenderInfo TeeInfo;
+	const CSkin *pSkin = GameClient()->m_Skins.Find(g_Config.m_TcPetSkin);
+	if(!pSkin || str_comp(pSkin->GetName(), g_Config.m_TcPetSkin) != 0)
+		pSkin = GameClient()->m_Skins.Find("default");
+
+	TeeInfo.m_OriginalRenderSkin = pSkin->m_OriginalSkin;
+	TeeInfo.m_ColorableRenderSkin = pSkin->m_ColorableSkin;
+	TeeInfo.m_SkinMetrics = pSkin->m_Metrics;
+	TeeInfo.m_CustomColoredSkin = false;
+	TeeInfo.m_ColorBody = ColorRGBA(1.0f, 1.0f, 1.0f);
+	TeeInfo.m_ColorFeet = ColorRGBA(1.0f, 1.0f, 1.0f);
+	TeeInfo.m_Size = 64.0f;
+
+	const CAnimState *pIdleState = CAnimState::GetIdle();
+	vec2 OffsetToMid;
+	CRenderTools::GetRenderTeeOffsetToRenderedTee(pIdleState, &TeeInfo, OffsetToMid);
+	vec2 TeeRenderPos = Preview.Center();
+	TeeRenderPos.y += OffsetToMid.y;
+
+	vec2 Dir = Ui()->MousePos() - TeeRenderPos;
+	const float Length = length(Dir);
+	if(Length > 0.0f)
+		Dir /= Length;
+	if(Length < 0.4f * 64.0f)
+	{
+		Dir = vec2(1.0f, 0.0f);
+	}
+
+	int PetEmote = g_Config.m_ClPlayerDefaultEyes;
+	RenderTools()->RenderTee(pIdleState, &TeeInfo, PetEmote, Dir, TeeRenderPos);
+
 	s_SectionBoxes.back().h = Column.y - s_SectionBoxes.back().y;
 
 	// ***** END OF PAGE 1 SETTINGS ***** //

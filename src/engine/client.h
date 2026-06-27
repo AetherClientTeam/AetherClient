@@ -250,6 +250,9 @@ public:
 
 	virtual int GetPredictionTime() = 0;
 	virtual int GetPredictionTick() = 0;
+	virtual int GetPredictionMargin() const = 0;
+	virtual int GetInputTimingTimeLeft() const = 0;
+	virtual int GetInputTimingSpikeState() const = 0;
 
 	// snapshot interface
 

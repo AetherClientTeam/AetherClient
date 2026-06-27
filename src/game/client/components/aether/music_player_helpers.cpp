@@ -3,12 +3,296 @@
 #include <base/str.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
+#include <string>
 #include <unordered_map>
 
 namespace AetherMusic
 {
+namespace
+{
+std::string TrimCopy(const std::string &Value)
+{
+	size_t Begin = 0;
+	while(Begin < Value.size() && std::isspace(static_cast<unsigned char>(Value[Begin])))
+		++Begin;
+	size_t End = Value.size();
+	while(End > Begin && std::isspace(static_cast<unsigned char>(Value[End - 1])))
+		--End;
+	return Value.substr(Begin, End - Begin);
+}
+
+std::string CleanSourceName(std::string Source)
+{
+	Source = TrimCopy(Source);
+	if(Source.empty())
+		return {};
+
+	const size_t Bang = Source.find_last_of('!');
+	if(Bang != std::string::npos && Bang + 1 < Source.size())
+		Source = Source.substr(Bang + 1);
+	else
+	{
+		const size_t Slash = Source.find_last_of("\\/");
+		if(Slash != std::string::npos && Slash + 1 < Source.size())
+			Source = Source.substr(Slash + 1);
+		const size_t Dot = Source.find_last_of('.');
+		if(Dot != std::string::npos && Dot + 1 < Source.size())
+			Source = Source.substr(Dot + 1);
+	}
+	return TrimCopy(Source);
+}
+
+bool AppendAsciiForCodepoint(std::string &Out, int Codepoint)
+{
+	if(Codepoint >= 32 && Codepoint <= 126)
+	{
+		Out.push_back((char)Codepoint);
+		return true;
+	}
+	if(Codepoint == '\t' || Codepoint == '\n' || Codepoint == '\r' || Codepoint == 0x00A0)
+	{
+		Out.push_back(' ');
+		return true;
+	}
+	if(Codepoint >= 0xFF01 && Codepoint <= 0xFF5E)
+	{
+		Out.push_back((char)(Codepoint - 0xFEE0));
+		return true;
+	}
+
+	struct SRange
+	{
+		int m_Start;
+		int m_Count;
+		char m_Base;
+	};
+	static constexpr SRange s_aMathAlnumRanges[] = {
+		{0x1D400, 26, 'A'}, {0x1D41A, 26, 'a'},
+		{0x1D434, 26, 'A'}, {0x1D44E, 26, 'a'},
+		{0x1D468, 26, 'A'}, {0x1D482, 26, 'a'},
+		{0x1D4D0, 26, 'A'}, {0x1D4EA, 26, 'a'},
+		{0x1D56C, 26, 'A'}, {0x1D586, 26, 'a'},
+		{0x1D5A0, 26, 'A'}, {0x1D5BA, 26, 'a'},
+		{0x1D5D4, 26, 'A'}, {0x1D5EE, 26, 'a'},
+		{0x1D608, 26, 'A'}, {0x1D622, 26, 'a'},
+		{0x1D63C, 26, 'A'}, {0x1D656, 26, 'a'},
+		{0x1D670, 26, 'A'}, {0x1D68A, 26, 'a'},
+		{0x1D7CE, 10, '0'}, {0x1D7D8, 10, '0'},
+		{0x1D7E2, 10, '0'}, {0x1D7EC, 10, '0'},
+		{0x1D7F6, 10, '0'},
+	};
+	for(const SRange &Range : s_aMathAlnumRanges)
+	{
+		if(Codepoint >= Range.m_Start && Codepoint < Range.m_Start + Range.m_Count)
+		{
+			Out.push_back((char)(Range.m_Base + Codepoint - Range.m_Start));
+			return true;
+		}
+	}
+
+	switch(Codepoint)
+	{
+	case 0x2010:
+	case 0x2011:
+	case 0x2012:
+	case 0x2013:
+	case 0x2014:
+	case 0x2212:
+		Out.push_back('-');
+		return true;
+	case 0x2018:
+	case 0x2019:
+	case 0x02BC:
+		Out.push_back('\'');
+		return true;
+	case 0x201C:
+	case 0x201D:
+		Out.push_back('"');
+		return true;
+	case 0x00C0:
+	case 0x00C1:
+	case 0x00C2:
+	case 0x00C3:
+	case 0x00C4:
+	case 0x00C5:
+	case 0x0100:
+	case 0x0102:
+	case 0x0104:
+		Out.push_back('A');
+		return true;
+	case 0x00E0:
+	case 0x00E1:
+	case 0x00E2:
+	case 0x00E3:
+	case 0x00E4:
+	case 0x00E5:
+	case 0x0101:
+	case 0x0103:
+	case 0x0105:
+		Out.push_back('a');
+		return true;
+	case 0x00C7:
+	case 0x0106:
+	case 0x010C:
+		Out.push_back('C');
+		return true;
+	case 0x00E7:
+	case 0x0107:
+	case 0x010D:
+		Out.push_back('c');
+		return true;
+	case 0x00D0:
+		Out.push_back('D');
+		return true;
+	case 0x00F0:
+		Out.push_back('d');
+		return true;
+	case 0x00C8:
+	case 0x00C9:
+	case 0x00CA:
+	case 0x00CB:
+	case 0x0112:
+	case 0x0118:
+		Out.push_back('E');
+		return true;
+	case 0x00E8:
+	case 0x00E9:
+	case 0x00EA:
+	case 0x00EB:
+	case 0x0113:
+	case 0x0119:
+		Out.push_back('e');
+		return true;
+	case 0x011E:
+		Out.push_back('G');
+		return true;
+	case 0x011F:
+		Out.push_back('g');
+		return true;
+	case 0x00CC:
+	case 0x00CD:
+	case 0x00CE:
+	case 0x00CF:
+	case 0x0130:
+	case 0x012A:
+		Out.push_back('I');
+		return true;
+	case 0x00EC:
+	case 0x00ED:
+	case 0x00EE:
+	case 0x00EF:
+	case 0x0131:
+	case 0x012B:
+		Out.push_back('i');
+		return true;
+	case 0x00D1:
+		Out.push_back('N');
+		return true;
+	case 0x00F1:
+		Out.push_back('n');
+		return true;
+	case 0x00D2:
+	case 0x00D3:
+	case 0x00D4:
+	case 0x00D5:
+	case 0x00D6:
+	case 0x00D8:
+	case 0x014C:
+		Out.push_back('O');
+		return true;
+	case 0x00F2:
+	case 0x00F3:
+	case 0x00F4:
+	case 0x00F5:
+	case 0x00F6:
+	case 0x00F8:
+	case 0x014D:
+		Out.push_back('o');
+		return true;
+	case 0x015E:
+	case 0x0160:
+		Out.push_back('S');
+		return true;
+	case 0x015F:
+	case 0x0161:
+		Out.push_back('s');
+		return true;
+	case 0x00D9:
+	case 0x00DA:
+	case 0x00DB:
+	case 0x00DC:
+	case 0x016A:
+		Out.push_back('U');
+		return true;
+	case 0x00F9:
+	case 0x00FA:
+	case 0x00FB:
+	case 0x00FC:
+	case 0x016B:
+		Out.push_back('u');
+		return true;
+	case 0x00DD:
+	case 0x0178:
+		Out.push_back('Y');
+		return true;
+	case 0x00FD:
+	case 0x00FF:
+		Out.push_back('y');
+		return true;
+	case 0x00DF:
+		Out.append("ss");
+		return true;
+	case 0x00C6:
+		Out.append("AE");
+		return true;
+	case 0x00E6:
+		Out.append("ae");
+		return true;
+	default:
+		return false;
+	}
+}
+
+std::string SanitizeDisplayText(const std::string &Value)
+{
+	std::string Result;
+	Result.reserve(Value.size());
+	const char *pCursor = Value.c_str();
+	while(*pCursor)
+	{
+		const char *pBefore = pCursor;
+		const int Codepoint = str_utf8_decode(&pCursor);
+		if(Codepoint <= 0)
+		{
+			pCursor = pBefore + 1;
+			continue;
+		}
+		AppendAsciiForCodepoint(Result, Codepoint);
+	}
+
+	std::string Trimmed = TrimCopy(Result);
+	std::string Collapsed;
+	Collapsed.reserve(Trimmed.size());
+	bool LastWasSpace = false;
+	for(char Character : Trimmed)
+	{
+		const bool IsSpace = std::isspace(static_cast<unsigned char>(Character)) != 0;
+		if(IsSpace)
+		{
+			if(!LastWasSpace)
+				Collapsed.push_back(' ');
+		}
+		else
+			Collapsed.push_back(Character);
+		LastWasSpace = IsSpace;
+	}
+	return Collapsed;
+}
+}
+
 std::string FormatTimer(int Seconds)
 {
 	Seconds = std::max(Seconds, 0);
@@ -22,7 +306,7 @@ std::string FormatTimer(int Seconds)
 	else if(Seconds >= 3600)
 		std::snprintf(aBuffer, sizeof(aBuffer), "%02d:%02d:%02d", Seconds / 3600, Minutes, RemainingSeconds);
 	else
-		std::snprintf(aBuffer, sizeof(aBuffer), "%02d:%02d", Minutes, RemainingSeconds);
+		std::snprintf(aBuffer, sizeof(aBuffer), "%d:%02d", Minutes, RemainingSeconds);
 	return aBuffer;
 }
 
@@ -157,6 +441,30 @@ EPlaybackState EffectivePlaybackState(EPlaybackState MediaState, int64_t LastAud
 	return MediaState;
 }
 
+std::string MediaDisplayName(const std::string &Title, const std::string &Artist, const std::string &Source)
+{
+	const std::string CleanTitle = SanitizeDisplayText(Title);
+	const std::string CleanArtist = SanitizeDisplayText(Artist);
+	if(!CleanTitle.empty() && !CleanArtist.empty() && CleanTitle != CleanArtist)
+		return CleanTitle + " - " + CleanArtist;
+	if(!CleanTitle.empty())
+		return CleanTitle;
+	return SanitizeDisplayText(CleanSourceName(Source));
+}
+
+float MarqueeOffset(float TextWidth, float ViewWidth, int64_t ElapsedMs)
+{
+	if(TextWidth <= ViewWidth || TextWidth <= 0.0f || ViewWidth <= 0.0f)
+		return 0.0f;
+	constexpr int64_t DelayMs = 1200;
+	constexpr float Speed = 18.0f;
+	constexpr float Gap = 20.0f;
+	if(ElapsedMs <= DelayMs)
+		return 0.0f;
+	const float CycleWidth = TextWidth + Gap;
+	return std::fmod((ElapsedMs - DelayMs) * Speed / 1000.0f, CycleWidth);
+}
+
 int ResizeScalePercent(float AnchorX, float AnchorY, float MouseX, float MouseY, float BaseWidth, float BaseHeight)
 {
 	if(BaseWidth <= 0.0f || BaseHeight <= 0.0f)
@@ -177,6 +485,8 @@ bool SearchMatches(const char *pSearch, const char *pFeatureLabel, std::span<con
 {
 	if(!pSearch || pSearch[0] == '\0')
 		return true;
+	if(!str_utf8_check(pSearch))
+		return false;
 	if(pFeatureLabel && str_utf8_find_nocase(pFeatureLabel, pSearch))
 		return true;
 	return std::any_of(ChildLabels.begin(), ChildLabels.end(), [pSearch](const char *pLabel) {

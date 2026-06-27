@@ -19,7 +19,7 @@ MACRO_CONFIG_INT(TcShowFrozenText, tc_frozen_tees_text, 0, 0, 2, CFGFLAG_CLIENT 
 MACRO_CONFIG_INT(TcFrozenTextOffsetX, tc_frozen_tees_text_offset_x, 0, -1000, 1000, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Frozen/alive text HUD editor horizontal offset")
 MACRO_CONFIG_INT(TcFrozenTextOffsetY, tc_frozen_tees_text_offset_y, 0, -1000, 1000, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Frozen/alive text HUD editor vertical offset")
 MACRO_CONFIG_INT(TcFrozenTextScale, tc_frozen_tees_text_scale, 100, 50, 200, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Frozen/alive text HUD editor scale")
-MACRO_CONFIG_INT(TcShowFrozenHud, tc_frozen_tees_hud, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Show frozen tee HUD")
+MACRO_CONFIG_INT(TcShowFrozenHud, tc_frozen_tees_hud, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Show frozen tee HUD")
 MACRO_CONFIG_INT(TcShowFrozenHudSkins, tc_frozen_tees_hud_skins, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Use ninja skin, or darkened skin for frozen tees on hud")
 
 MACRO_CONFIG_INT(TcFrozenHudTeeSize, tc_frozen_tees_size, 15, 8, 27, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Size of tees in frozen tee hud. (Default : 15)")

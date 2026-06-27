@@ -3,6 +3,7 @@
 #include <base/system.h>
 
 #include <engine/font_icons.h>
+#include <engine/image.h>
 #include <engine/shared/config.h>
 #include <engine/storage.h>
 #include <engine/textrender.h>
@@ -12,6 +13,7 @@
 #include <game/client/ui_listbox.h>
 #include <game/localization.h>
 
+#include <algorithm>
 #include <chrono>
 
 using namespace std::chrono_literals;
@@ -43,12 +45,22 @@ void CMenus::LoadEntities(SCustomEntities *pEntitiesItem, void *pUser)
 	auto *pThis = (CMenus *)pRealUser->m_pUser;
 
 	char aPath[IO_MAX_PATH_LENGTH];
+	auto LoadEntityTexture = [&](int Index, const char *pPath) {
+		pEntitiesItem->m_aImages[Index].m_Texture = pThis->Graphics()->LoadTexture(pPath, IStorage::TYPE_ALL);
+		CImageInfo ImageInfo;
+		if(pThis->Graphics()->LoadPng(ImageInfo, pPath, IStorage::TYPE_ALL))
+		{
+			pEntitiesItem->m_aImages[Index].m_Width = ImageInfo.m_Width;
+			pEntitiesItem->m_aImages[Index].m_Height = ImageInfo.m_Height;
+			ImageInfo.Free();
+		}
+	};
 	if(str_comp(pEntitiesItem->m_aName, "default") == 0)
 	{
 		for(int i = 0; i < MAP_IMAGE_MOD_TYPE_COUNT; ++i)
 		{
 			str_format(aPath, sizeof(aPath), "editor/entities_clear/%s.png", gs_apModEntitiesNames[i]);
-			pEntitiesItem->m_aImages[i].m_Texture = pThis->Graphics()->LoadTexture(aPath, IStorage::TYPE_ALL);
+			LoadEntityTexture(i, aPath);
 			if(!pEntitiesItem->m_RenderTexture.IsValid() || pEntitiesItem->m_RenderTexture.IsNullTexture())
 				pEntitiesItem->m_RenderTexture = pEntitiesItem->m_aImages[i].m_Texture;
 		}
@@ -58,11 +70,11 @@ void CMenus::LoadEntities(SCustomEntities *pEntitiesItem, void *pUser)
 		for(int i = 0; i < MAP_IMAGE_MOD_TYPE_COUNT; ++i)
 		{
 			str_format(aPath, sizeof(aPath), "assets/entities/%s/%s.png", pEntitiesItem->m_aName, gs_apModEntitiesNames[i]);
-			pEntitiesItem->m_aImages[i].m_Texture = pThis->Graphics()->LoadTexture(aPath, IStorage::TYPE_ALL);
+			LoadEntityTexture(i, aPath);
 			if(pEntitiesItem->m_aImages[i].m_Texture.IsNullTexture())
 			{
 				str_format(aPath, sizeof(aPath), "assets/entities/%s.png", pEntitiesItem->m_aName);
-				pEntitiesItem->m_aImages[i].m_Texture = pThis->Graphics()->LoadTexture(aPath, IStorage::TYPE_ALL);
+				LoadEntityTexture(i, aPath);
 			}
 			if(!pEntitiesItem->m_RenderTexture.IsValid() || pEntitiesItem->m_RenderTexture.IsNullTexture())
 				pEntitiesItem->m_RenderTexture = pEntitiesItem->m_aImages[i].m_Texture;
@@ -414,7 +426,6 @@ static int InitSearchList(std::vector<const TName *> &vpSearchList, std::vector<
 void CMenus::RenderSettingsCustom(CUIRect MainView)
 {
 	CUIRect TabBar, CustomList, QuickSearch, DirectoryButton, ReloadButton;
-	static bool s_EntityGamePreview = true;
 
 	MainView.HSplitTop(20.0f, &TabBar, &MainView);
 	const float TabWidth = TabBar.w / (float)NUMBER_OF_ASSETS_TABS;
@@ -645,12 +656,21 @@ void CMenus::RenderSettingsCustom(CUIRect MainView)
 		ItemRect.HSplitTop(15, &ItemRect, &TextureRect);
 		TextureRect.HSplitTop(10, nullptr, &TextureRect);
 		Ui()->DoLabel(&ItemRect, pItem->m_aName, ItemRect.h - 2, TEXTALIGN_MC);
-		if(s_CurCustomTab == ASSETS_TAB_ENTITIES && s_EntityGamePreview)
+		if(s_CurCustomTab == ASSETS_TAB_ENTITIES && g_Config.m_ClAssetsEntitiesBetterPreview)
 		{
 			const auto *pEntitiesItem = static_cast<const SCustomEntities *>(pItem);
 			IGraphics::CTextureHandle Tex;
+			int TexWidth = 1024;
+			int TexHeight = 1024;
 			for(int m = 0; m < MAP_IMAGE_MOD_TYPE_COUNT && !Tex.IsValid(); m++)
+			{
 				Tex = pEntitiesItem->m_aImages[m].m_Texture;
+				if(Tex.IsValid())
+				{
+					TexWidth = pEntitiesItem->m_aImages[m].m_Width;
+					TexHeight = pEntitiesItem->m_aImages[m].m_Height;
+				}
+			}
 			if(!Tex.IsValid())
 				Tex = pItem->m_RenderTexture;
 
@@ -671,7 +691,8 @@ void CMenus::RenderSettingsCustom(CUIRect MainView)
 				const float TileSize = TextureWidth / (float)Cols;
 				const float OffX = TextureRect.x + (TextureRect.w - TextureWidth) / 2.0f;
 				const float OffY = TextureRect.y + (TextureRect.h - Rows * TileSize) / 2.0f;
-				const float Inset = 1.5f / 1024.0f;
+				const float InsetX = 0.5f / std::max(1.0f, (float)TexWidth);
+				const float InsetY = 0.5f / std::max(1.0f, (float)TexHeight);
 				const float TileUv = 1.0f / 16.0f;
 
 				Graphics()->WrapClamp();
@@ -687,9 +708,9 @@ void CMenus::RenderSettingsCustom(CUIRect MainView)
 							continue;
 						const int Tx = Tile % 16;
 						const int Ty = Tile / 16;
-						const float U0 = Tx * TileUv + Inset;
-						const float V0 = Ty * TileUv + Inset;
-						Graphics()->QuadsSetSubset(U0, V0, U0 + TileUv - Inset * 2.0f, V0 + TileUv - Inset * 2.0f);
+						const float U0 = Tx * TileUv + InsetX;
+						const float V0 = Ty * TileUv + InsetY;
+						Graphics()->QuadsSetSubset(U0, V0, U0 + TileUv - InsetX * 2.0f, V0 + TileUv - InsetY * 2.0f);
 						IGraphics::CQuadItem Quad(OffX + c * TileSize, OffY + r * TileSize, TileSize, TileSize);
 						Graphics()->QuadsDrawTL(&Quad, 1);
 					}
@@ -771,8 +792,8 @@ void CMenus::RenderSettingsCustom(CUIRect MainView)
 		DirectoryButton.VSplitLeft(5.0f, nullptr, &DirectoryButton);
 		ToggleRect.HSplitTop(5.0f, nullptr, &ToggleRect);
 		static CButtonContainer s_EntityPreviewToggleId;
-		if(DoButton_Menu(&s_EntityPreviewToggleId, Localize("Better Preview"), s_EntityGamePreview, &ToggleRect))
-			s_EntityGamePreview = !s_EntityGamePreview;
+		if(DoButton_Menu(&s_EntityPreviewToggleId, Localize("Better Preview"), g_Config.m_ClAssetsEntitiesBetterPreview, &ToggleRect))
+			g_Config.m_ClAssetsEntitiesBetterPreview ^= 1;
 		GameClient()->m_Tooltips.DoToolTip(&s_EntityPreviewToggleId, &ToggleRect, Localize("Toggle between game scene preview and raw texture"));
 	}
 

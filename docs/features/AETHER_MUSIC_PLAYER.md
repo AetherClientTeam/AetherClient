@@ -3,8 +3,8 @@
 ## Scope
 
 Aether Music Player v1 adds a compact game HUD timer container and Windows
-media artwork visualization. It does not provide playback controls, song text,
-artist text, playlists, a system-wide audio meter, or audio persistence.
+media artwork visualization. It does not provide playback controls, playlists,
+a system-wide audio meter, or audio persistence.
 
 ## Settings
 
@@ -16,13 +16,15 @@ artist text, playlists, a system-wide audio meter, or audio persistence.
   - dynamic cover-derived background color, enabled by default;
   - a static background color;
   - panel opacity from 10 through 100 percent;
+  - an optional freeze counter inside the panel, disabled by default;
+  - an optional media title row, enabled by default;
   - process-audio visualizer, enabled by default;
   - Bars and Mountain visualizer styles;
-  - visualizer sensitivity from 50 through 300;
+  - visualizer sensitivity from 50 through 1500;
   - visualizer glow from 0 through 100 percent;
   - top-center anchored horizontal and vertical offsets.
 - The `HUD Editor` row appears under `Editors` and exposes only `Open`.
-- The target panel size is approximately 76 by 18 HUD units at 100 percent
+- The target panel size is approximately 108 by 30 HUD units at 100 percent
   scale.
 
 ## Panel
@@ -30,13 +32,19 @@ artist text, playlists, a system-wide audio meter, or audio persistence.
 - While enabled, the panel remains visible as the game timer container.
 - The left region shows the active media thumbnail when available. Otherwise
   it shows a neutral, code-drawn `A` monogram.
-- The center region contains the existing DDNet game timer presentation.
+- The upper center region contains the existing DDNet game timer presentation.
+- The lower center region shows the active media title and artist. Long names
+  scroll inside the panel with alpha-faded edges; short names remain static.
+  Styled mathematical/fullwidth media letters are normalized to readable ASCII
+  so unsupported glyphs do not render as square boxes.
+- When enabled, the freeze counter shows frozen tees over total tees for the
+  local or spectated DDNet team inside the upper row.
 - The right region renders the selected Bars or Mountain visualization.
 - Bars uses five centered rounded bars. Mountain uses a centered, edge-faded
   filled spectrum silhouette. Both styles use the analyzed bass/RMS energy with
   fast attack and smoother release so low-frequency hits visibly rise and fall.
 - All visualizer styles use the configured glow amount.
-- The panel contains no media title, artist, or playback controls.
+- The panel contains no playback controls.
 - Enabling the feature transfers game-timer rendering ownership to the panel so
   the vanilla timer is not rendered a second time.
 - `cl_showhud_timer 0` hides only the timer text. It does not hide the panel.
@@ -44,8 +52,10 @@ artist text, playlists, a system-wide audio meter, or audio persistence.
 ## Media State
 
 - Playing media renders the panel and artwork at full opacity.
-- Paused or stopped media keeps the last artwork dimmed and sets all five bars
-  to zero.
+- Paused or stopped media keeps the last valid artwork dimmed and sets all
+  five bars to zero. If the active media session changes to a track without
+  artwork, the old thumbnail is cleared instead of sticking to the previous
+  track.
 - After five minutes without active playback, the artwork changes to the
   fallback monogram.
 - A session that has never received usable media artwork uses the fallback
@@ -115,5 +125,5 @@ artist text, playlists, a system-wide audio meter, or audio persistence.
    Escape closes the editor.
 10. Leaving Aether settings resets search and accordion state.
 11. Disable and shutdown release all feature-owned platform resources.
-12. Pure timer, band mapping, color, inactivity, clamping, search, and accordion
-    behavior is covered by focused tests.
+12. Pure timer, metadata display, marquee, band mapping, color, inactivity,
+    clamping, search, and accordion behavior is covered by focused tests.

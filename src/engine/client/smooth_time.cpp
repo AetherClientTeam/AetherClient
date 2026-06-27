@@ -17,6 +17,8 @@ void CSmoothTime::Init(int64_t Target)
 	m_Target = Target;
 	m_Margin = 0;
 	m_SpikeCounter = 0;
+	m_LastTimeLeft = 0;
+	m_LastSpikeState = SPIKESTATE_NORMAL;
 	m_aAdjustSpeed[ADJUSTDIRECTION_DOWN] = 0.3f;
 	m_aAdjustSpeed[ADJUSTDIRECTION_UP] = 0.3f;
 
@@ -69,9 +71,11 @@ void CSmoothTime::UpdateInt(int64_t Target)
 	m_Target = Target;
 }
 
-void CSmoothTime::Update(CGraph *pGraph, int64_t Target, int TimeLeft, EAdjustDirection AdjustDirection)
+void CSmoothTime::Update(CGraph *pGraph, int64_t Target, int TimeLeft, EAdjustDirection AdjustDirection, bool ExtraLagGuard)
 {
 	bool UpdateTimer = true;
+	m_LastTimeLeft = TimeLeft;
+	m_LastSpikeState = SPIKESTATE_NORMAL;
 
 	if(TimeLeft < 0)
 	{
@@ -85,14 +89,18 @@ void CSmoothTime::Update(CGraph *pGraph, int64_t Target, int TimeLeft, EAdjustDi
 				m_SpikeCounter = 50;
 		}
 
-		if(IsSpike && m_SpikeCounter < 15)
+		const int IgnoreThreshold = ExtraLagGuard ? 30 : 15;
+		if(IsSpike && m_SpikeCounter < IgnoreThreshold)
 		{
 			// ignore this ping spike
 			UpdateTimer = false;
+			m_LastSpikeState = SPIKESTATE_IGNORED;
 			pGraph->Add(TimeLeft, ColorRGBA(1.0f, 1.0f, 0.0f, 0.75f));
 		}
 		else
 		{
+			if(IsSpike)
+				m_LastSpikeState = SPIKESTATE_APPLIED;
 			pGraph->Add(TimeLeft, ColorRGBA(1.0f, 0.0f, 0.0f, 0.75f));
 			if(m_aAdjustSpeed[AdjustDirection] < 30.0f)
 				m_aAdjustSpeed[AdjustDirection] *= 2.0f;

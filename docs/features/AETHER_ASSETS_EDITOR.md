@@ -22,9 +22,16 @@ Initial clean-room v1 implemented on 2026-06-15.
 - The editor shows a source preview for the selected pack/skin and a live mixed preview for the output asset.
 - Source packs/skins can be clicked or dragged onto mixed parts to choose where that part is copied from.
 - Mixed parts can be selected from the preview or the part list, then tinted and assigned opacity.
+- Mixed parts support anchor scale transforms without rotation:
+  - `Scale X` and `Scale Y` shrink the copied part from 100% down to 25%.
+  - `Anchor X` keeps left, center or right fixed while scaling horizontally.
+  - `Anchor Y` keeps top, middle or bottom fixed while scaling vertically.
 - Export always writes a new PNG into the save directory and refuses to overwrite an existing file.
 - Atlas exports are applied to the matching DDNet asset config after a successful export.
 - Skin exports can be applied to player or dummy after export.
+- Entities tinting now honors `Only colored pixels`, so black/white/gray neutral pixels are preserved instead of being recolored.
+- Entities tile tinting preserves source luminance/detail so unhookable and similar blocks keep their texture instead of becoming flat color.
+- Entities export patches a transparent 1px right-edge gap on unhookable tiles when the tile is exported at full scale.
 
 ## Audio Asset Packs
 
@@ -45,10 +52,11 @@ Initial clean-room v1 implemented on 2026-06-15.
 - Original assets, skins and audio files are never overwritten.
 - Export names are sanitized and `default` is reserved.
 - The editor uses DDNet sprite metadata for atlas regions instead of user-provided rectangles.
+- Anchor scaling is clipped to the selected part rectangle and never spills into neighboring atlas regions.
 - Large pack folders are scanned by name; individual audio files are not listed in the UI.
 
 ## Known V1 Limits
 
 - No manual atlas rectangle editor.
 - No project/preset save file for in-progress mixes.
-- Part placement is fixed to known DDNet atlas regions; freeform moving/scaling inside the atlas is intentionally out of scope for v1.
+- Part placement is fixed to known DDNet atlas regions; freeform moving and rotation remain out of scope.

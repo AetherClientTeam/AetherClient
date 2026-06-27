@@ -5,6 +5,7 @@
 #include "ui_scrollregion.h"
 
 #include <base/math.h>
+#include <base/str.h>
 #include <base/system.h>
 
 #include <engine/client.h>
@@ -1045,7 +1046,13 @@ bool CUi::DoEditBox_Search(CLineInput *pLineInput, const CUIRect *pRect, float F
 		pLineInput->SelectAll();
 	}
 	pLineInput->SetEmptyText(Localize("Search"));
-	return DoClearableEditBox(pLineInput, &QuickSearch, FontSize, IGraphics::CORNER_ALL, {}, Rounding);
+	bool Changed = DoClearableEditBox(pLineInput, &QuickSearch, FontSize, IGraphics::CORNER_ALL, {}, Rounding);
+	if(pLineInput->GetString() && !str_utf8_check(pLineInput->GetString()))
+	{
+		pLineInput->Clear();
+		Changed = true;
+	}
+	return Changed;
 }
 
 int CUi::DoButton_Menu(CUIElement &UIElement, const CButtonContainer *pId, const std::function<const char *()> &GetTextLambda, const CUIRect *pRect, const SMenuButtonProperties &Props)

@@ -91,6 +91,7 @@ void CMenusSettingsControls::OnInterfacesInit(CGameClient *pClient)
 		{EBindOptionGroup::CHAT, Localizable("Converse"), "+show_chat; chat all /c "},
 		{EBindOptionGroup::CHAT, Localizable("Chat command"), "+show_chat; chat all /"},
 		{EBindOptionGroup::CHAT, Localizable("Show chat"), "+show_chat"},
+		{EBindOptionGroup::CHAT, Localizable("Translate"), "translate"},
 		{EBindOptionGroup::DUMMY, Localizable("Toggle dummy"), "toggle cl_dummy 0 1"},
 		{EBindOptionGroup::DUMMY, Localizable("Dummy copy"), "toggle cl_dummy_copy_moves 0 1"},
 		{EBindOptionGroup::DUMMY, Localizable("Hammerfly dummy"), "toggle cl_dummy_hammer 0 1"},

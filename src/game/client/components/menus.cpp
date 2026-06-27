@@ -44,9 +44,14 @@
 using namespace std::chrono_literals;
 
 namespace {
-bool IsAetherMenuThemeSelected()
+bool IsNoMenuThemeSelected()
 {
 	return g_Config.m_ClMenuMap[0] == '\0' || str_comp_nocase(g_Config.m_ClMenuMap, "none") == 0 || str_comp_nocase(g_Config.m_ClMenuMap, "aether") == 0;
+}
+
+bool IsCustomMenuThemeConfigured()
+{
+	return g_Config.m_AeCustomMenuTheme && g_Config.m_AeCustomMenuThemeImage[0] != '\0';
 }
 }
 
@@ -788,16 +793,21 @@ void CMenus::RenderLoading(const char *pCaption, const char *pContent, int Incre
 
 	Ui()->MapScreen();
 
-	const bool AetherThemeSelected = IsAetherMenuThemeSelected();
-	const bool UseAetherLoadingTheme = AetherThemeSelected && g_Config.m_AeLoadingThemeBackground;
-	if(UseAetherLoadingTheme && GameClient()->m_MenuBackground.IsLoading())
+	const bool CustomMenuTheme = IsCustomMenuThemeConfigured();
+	if(g_Config.m_AeMenuThemeOverride && g_Config.m_AeLoadingThemeBackground)
 	{
-		// Avoid rendering while loading the menu background as this would otherwise
-		// cause the regular menu background to be rendered for a few frames while
-		// the menu background is not loaded yet.
-		return;
+		RenderAetherMenuThemeOverride();
 	}
-	if(!UseAetherLoadingTheme || !GameClient()->m_MenuBackground.Render())
+	else if(CustomMenuTheme)
+	{
+		RenderBackground(false);
+	}
+	else if(g_Config.m_AeLoadingThemeBackground)
+	{
+		if(!GameClient()->m_MenuBackground.Render())
+			RenderBackground();
+	}
+	else
 	{
 		RenderBackground();
 	}
@@ -1104,21 +1114,19 @@ void CMenus::Render()
 	}
 	else
 	{
-		if(!GameClient()->m_MenuBackground.Render())
+		const bool CustomMenuTheme = IsCustomMenuThemeConfigured();
+		if(g_Config.m_AeMenuThemeOverride)
+			RenderAetherMenuThemeOverride();
+		else if(CustomMenuTheme)
+			RenderBackground(false);
+		else if(!GameClient()->m_MenuBackground.Render())
 		{
 			RenderBackground(false);
 		}
-		const bool AetherThemeSelected = IsAetherMenuThemeSelected();
-		if(AetherThemeSelected)
-			RenderAetherAnimatedBackdrop(*Ui()->Screen());
 		ms_ColorTabbarInactive = ms_ColorTabbarInactiveOutgame;
 		ms_ColorTabbarActive = ms_ColorTabbarActiveOutgame;
 		ms_ColorTabbarHover = ms_ColorTabbarHoverOutgame;
 	}
-
-	const bool AetherThemeSelected = IsAetherMenuThemeSelected();
-	if(AetherThemeSelected && SettingsPageVisible && ClientState != IClient::STATE_OFFLINE)
-		RenderAetherAnimatedBackdrop(*Ui()->Screen());
 
 	CUIRect Screen = *Ui()->Screen();
 	if(Client()->State() != IClient::STATE_DEMOPLAYBACK || m_Popup != POPUP_NONE)
@@ -2387,7 +2395,7 @@ void CMenus::RenderThemeSelection(CUIRect MainView)
 	int SelectedTheme = -1;
 	for(int i = 0; i < (int)vThemes.size(); i++)
 	{
-		if((vThemes[i].m_Name.empty() && IsAetherMenuThemeSelected()) || str_comp(vThemes[i].m_Name.c_str(), g_Config.m_ClMenuMap) == 0)
+		if((vThemes[i].m_Name.empty() && IsNoMenuThemeSelected()) || str_comp(vThemes[i].m_Name.c_str(), g_Config.m_ClMenuMap) == 0)
 		{
 			SelectedTheme = i;
 			break;
@@ -2425,7 +2433,7 @@ void CMenus::RenderThemeSelection(CUIRect MainView)
 
 		char aName[128];
 		if(Theme.m_Name.empty())
-			str_copy(aName, "Aether");
+			str_copy(aName, "(none)");
 		else if(str_comp(Theme.m_Name.c_str(), "auto") == 0)
 			str_copy(aName, "(seasons)");
 		else if(str_comp(Theme.m_Name.c_str(), "rand") == 0)
@@ -2492,6 +2500,8 @@ void CMenus::OnReset()
 
 void CMenus::OnShutdown()
 {
+	if(m_AetherCustomMenuThemeTexture.IsValid())
+		Graphics()->UnloadTexture(&m_AetherCustomMenuThemeTexture);
 	m_CommunityIcons.Shutdown();
 }
 
@@ -2638,13 +2648,20 @@ void CMenus::UpdateColors()
 	ms_ColorTabbarHoverIngame = ColorRGBA(1.0f, 1.0f, 1.0f, 0.75f);
 }
 
-void CMenus::RenderBackground(bool DrawChecker)
+bool CMenus::RenderBackground(bool DrawChecker, bool AllowCustomTheme)
 {
 	Graphics()->BlendNormal();
 
 	const float ScreenHeight = 300.0f;
 	const float ScreenWidth = ScreenHeight * Graphics()->ScreenAspect();
 	Graphics()->MapScreen(0.0f, 0.0f, ScreenWidth, ScreenHeight);
+
+	const bool CustomThemeDrawn = AllowCustomTheme && RenderAetherCustomMenuTheme(ScreenWidth, ScreenHeight);
+	if(CustomThemeDrawn)
+	{
+		Ui()->MapScreen();
+		return true;
+	}
 
 	// render background color
 	Graphics()->TextureClear();
@@ -2694,6 +2711,13 @@ void CMenus::RenderBackground(bool DrawChecker)
 
 	// restore screen
 	Ui()->MapScreen();
+	return false;
+}
+
+void CMenus::RenderAetherMenuThemeOverride()
+{
+	RenderBackground(false, false);
+	RenderAetherAnimatedBackdrop(*Ui()->Screen());
 }
 
 void CMenus::RenderAetherAnimatedBackdrop(const CUIRect &View)
@@ -2752,6 +2776,79 @@ void CMenus::RenderAetherAnimatedBackdrop(const CUIRect &View)
 	}
 	Graphics()->QuadsSetRotation(0.0f);
 	Graphics()->QuadsEnd();
+}
+
+bool CMenus::RenderAetherCustomMenuTheme(float ScreenWidth, float ScreenHeight)
+{
+	if(!g_Config.m_AeCustomMenuTheme || g_Config.m_AeCustomMenuThemeImage[0] == '\0')
+		return false;
+
+	char aPath[IO_MAX_PATH_LENGTH];
+	if(str_find(g_Config.m_AeCustomMenuThemeImage, "/") || str_find(g_Config.m_AeCustomMenuThemeImage, "\\") || str_endswith(g_Config.m_AeCustomMenuThemeImage, ".png"))
+		str_copy(aPath, g_Config.m_AeCustomMenuThemeImage);
+	else
+		str_format(aPath, sizeof(aPath), "aether/menu_themes/%s.png", g_Config.m_AeCustomMenuThemeImage);
+
+	if(str_comp(aPath, m_aAetherCustomMenuThemePath) != 0)
+	{
+		if(m_AetherCustomMenuThemeTexture.IsValid())
+			Graphics()->UnloadTexture(&m_AetherCustomMenuThemeTexture);
+		str_copy(m_aAetherCustomMenuThemePath, aPath);
+		m_AetherCustomMenuThemeWidth = 0;
+		m_AetherCustomMenuThemeHeight = 0;
+		m_AetherCustomMenuThemeTried = false;
+	}
+
+	if(!m_AetherCustomMenuThemeTried)
+	{
+		m_AetherCustomMenuThemeTried = true;
+		CImageInfo Image;
+		if(Graphics()->LoadPng(Image, aPath, IStorage::TYPE_ALL))
+		{
+			m_AetherCustomMenuThemeWidth = Image.m_Width;
+			m_AetherCustomMenuThemeHeight = Image.m_Height;
+			m_AetherCustomMenuThemeTexture = Graphics()->LoadTextureRawMove(Image, 0, "Aether custom menu theme");
+			if(!m_AetherCustomMenuThemeTexture.IsValid())
+				Image.Free();
+		}
+	}
+
+	if(!m_AetherCustomMenuThemeTexture.IsValid() || m_AetherCustomMenuThemeWidth <= 0 || m_AetherCustomMenuThemeHeight <= 0)
+		return false;
+
+	const float ImageAspect = (float)m_AetherCustomMenuThemeWidth / std::max(1.0f, (float)m_AetherCustomMenuThemeHeight);
+	const float ScreenAspect = ScreenWidth / std::max(1.0f, ScreenHeight);
+	float DrawW = ScreenWidth;
+	float DrawH = ScreenHeight;
+	if(ImageAspect > ScreenAspect)
+		DrawW = ScreenHeight * ImageAspect;
+	else
+		DrawH = ScreenWidth / ImageAspect;
+	const float DrawX = (ScreenWidth - DrawW) * 0.5f;
+	const float DrawY = (ScreenHeight - DrawH) * 0.5f;
+
+	Graphics()->WrapClamp();
+	Graphics()->TextureSet(m_AetherCustomMenuThemeTexture);
+	Graphics()->QuadsBegin();
+	Graphics()->SetColor(1.0f, 1.0f, 1.0f, 1.0f);
+	Graphics()->QuadsSetSubset(0.0f, 0.0f, 1.0f, 1.0f);
+	const IGraphics::CQuadItem ImageQuad(DrawX, DrawY, DrawW, DrawH);
+	Graphics()->QuadsDrawTL(&ImageQuad, 1);
+	Graphics()->QuadsEnd();
+	Graphics()->TextureClear();
+	Graphics()->WrapNormal();
+
+	const float Dim = std::clamp(g_Config.m_AeCustomMenuThemeDim / 100.0f, 0.0f, 0.8f);
+	if(Dim > 0.0f)
+	{
+		Graphics()->QuadsBegin();
+		Graphics()->SetColor(0.0f, 0.0f, 0.0f, Dim);
+		const IGraphics::CQuadItem DimQuad(0.0f, 0.0f, ScreenWidth, ScreenHeight);
+		Graphics()->QuadsDrawTL(&DimQuad, 1);
+		Graphics()->QuadsEnd();
+	}
+
+	return true;
 }
 
 int CMenus::DoButton_CheckBox_Tristate(const void *pId, const char *pText, TRISTATE Checked, const CUIRect *pRect)

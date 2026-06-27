@@ -355,6 +355,9 @@ public:
 	// ---
 
 	int GetPredictionTime() override;
+	int GetPredictionMargin() const override;
+	int GetInputTimingTimeLeft() const override { return m_PredictedTime.LastTimeLeft(); }
+	int GetInputTimingSpikeState() const override { return m_PredictedTime.LastSpikeState(); }
 	CSnapItem SnapGetItem(int SnapId, int Index) const override;
 	int GetPredictionTick() override;
 	const void *SnapFindItem(int SnapId, int Type, int Id) const override;

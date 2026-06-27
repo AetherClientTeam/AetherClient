@@ -32,7 +32,7 @@ extern const char *GIT_SHORTREV_HASH;
 
 // client branding
 #ifndef AETHER_VERSION
-#define AETHER_VERSION "1.0.8"
+#define AETHER_VERSION "1.0.9"
 #endif
 #define CLIENT_NAME "Aether"
 #define CLIENT_RELEASE_VERSION AETHER_VERSION

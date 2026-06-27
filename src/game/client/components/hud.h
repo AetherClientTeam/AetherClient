@@ -57,6 +57,12 @@ class CHud : public CComponent
 		RESIZING_FROZEN_HUD,
 		DRAGGING_NINJA_TIMER,
 		RESIZING_NINJA_TIMER,
+		DRAGGING_AETHER_TEAM_LAST,
+		RESIZING_AETHER_TEAM_LAST,
+		DRAGGING_AETHER_TEAM_COUNTER,
+		RESIZING_AETHER_TEAM_COUNTER,
+		DRAGGING_AETHER_TIMER_PANEL,
+		RESIZING_AETHER_TIMER_PANEL,
 	};
 
 	float m_Width, m_Height;
@@ -119,6 +125,9 @@ class CHud : public CComponent
 	CUIRect m_TClientLastNotifyRect;
 	CUIRect m_TClientFrozenHudRect;
 	CUIRect m_AetherNinjaTimerRect;
+	CUIRect m_AetherTeamLastRect;
+	CUIRect m_AetherTeamCounterRect;
+	CUIRect m_AetherTimerPanelRect;
 	vec2 m_TClientFrozenTextDragOffset;
 	vec2 m_TClientFrozenTextResizeCenter;
 	vec2 m_TClientLastNotifyDragOffset;
@@ -127,6 +136,12 @@ class CHud : public CComponent
 	vec2 m_TClientFrozenHudResizeCenter;
 	vec2 m_AetherNinjaTimerDragOffset;
 	vec2 m_AetherNinjaTimerResizeCenter;
+	vec2 m_AetherTeamLastDragOffset;
+	vec2 m_AetherTeamLastResizeCenter;
+	vec2 m_AetherTeamCounterDragOffset;
+	vec2 m_AetherTeamCounterResizeCenter;
+	vec2 m_AetherTimerPanelDragOffset;
+	vec2 m_AetherTimerPanelResizeCenter;
 
 	void InitializeTClientEditorRects();
 	void RenderSpectatorHud();
@@ -167,17 +182,27 @@ private:
 	CUIRect TClientLastNotifyResizeHandleRect() const;
 	CUIRect TClientFrozenHudResizeHandleRect() const;
 	CUIRect AetherNinjaTimerResizeHandleRect() const;
+	CUIRect AetherTeamLastResizeHandleRect() const;
+	CUIRect AetherTeamCounterResizeHandleRect() const;
+	CUIRect AetherTimerPanelResizeHandleRect() const;
 	void SetTClientFrozenTextScaleKeepingCenter(int NewScale, vec2 Center);
 	void SetTClientLastNotifySizeKeepingCenter(int NewSize, vec2 Center);
 	void SetTClientFrozenHudSizeKeepingCenter(int NewSize, vec2 Center);
 	void SetAetherNinjaTimerScaleKeepingCenter(int NewScale, vec2 Center);
+	void SetAetherTeamLastScaleKeepingCenter(int NewScale, vec2 Center);
+	void SetAetherTeamCounterScaleKeepingCenter(int NewScale, vec2 Center);
+	void SetAetherTimerPanelScaleKeepingCenter(int NewScale, vec2 Center);
 	void ClampTClientFrozenText();
 	void ClampTClientLastNotify();
 	void ClampTClientFrozenHud();
 	void ClampAetherNinjaTimer();
+	void ClampAetherTeamLast();
+	void ClampAetherTeamCounter();
+	void ClampAetherTimerPanel();
 	void RenderTClientHudEditorOverlay(const CUIRect &Rect, const CUIRect &Handle);
 	bool AetherNinjaTimerState(int *pRemainingMs, float *pProgress) const;
 	void RenderAetherNinjaTimer();
+	void RenderAetherTimerPanel();
 	void RenderDDRaceEffects();
 	void RenderCursor();
 	float m_TimeCpDiff;
