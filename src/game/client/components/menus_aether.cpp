@@ -3691,12 +3691,12 @@ void CMenus::RenderSettingsAetherFastInput(CUIRect Body)
 	{
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		char aBuf[64];
-		str_format(aBuf, sizeof(aBuf), "Lewn+ amount: %.2f", std::clamp(g_Config.m_AeLewnPlusAmount, 140, 500) / 100.0f);
+		str_format(aBuf, sizeof(aBuf), "Lewn+ amount: %.2f", std::clamp(g_Config.m_AeLewnPlusAmount, 100, 500) / 100.0f);
 		CUIRect Label, ScrollBar;
 		Control.VSplitMid(&Label, &ScrollBar, minimum(10.0f * S, Control.w * 0.05f));
 		Ui()->DoLabel(&Label, aBuf, Label.h * CUi::ms_FontmodHeight * 0.78f, TEXTALIGN_ML);
-		const float Relative = (std::clamp(g_Config.m_AeLewnPlusAmount, 140, 500) - 140) / 360.0f;
-		g_Config.m_AeLewnPlusAmount = std::clamp(140 + round_to_int(Ui()->DoScrollbarH(&g_Config.m_AeLewnPlusAmount, &ScrollBar, Relative) * 360.0f), 140, 500);
+		const float Relative = (std::clamp(g_Config.m_AeLewnPlusAmount, 100, 500) - 100) / 400.0f;
+		g_Config.m_AeLewnPlusAmount = std::clamp(100 + round_to_int(Ui()->DoScrollbarH(&g_Config.m_AeLewnPlusAmount, &ScrollBar, Relative) * 400.0f), 100, 500);
 		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeLewnPlusAmount, Control, "Lewn+ prediction amount. Default 1.40 keeps the direct feel without the low-amount glide.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		Ui()->DoScrollbarOption(&g_Config.m_AeLewnPlusCorrection, &g_Config.m_AeLewnPlusCorrection, &Control, "Lewn+ correction", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
@@ -10315,7 +10315,8 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 			MainView.HSplitTop(6.0f * S, nullptr, &MainView);
 			if(s_ScrollRegion.AddRect(Row))
 			{
-				Row.Draw(AetherThemeColor(0.18f), IGraphics::CORNER_ALL, 6.0f * S);
+				const bool Expanded = m_AetherExpandedFeature == Feature.m_Id;
+				Row.Draw(AetherPanelColor(Expanded ? 0.42f : 0.32f), IGraphics::CORNER_ALL, 6.0f * S);
 				if(Feature.m_EditorAction != EEditorAction::NONE)
 				{
 					CUIRect Label, OpenButton;
@@ -10338,7 +10339,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 							EditorOpened |= GameClient()->m_AetherFinishPrediction.OpenEditor();
 						if(g_Config.m_AeStabilityTrainer)
 							EditorOpened |= GameClient()->m_AetherStabilityTrainer.OpenEditor();
-						if(g_Config.m_AeNinjaTimer || g_Config.m_AeTeamLastOverlay || g_Config.m_AeTeamFreezeCounter > 0 || (g_Config.m_AeTimerPanel && g_Config.m_ClShowhudTimer && !g_Config.m_AeMusicPlayer) || g_Config.m_TcShowFrozenText || g_Config.m_TcShowFrozenHud)
+						if(g_Config.m_AeNinjaTimer || g_Config.m_AeTeamLastOverlay || g_Config.m_AeTeamFreezeCounter > 0 || (g_Config.m_AeTimerPanel && g_Config.m_ClShowhudTimer && !g_Config.m_AeMusicPlayer))
 							EditorOpened |= GameClient()->m_Hud.OpenTClientFrozenTextEditor();
 						if(EditorOpened)
 						{

@@ -129,7 +129,7 @@ void CPlayers::RenderMenuStatusIcon(vec2 Center, float Alpha)
 	if(Alpha <= 0.01f || !m_AetherMenuStatusIconTexture.IsValid())
 		return;
 
-	constexpr float IconSize = 36.0f;
+	constexpr float IconSize = 40.0f;
 	Graphics()->WrapClamp();
 	Graphics()->TextureSet(m_AetherMenuStatusIconTexture);
 	Graphics()->QuadsBegin();
@@ -1971,7 +1971,9 @@ bool CPlayers::EnsureAetherBlockTeeRenderInfoReady()
 
 void CPlayers::OnInit()
 {
-	m_AetherMenuStatusIconTexture = Graphics()->LoadTexture("core/icons/menu_gear.png", IStorage::TYPE_ALL);
+	m_AetherMenuStatusIconTexture = Graphics()->LoadTexture("core/icons/aether_settings_indicator.png", IStorage::TYPE_ALL);
+	if(!m_AetherMenuStatusIconTexture.IsValid())
+		m_AetherMenuStatusIconTexture = Graphics()->LoadTexture("core/icons/menu_gear.png", IStorage::TYPE_ALL);
 	if(!m_AetherMenuStatusIconTexture.IsValid())
 		m_AetherMenuStatusIconTexture = Graphics()->LoadTexture("aether/icons/menu_gear.png", IStorage::TYPE_ALL);
 

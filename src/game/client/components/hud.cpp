@@ -348,9 +348,9 @@ bool CHud::OnInput(const IInput::CEvent &Event)
 	const bool EditAetherTeamLast = g_Config.m_AeTeamLastOverlay;
 	const bool EditAetherTeamCounter = g_Config.m_AeTeamFreezeCounter > 0;
 	const bool EditAetherTimerPanel = g_Config.m_AeTimerPanel && g_Config.m_ClShowhudTimer && !g_Config.m_AeMusicPlayer;
-	const bool EditFrozenText = g_Config.m_TcShowFrozenText > 0 && !EditAetherTeamCounter;
-	const bool EditLastNotify = g_Config.m_TcNotifyWhenLast && !EditAetherTeamLast;
-	const bool EditFrozenHud = g_Config.m_TcShowFrozenHud > 0 && !EditAetherTeamCounter;
+	const bool EditFrozenText = false;
+	const bool EditLastNotify = false;
+	const bool EditFrozenHud = false;
 	if((Event.m_Flags & IInput::FLAG_PRESS) && Event.m_Key == KEY_ESCAPE)
 	{
 		CloseTClientFrozenTextEditor();
@@ -1463,9 +1463,9 @@ void CHud::RenderTextInfo()
 	// render team in freeze text and last notify
 	const bool ShowAetherTeamLast = g_Config.m_AeTeamLastOverlay;
 	const bool ShowAetherTeamCounter = g_Config.m_AeTeamFreezeCounter > 0;
-	const bool ShowLegacyFrozenText = g_Config.m_TcShowFrozenText > 0 && !ShowAetherTeamCounter;
-	const bool ShowLegacyFrozenHud = g_Config.m_TcShowFrozenHud > 0 && !ShowAetherTeamCounter;
-	const bool ShowLegacyLastNotify = g_Config.m_TcNotifyWhenLast && !ShowAetherTeamLast;
+	const bool ShowLegacyFrozenText = false;
+	const bool ShowLegacyFrozenHud = false;
+	const bool ShowLegacyLastNotify = false;
 	const bool EditorShowFrozenText = m_TClientFrozenTextEditorOpen && ShowLegacyFrozenText;
 	const bool EditorShowFrozenHud = m_TClientFrozenTextEditorOpen && ShowLegacyFrozenHud;
 	const bool EditorShowLastNotify = m_TClientFrozenTextEditorOpen && ShowLegacyLastNotify;

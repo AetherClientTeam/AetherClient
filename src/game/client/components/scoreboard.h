@@ -54,6 +54,7 @@ class CScoreboard : public CComponent
 		CButtonContainer m_EmoticonAction;
 		CButtonContainer m_CopySkinButton;
 		CButtonContainer m_CopyColorButton;
+		CButtonContainer m_InviteButton;
 		CButtonContainer m_BlockEnemyButton;
 		CButtonContainer m_BlockAllyButton;
 		CButtonContainer m_BlockHelperButton;

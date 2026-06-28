@@ -1418,7 +1418,7 @@ void CChat::OnPrepareLines(float y)
 				const float BadgeIconSize = FontSize * 1.15f;
 				const float BadgeIconWidth = g_Config.m_AeBadges ? GameClient()->m_AetherBadges.BadgeIconsWidth(Line.m_ClientId, BadgeIconSize, 3) : 0.0f;
 				if(BadgeIconWidth > 0.0f)
-					MeasureCursor.m_X += BadgeIconWidth + BadgeIconSize * 0.08f;
+					MeasureCursor.m_X += BadgeIconWidth + BadgeIconSize * 0.22f;
 
 				if(Line.m_Friend && g_Config.m_ClMessageFriend)
 				{
@@ -1500,7 +1500,7 @@ void CChat::OnPrepareLines(float y)
 			const float BadgeIconSize = FontSize * 1.15f;
 			const float BadgeIconWidth = g_Config.m_AeBadges ? GameClient()->m_AetherBadges.BadgeIconsWidth(Line.m_ClientId, BadgeIconSize, 3) : 0.0f;
 			if(BadgeIconWidth > 0.0f)
-				LineCursor.m_X += BadgeIconWidth + BadgeIconSize * 0.08f;
+				LineCursor.m_X += BadgeIconWidth + BadgeIconSize * 0.22f;
 
 			if(Line.m_Friend && g_Config.m_ClMessageFriend)
 			{

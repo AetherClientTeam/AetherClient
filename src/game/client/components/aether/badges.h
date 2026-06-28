@@ -263,9 +263,9 @@ private:
 	void PumpRealtimeMessages();
 	void LoadIconTextures();
 	void UnloadIconTextures();
-	void ApplyBadgeArrayForClient(int ClientId, const json_value *pBadgeArray);
-	void ApplyBadgeArrayForName(const char *pName, const json_value *pBadgeArray);
-	void ApplyPlayersBadgeObject(const json_value *pPlayers);
+	bool ApplyBadgeArrayForClient(int ClientId, const json_value *pBadgeArray);
+	bool ApplyBadgeArrayForName(const char *pName, const json_value *pBadgeArray);
+	bool ApplyPlayersBadgeObject(const json_value *pPlayers);
 	void ApplyPresenceBadgeObject(const json_value *pRoot);
 	void ApplyChessMessage(const json_value *pRoot);
 	void ApplyChessOnlinePlayers(const json_value *pPlayers);

@@ -3021,7 +3021,7 @@ static float AetherFastInputSaikoPlusOffsetTicks()
 
 static float AetherFastInputLewnPlusOffsetTicks()
 {
-	return std::clamp(g_Config.m_AeLewnPlusAmount, 140, 500) / 100.0f;
+	return std::clamp(g_Config.m_AeLewnPlusAmount, 100, 500) / 100.0f;
 }
 
 static float AetherFastInputControlOffsetTicks()

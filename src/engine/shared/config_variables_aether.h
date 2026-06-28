@@ -172,7 +172,7 @@ MACRO_CONFIG_INT(AeFastInputControlInteractionAssist, ae_fast_input_control_inte
 MACRO_CONFIG_INT(AeFastInputControlInteractionStrength, ae_fast_input_control_interaction_strength, 50, 0, 100, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Aether control input interaction smoothing strength")
 MACRO_CONFIG_INT(AeSaikoPlusAmount, ae_saiko_plus_amount, 0, 0, 500, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Saiko plus amount in 0.01 ticks")
 MACRO_CONFIG_INT(AeSaikoPlusOthers, ae_saiko_plus_others, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Apply Saiko plus fast input to other tees")
-MACRO_CONFIG_INT(AeLewnPlusAmount, ae_lewn_plus_amount, 140, 140, 500, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Lewn plus amount in 0.01 ticks")
+MACRO_CONFIG_INT(AeLewnPlusAmount, ae_lewn_plus_amount, 140, 100, 500, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Lewn plus amount in 0.01 ticks")
 MACRO_CONFIG_INT(AeLewnPlusCorrection, ae_lewn_plus_correction, 75, 0, 100, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Lewn plus render correction sharpness")
 MACRO_CONFIG_INT(AeLewnPlusOthers, ae_lewn_plus_others, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Apply Lewn plus fast input to other tees")
 MACRO_CONFIG_INT(AeFastInputAdaptiveOthers, ae_fast_input_adaptive_others, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Apply adaptive fast input movement offset to other tees")

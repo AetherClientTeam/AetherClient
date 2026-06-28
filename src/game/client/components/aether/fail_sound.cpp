@@ -75,6 +75,8 @@ int TryLoadFailSample(IStorage *pStorage, ISound *pSound, const char *pFileName)
 		int SampleRate = 0;
 		if(!AetherAudio::DecodeAudioFileToS16Pcm(aAbsolute, vPcm, Channels, SampleRate, aSanitized))
 			return -1;
+		if(vPcm.empty() || (Channels != 1 && Channels != 2) || SampleRate <= 0)
+			return -1;
 		return pSound->LoadS16PcmInterleavedFromMem(vPcm.data(), (int)vPcm.size() / maximum(1, Channels), Channels, SampleRate, false, aSanitized);
 	}
 	return pSound->LoadOpus(aRel, IStorage::TYPE_SAVE);
@@ -83,7 +85,7 @@ int TryLoadFailSample(IStorage *pStorage, ISound *pSound, const char *pFileName)
 
 unsigned CAetherFailSound::SamplesFingerprint()
 {
-	unsigned Hash = (unsigned)(g_Config.m_AeFreezeFailSoundLocal * 19u + g_Config.m_AeFreezeFailSoundOthers * 31u + g_Config.m_AeFreezeFailSoundTeamLast * 43u);
+	unsigned Hash = (unsigned)(g_Config.m_AeFreezeFailSound * 11u + g_Config.m_AeFreezeFailSoundLocal * 19u + g_Config.m_AeFreezeFailSoundOthers * 31u + g_Config.m_AeFreezeFailSoundTeamLast * 43u);
 	for(const unsigned char *p = (const unsigned char *)g_Config.m_AeFreezeFailSoundLocalFile; p && *p; ++p)
 		Hash = Hash * 131u + *p;
 	for(const unsigned char *p = (const unsigned char *)g_Config.m_AeFreezeFailSoundOthersFile; p && *p; ++p)
@@ -141,6 +143,15 @@ bool CAetherFailSound::TeamLastNow() const
 
 void CAetherFailSound::EnsureSamples()
 {
+	if(!g_Config.m_AeFreezeFailSound ||
+		(!g_Config.m_AeFreezeFailSoundLocal && !g_Config.m_AeFreezeFailSoundOthers && !g_Config.m_AeFreezeFailSoundTeamLast))
+	{
+		if(m_LocalSampleId >= 0 || m_OthersSampleId >= 0 || m_TeamLastSampleId >= 0)
+			UnloadSamples();
+		m_SamplesFingerprint = SamplesFingerprint();
+		return;
+	}
+
 	const unsigned Fingerprint = SamplesFingerprint();
 	if(Fingerprint == m_SamplesFingerprint)
 		return;
@@ -148,11 +159,11 @@ void CAetherFailSound::EnsureSamples()
 	UnloadSamples();
 	if(!Sound()->IsSoundEnabled())
 		return;
-	if(g_Config.m_AeFreezeFailSoundLocalFile[0])
+	if(g_Config.m_AeFreezeFailSoundLocal && g_Config.m_AeFreezeFailSoundLocalFile[0])
 		m_LocalSampleId = TryLoadFailSample(Storage(), Sound(), g_Config.m_AeFreezeFailSoundLocalFile);
-	if(g_Config.m_AeFreezeFailSoundOthersFile[0])
+	if(g_Config.m_AeFreezeFailSoundOthers && g_Config.m_AeFreezeFailSoundOthersFile[0])
 		m_OthersSampleId = TryLoadFailSample(Storage(), Sound(), g_Config.m_AeFreezeFailSoundOthersFile);
-	if(g_Config.m_AeFreezeFailSoundTeamLastFile[0])
+	if(g_Config.m_AeFreezeFailSoundTeamLast && g_Config.m_AeFreezeFailSoundTeamLastFile[0])
 		m_TeamLastSampleId = TryLoadFailSample(Storage(), Sound(), g_Config.m_AeFreezeFailSoundTeamLastFile);
 }
 
@@ -204,11 +215,11 @@ void CAetherFailSound::OnStateChange(int NewState, int OldState)
 
 void CAetherFailSound::OnRender()
 {
-	EnsureSamples();
 	if(!g_Config.m_AeFreezeFailSound)
 		return;
 	if(!g_Config.m_AeFreezeFailSoundLocal && !g_Config.m_AeFreezeFailSoundOthers && !g_Config.m_AeFreezeFailSoundTeamLast)
 		return;
+	EnsureSamples();
 	if(!GameClient()->m_GameInfo.m_EntitiesDDRace)
 		return;
 	if(Client()->State() != IClient::STATE_ONLINE && Client()->State() != IClient::STATE_DEMOPLAYBACK)

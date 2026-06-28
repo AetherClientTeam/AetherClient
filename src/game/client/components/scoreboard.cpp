@@ -488,8 +488,9 @@ void CScoreboard::RenderSpectators(CUIRect Spectators)
 								     (Client()->DummyConnected() && GameClient()->m_aLocalIds[1] == pInfo->m_ClientId);
 				m_ScoreboardPopupContext.m_IsSpectating = true;
 
+				const float PopupHeight = m_ScoreboardPopupContext.m_IsLocal ? 70.0f : (AetherVariant::WarlistEnabled() ? 202.0f : 122.0f);
 				Ui()->DoPopupMenu(&m_ScoreboardPopupContext, Ui()->MouseX(), Ui()->MouseY(), 110.0f,
-					m_ScoreboardPopupContext.m_IsLocal ? 30.0f : 80.0f, &m_ScoreboardPopupContext, CScoreboardPopupContext::Render);
+					PopupHeight, &m_ScoreboardPopupContext, CScoreboardPopupContext::Render);
 			}
 
 			if(Ui()->HotItem() == &m_aPlayers[pInfo->m_ClientId].m_PlayerButtonId ||
@@ -1302,7 +1303,7 @@ void CScoreboard::OpenPlayerPopup(int ClientId, bool IsSpectating)
 	m_ScoreboardPopupContext.m_IsSpectating = IsSpectating;
 
 	Ui()->DoPopupMenu(&m_ScoreboardPopupContext, Ui()->MouseX(), Ui()->MouseY(), 130.0f,
-		m_ScoreboardPopupContext.m_IsLocal ? 101.5f : 210.0f, &m_ScoreboardPopupContext, CScoreboardPopupContext::Render);
+		m_ScoreboardPopupContext.m_IsLocal ? 101.5f : 232.0f, &m_ScoreboardPopupContext, CScoreboardPopupContext::Render);
 }
 
 const char *CScoreboard::GetTeamName(int Team) const
@@ -1447,6 +1448,19 @@ CUi::EPopupMenuFunctionResult CScoreboard::CScoreboardPopupContext::Render(void 
 		}
 		pScoreboard->GameClient()->m_Chat.Echo(Localize("Copied player colors."));
 		return CUi::POPUP_CLOSE_CURRENT;
+	}
+
+	if(!pPopupContext->m_IsLocal)
+	{
+		View.HSplitTop(ItemSpacing, nullptr, &View);
+		View.HSplitTop(ButtonSize, &Container, &View);
+		if(pUi->DoButton_PopupMenu(&pPopupContext->m_InviteButton, Localize("Invite"), &Container, FontSize, TEXTALIGN_MC, 0.0f, false, true))
+		{
+			char aCommand[128 + MAX_NAME_LENGTH];
+			str_format(aCommand, sizeof(aCommand), "/invite %s", Client.m_aName);
+			pScoreboard->GameClient()->m_Chat.SendChat(0, aCommand);
+			return CUi::POPUP_CLOSE_CURRENT;
+		}
 	}
 
 	if(!pPopupContext->m_IsLocal && AetherVariant::WarlistEnabled())

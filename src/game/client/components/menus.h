@@ -654,7 +654,7 @@ protected:
 	bool m_AetherCustomMenuThemeTried = false;
 
 public:
-	bool RenderBackground(bool DrawChecker = true, bool AllowCustomTheme = true);
+	bool RenderBackground(bool DrawChecker = true, bool AllowCustomTheme = true, const ColorRGBA *pBackgroundColorOverride = nullptr);
 	void RenderAetherMenuThemeOverride();
 	void RenderAetherAnimatedBackdrop(const CUIRect &View);
 	bool RenderAetherCustomMenuTheme(float ScreenWidth, float ScreenHeight);

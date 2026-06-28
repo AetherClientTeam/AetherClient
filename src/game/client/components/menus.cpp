@@ -2648,7 +2648,7 @@ void CMenus::UpdateColors()
 	ms_ColorTabbarHoverIngame = ColorRGBA(1.0f, 1.0f, 1.0f, 0.75f);
 }
 
-bool CMenus::RenderBackground(bool DrawChecker, bool AllowCustomTheme)
+bool CMenus::RenderBackground(bool DrawChecker, bool AllowCustomTheme, const ColorRGBA *pBackgroundColorOverride)
 {
 	Graphics()->BlendNormal();
 
@@ -2666,7 +2666,8 @@ bool CMenus::RenderBackground(bool DrawChecker, bool AllowCustomTheme)
 	// render background color
 	Graphics()->TextureClear();
 	Graphics()->QuadsBegin();
-	Graphics()->SetColor(ms_GuiColor.WithAlpha(1.0f));
+	const ColorRGBA BackgroundColor = pBackgroundColorOverride ? *pBackgroundColorOverride : ms_GuiColor;
+	Graphics()->SetColor(BackgroundColor.WithAlpha(1.0f));
 	const IGraphics::CQuadItem BackgroundQuadItem = IGraphics::CQuadItem(0, 0, ScreenWidth, ScreenHeight);
 	Graphics()->QuadsDrawTL(&BackgroundQuadItem, 1);
 	Graphics()->QuadsEnd();
@@ -2716,7 +2717,8 @@ bool CMenus::RenderBackground(bool DrawChecker, bool AllowCustomTheme)
 
 void CMenus::RenderAetherMenuThemeOverride()
 {
-	RenderBackground(false, false);
+	const ColorRGBA AetherBaseColor(0.0f, 0.0f, 0.0f, 1.0f);
+	RenderBackground(false, false, &AetherBaseColor);
 	RenderAetherAnimatedBackdrop(*Ui()->Screen());
 }
 

@@ -245,6 +245,7 @@ void CAetherBadges::LoadIconTextures()
 {
 	if(m_IconTexturesLoaded)
 		return;
+	const bool WasLoaded = m_IconTexturesLoaded;
 	bool AllLoaded = true;
 	for(size_t i = 0; i < BADGE_ICON_DEFS.size(); ++i)
 	{
@@ -258,6 +259,8 @@ void CAetherBadges::LoadIconTextures()
 	}
 	m_IconTexturesLoaded = AllLoaded;
 	m_LastIconRetryTime = time_get();
+	if(AllLoaded && !WasLoaded)
+		GameClient()->m_Chat.RebuildChat();
 }
 
 void CAetherBadges::UnloadIconTextures()
@@ -2096,13 +2099,13 @@ bool CAetherBadges::ScoreboardClanForClient(int ClientId, bool KogServer, char *
 	return false;
 }
 
-void CAetherBadges::ApplyBadgeArrayForClient(int ClientId, const json_value *pBadgeArray)
+bool CAetherBadges::ApplyBadgeArrayForClient(int ClientId, const json_value *pBadgeArray)
 {
 	if(ClientId < 0 || ClientId >= MAX_CLIENTS)
-		return;
+		return false;
 	const char *pName = GameClient()->m_aClients[ClientId].m_aName;
 	if(pName[0] == '\0')
-		return;
+		return false;
 
 	SClientBadges &ClientBadges = m_aClientBadges[ClientId];
 	str_copy(ClientBadges.m_aName, pName, sizeof(ClientBadges.m_aName));
@@ -2110,7 +2113,7 @@ void CAetherBadges::ApplyBadgeArrayForClient(int ClientId, const json_value *pBa
 	ClientBadges.m_vBadges.clear();
 
 	if(!pBadgeArray || pBadgeArray->type != json_array)
-		return;
+		return true;
 
 	for(int i = 0; i < json_array_length(pBadgeArray); ++i)
 	{
@@ -2137,23 +2140,29 @@ void CAetherBadges::ApplyBadgeArrayForClient(int ClientId, const json_value *pBa
 			return A.m_Priority > B.m_Priority;
 		return str_comp(A.m_aName, B.m_aName) < 0;
 	});
+	return true;
 }
 
-void CAetherBadges::ApplyBadgeArrayForName(const char *pName, const json_value *pBadgeArray)
+bool CAetherBadges::ApplyBadgeArrayForName(const char *pName, const json_value *pBadgeArray)
 {
 	if(!pName || pName[0] == '\0')
-		return;
+		return false;
+	bool Applied = false;
 	for(int ClientId = 0; ClientId < MAX_CLIENTS; ++ClientId)
 	{
 		if(str_comp(GameClient()->m_aClients[ClientId].m_aName, pName) == 0)
-			ApplyBadgeArrayForClient(ClientId, pBadgeArray);
+			Applied |= ApplyBadgeArrayForClient(ClientId, pBadgeArray);
 	}
+	if(Applied)
+		GameClient()->m_Chat.RebuildChat();
+	return Applied;
 }
 
-void CAetherBadges::ApplyPlayersBadgeObject(const json_value *pPlayers)
+bool CAetherBadges::ApplyPlayersBadgeObject(const json_value *pPlayers)
 {
 	if(!pPlayers || pPlayers->type != json_object)
-		return;
+		return false;
+	bool Applied = false;
 	for(int ClientId = 0; ClientId < MAX_CLIENTS; ++ClientId)
 	{
 		const CNetObj_PlayerInfo *pInfo = GameClient()->m_Snap.m_apPlayerInfos[ClientId];
@@ -2162,8 +2171,11 @@ void CAetherBadges::ApplyPlayersBadgeObject(const json_value *pPlayers)
 		const char *pName = GameClient()->m_aClients[pInfo->m_ClientId].m_aName;
 		if(pName[0] == '\0')
 			continue;
-		ApplyBadgeArrayForClient(pInfo->m_ClientId, json_object_get(pPlayers, pName));
+		Applied |= ApplyBadgeArrayForClient(pInfo->m_ClientId, json_object_get(pPlayers, pName));
 	}
+	if(Applied)
+		GameClient()->m_Chat.RebuildChat();
+	return Applied;
 }
 
 void CAetherBadges::ApplyPresenceBadgeObject(const json_value *pRoot)
@@ -2213,11 +2225,17 @@ void CAetherBadges::ApplyPresenceBadgeObject(const json_value *pRoot)
 		if(!pName)
 			return;
 		ApplyAetherOnlineLeft(pName);
+		bool BadgeLayoutChanged = false;
 		for(SClientBadges &ClientBadges : m_aClientBadges)
 		{
 			if(ClientBadges.m_Valid && str_comp(ClientBadges.m_aName, pName) == 0)
+			{
 				ClientBadges.m_Valid = false;
+				BadgeLayoutChanged = true;
+			}
 		}
+		if(BadgeLayoutChanged)
+			GameClient()->m_Chat.RebuildChat();
 	}
 }
 
@@ -2544,16 +2562,19 @@ void CAetherBadges::PumpResolveRequest()
 		if(pPlayers && pPlayers->type == json_object)
 		{
 			int BadgeClients = 0;
+			bool BadgeLayoutChanged = false;
 			for(int ClientId = 0; ClientId < MAX_CLIENTS; ++ClientId)
 			{
 				const CNetObj_PlayerInfo *pInfo = GameClient()->m_Snap.m_apPlayerInfos[ClientId];
 				if(!pInfo || pInfo->m_ClientId < 0)
 					continue;
 				const char *pName = GameClient()->m_aClients[pInfo->m_ClientId].m_aName;
-				ApplyBadgeArrayForClient(pInfo->m_ClientId, json_object_get(pPlayers, pName));
+				BadgeLayoutChanged |= ApplyBadgeArrayForClient(pInfo->m_ClientId, json_object_get(pPlayers, pName));
 				if(!m_aClientBadges[pInfo->m_ClientId].m_vBadges.empty())
 					++BadgeClients;
 			}
+			if(BadgeLayoutChanged)
+				GameClient()->m_Chat.RebuildChat();
 			str_format(m_aStatus, sizeof(m_aStatus), "Loaded badges for %d player(s).", BadgeClients);
 		}
 		else
@@ -3142,7 +3163,7 @@ float CAetherBadges::BadgeIconsWidth(int ClientId, float IconSize, int MaxBadges
 	const int IconCount = BadgeIconCount(ClientId, MaxBadges);
 	if(IconCount <= 0)
 		return 0.0f;
-	const float Spacing = IconSize * 0.04f;
+	const float Spacing = IconSize * 0.12f;
 	return IconCount * IconSize + (IconCount - 1) * Spacing;
 }
 
@@ -3152,7 +3173,7 @@ bool CAetherBadges::RenderBadgeIcons(int ClientId, float x, float y, float IconS
 		return false;
 
 	const SClientBadges &ClientBadges = m_aClientBadges[ClientId];
-	const float Spacing = IconSize * 0.04f;
+	const float Spacing = IconSize * 0.12f;
 	int Drawn = 0;
 	Graphics()->WrapClamp();
 	for(const SBadge &Badge : ClientBadges.m_vBadges)

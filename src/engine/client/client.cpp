@@ -5346,7 +5346,7 @@ int CClient::PredictionMargin() const
 			else if(g_Config.m_AeFastInputMode == 2)
 				FastInputMargin = (std::clamp(g_Config.m_AeSaikoPlusAmount, 0, 500) + 2) / 5;
 			else if(g_Config.m_AeFastInputMode == 5)
-				FastInputMargin = (std::clamp(g_Config.m_AeLewnPlusAmount, 140, 500) + 2) / 5;
+				FastInputMargin = (std::clamp(g_Config.m_AeLewnPlusAmount, 100, 500) + 2) / 5;
 			else
 				FastInputMargin = std::max(std::clamp(g_Config.m_AeFastInputMovementAmount, 0, 50), std::clamp(g_Config.m_AeFastInputActionAmount, 0, 50));
 		}
