@@ -3068,9 +3068,16 @@ void CHud::RenderAetherTeamInvitePopup()
 	char aTeam[32];
 	const int InviteTeam = (Active || Visible) ? GameClient()->AetherTeamInviteTeam() : 27;
 	str_format(aTeam, sizeof(aTeam), "Team %d", InviteTeam > 0 ? InviteTeam : 1);
-	const char *pPlayer = (Active || Visible) ? GameClient()->AetherTeamInvitePlayer() : "arox";
+	const int LocalClientId = GameClient()->m_Snap.m_LocalClientId;
+	const char *pPreviewPlayer = LocalClientId >= 0 && LocalClientId < MAX_CLIENTS && GameClient()->m_aClients[LocalClientId].m_aName[0] ? GameClient()->m_aClients[LocalClientId].m_aName : "Player";
+	const char *pPlayer = (Active || Visible) ? GameClient()->AetherTeamInvitePlayer() : pPreviewPlayer;
 	char aInviteKey[64];
 	GameClient()->m_Binds.GetKey("ae_team_invite_join", aInviteKey, sizeof(aInviteKey));
+	for(char *p = aInviteKey; *p; ++p)
+	{
+		if(*p >= 'a' && *p <= 'z')
+			*p += 'A' - 'a';
+	}
 	char aJoinText[96];
 	if(aInviteKey[0] != '\0')
 		str_format(aJoinText, sizeof(aJoinText), "%s Join", aInviteKey);

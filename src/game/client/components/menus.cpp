@@ -802,14 +802,12 @@ void CMenus::RenderLoading(const char *pCaption, const char *pContent, int Incre
 	{
 		RenderBackground(false);
 	}
-	else if(g_Config.m_AeLoadingThemeBackground)
-	{
-		if(!GameClient()->m_MenuBackground.Render())
-			RenderBackground();
-	}
 	else
 	{
-		RenderBackground();
+		// Loading happens while components and textures are still coming online.
+		// Keep the non-Aether menu-theme path out of startup rendering so disabling
+		// the coded Aether theme cannot leave the startup guard behind.
+		RenderBackground(false, false);
 	}
 
 	m_LoadingState.m_LastRender = Now;

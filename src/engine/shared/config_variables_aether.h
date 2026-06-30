@@ -301,6 +301,8 @@ MACRO_CONFIG_INT(AeTeamFreezeCounterOffsetX, ae_team_freeze_counter_offset_x, 0,
 MACRO_CONFIG_INT(AeTeamFreezeCounterOffsetY, ae_team_freeze_counter_offset_y, 18, -1000, 1000, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Team counter vertical offset from the top")
 MACRO_CONFIG_INT(AeTeamFreezeCounterScale, ae_team_freeze_counter_scale, 100, 50, 200, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Team counter overlay size")
 MACRO_CONFIG_INT(AeTeamInvitePopup, ae_team_invite_popup, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Show Aether team invite popup")
+MACRO_CONFIG_INT(AeTeamInviteHideInTeam, ae_team_invite_hide_in_team, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Hide Aether team invite popup when already in a DDNet team")
+MACRO_CONFIG_INT(AeTeamInviteHideRunning, ae_team_invite_hide_running, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Hide Aether team invite popup while the local tee is running")
 MACRO_CONFIG_INT(AeTeamInviteBindMigrated, ae_team_invite_bind_migrated, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Internal migration flag for team invite join bind")
 MACRO_CONFIG_INT(AeTeamInvitePopupOffsetX, ae_team_invite_popup_offset_x, 8, -1000, 1000, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Team invite popup horizontal offset from the left")
 MACRO_CONFIG_INT(AeTeamInvitePopupOffsetY, ae_team_invite_popup_offset_y, 8, -1000, 1000, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Team invite popup vertical offset from the top")

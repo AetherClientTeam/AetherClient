@@ -442,6 +442,8 @@ const char *AetherLocalize(const char *pText)
 		{"Last volume", "Son sesi seviyesi"},
 		{"Sound folder", "Ses klasoru"},
 		{"Team invite popup", "Takim davet paneli"},
+		{"Hide while in team", "Takimdayken gizle"},
+		{"Hide while running", "Run'dayken gizle"},
 		{"Invite join key", "Davet katilma tusu"},
 		{"Refresh sounds", "Sesleri yenile"},
 		{"Open sounds", "Sesleri ac"},
@@ -1058,6 +1060,8 @@ const char *AetherControlTooltip(const char *pLabel)
 		{"Last sound", "Sound file used for the last-alive warning."},
 		{"Sound folder", "Reload or open the folder for custom warning sounds."},
 		{"Team invite popup", "Shows a compact popup when another player invites you to a DDNet team."},
+		{"Hide while in team", "Suppresses team invite popups while you are already in a DDNet team."},
+		{"Hide while running", "Suppresses team invite popups while your local race timer is running."},
 		{"Invite join key", "Key bound to accept the latest visible team invite popup."},
 		{"Counter background", "Draws a compact background behind the frozen/alive team counter."},
 		{"Enable custom background", "Applies or disables the generated Aether entities background separately from the builder."},
@@ -5002,6 +5006,16 @@ void CMenus::RenderSettingsAetherTeamOverlays(CUIRect Body)
 		g_Config.m_AeTeamInvitePopup ^= 1;
 	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeTeamInvitePopup, Row, "Team invite popup");
 	Body.HSplitTop(3.0f * S, nullptr, &Body);
+	Body.HSplitTop(22.0f * S, &Row, &Body);
+	if(DoButton_CheckBox(&g_Config.m_AeTeamInviteHideInTeam, "Hide while in team", g_Config.m_AeTeamInviteHideInTeam, &Row))
+		g_Config.m_AeTeamInviteHideInTeam ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeTeamInviteHideInTeam, Row, "Hide while in team");
+	Body.HSplitTop(3.0f * S, nullptr, &Body);
+	Body.HSplitTop(22.0f * S, &Row, &Body);
+	if(DoButton_CheckBox(&g_Config.m_AeTeamInviteHideRunning, "Hide while running", g_Config.m_AeTeamInviteHideRunning, &Row))
+		g_Config.m_AeTeamInviteHideRunning ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeTeamInviteHideRunning, Row, "Hide while running");
+	Body.HSplitTop(3.0f * S, nullptr, &Body);
 	DoLine_KeyReader(Body, s_InviteJoinReaderButton, s_InviteJoinClearButton, "Invite join key", "ae_team_invite_join");
 
 	Body.HSplitTop(8.0f * S, nullptr, &Body);
@@ -8154,7 +8168,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 	static const std::array<const char *, 2> s_apNinjaTimerChildren = {
 		"Timer",
 		"HUD editor"};
-	static const std::array<const char *, 15> s_apTeamOverlaysChildren = {
+	static const std::array<const char *, 17> s_apTeamOverlaysChildren = {
 		"Last alive display",
 		"Last text",
 		"Last color",
@@ -8164,6 +8178,8 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		"Last volume",
 		"Sound folder",
 		"Team invite popup",
+		"Hide while in team",
+		"Hide while running",
 		"Invite join key",
 		"Frozen tee counter",
 		"Alive",
@@ -8667,7 +8683,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		case AetherMusic::EAetherFeatureId::REAL_HITBOX: return 74.0f * S;
 		case AetherMusic::EAetherFeatureId::NINJA_TEE_PREVIEW: return 116.0f * S;
 		case AetherMusic::EAetherFeatureId::NINJA_TIMER: return 54.0f * S;
-		case AetherMusic::EAetherFeatureId::TEAM_OVERLAYS: return 402.0f * S;
+		case AetherMusic::EAetherFeatureId::TEAM_OVERLAYS: return 452.0f * S;
 		case AetherMusic::EAetherFeatureId::SWEAT_WEAPON:
 			return (430.0f +
 				(g_Config.m_AeSweatWeaponShine ? 24.0f : 0.0f) +

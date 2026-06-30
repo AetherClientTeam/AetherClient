@@ -172,6 +172,12 @@ bool CGameClient::AetherMaybeHandleTeamInviteMessage(const char *pLine)
 	const int NameLen = (int)(pInvite - (pLine + 1));
 	if(NameLen <= 0)
 		return false;
+
+	if(g_Config.m_AeTeamInviteHideInTeam && m_Snap.m_LocalClientId >= 0 && m_Snap.m_LocalClientId < MAX_CLIENTS && m_Teams.Team(m_Snap.m_LocalClientId) > TEAM_FLOCK)
+		return false;
+	if(g_Config.m_AeTeamInviteHideRunning && m_GameInfo.m_Race && m_Snap.m_pGameInfoObj && m_Snap.m_pLocalCharacter && !m_Snap.m_SpecInfo.m_Active && (m_Snap.m_pGameInfoObj->m_GameStateFlags & GAMESTATEFLAG_RACETIME))
+		return false;
+
 	str_truncate(m_aAetherTeamInvitePlayer, sizeof(m_aAetherTeamInvitePlayer), pLine + 1, NameLen);
 	m_AetherTeamInviteTeam = Team;
 	m_AetherTeamInviteStart = time_get();
@@ -252,6 +258,8 @@ void AetherMigrateAndClampConfig()
 	g_Config.m_AeSoundLocalAirJump = std::clamp(g_Config.m_AeSoundLocalAirJump, 0, 1);
 	g_Config.m_AeSoundOthersAirJump = std::clamp(g_Config.m_AeSoundOthersAirJump, 0, 1);
 	g_Config.m_AeTeamInvitePopup = std::clamp(g_Config.m_AeTeamInvitePopup, 0, 1);
+	g_Config.m_AeTeamInviteHideInTeam = std::clamp(g_Config.m_AeTeamInviteHideInTeam, 0, 1);
+	g_Config.m_AeTeamInviteHideRunning = std::clamp(g_Config.m_AeTeamInviteHideRunning, 0, 1);
 	g_Config.m_AeTeamInviteBindMigrated = std::clamp(g_Config.m_AeTeamInviteBindMigrated, 0, 1);
 }
 
