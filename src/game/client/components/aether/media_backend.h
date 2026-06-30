@@ -56,7 +56,7 @@ public:
 	void Stop();
 	bool Running() const;
 	SSnapshot Snapshot() const;
-	void SetVisualizer(bool Enabled, int Sensitivity);
+	void SetVisualizer(bool Enabled, int Sensitivity, bool AutoGain);
 
 private:
 	class CImpl;

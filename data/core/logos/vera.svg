@@ -1,4 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
-      <defs><linearGradient id="vera_g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f4b8d0"/><stop offset="100%" stop-color="#c4a0f0"/></linearGradient></defs>
-      <path d="M 50 6 Q 65 35 94 50 Q 65 65 50 94 Q 35 65 6 50 Q 35 35 50 6 Z" fill="url(#vera_g2)"/>
-    </svg>

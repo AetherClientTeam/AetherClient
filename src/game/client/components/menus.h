@@ -924,6 +924,8 @@ private:
 	void RenderSettingsAetherNinjaTeePreview(CUIRect Body);
 	void RenderSettingsAetherNinjaTimer(CUIRect Body);
 	void RenderSettingsAetherTeamOverlays(CUIRect Body);
+	void RenderSettingsAetherTeamInvitePopup(CUIRect Body);
+	void RenderSettingsAetherVotePanel(CUIRect Body);
 	void RenderSettingsAetherSweatWeapon(CUIRect Body);
 	void RenderSettingsAetherOrbitAura(CUIRect Body);
 	void RenderSettingsAetherJellyTee(CUIRect Body);

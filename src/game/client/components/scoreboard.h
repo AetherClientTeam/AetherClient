@@ -10,8 +10,15 @@
 #include <game/client/ui.h>
 #include <game/client/ui_rect.h>
 
+#include <cstdint>
+#include <memory>
+
+class CHttpRequest;
+
 class CScoreboard : public CComponent
 {
+	struct SKogPointsEntry;
+
 	struct CScoreboardRenderState
 	{
 		float m_TeamStartX;
@@ -29,11 +36,18 @@ class CScoreboard : public CComponent
 	void RenderSpectators(CUIRect Spectators);
 	void RenderScoreboard(CUIRect Scoreboard, int Team, int CountStart, int CountEnd, CScoreboardRenderState &State);
 	void RenderRecordingNotification(float x);
+	void RenderPlayerHoverCard(int ClientId);
 
 	static void ConKeyScoreboard(IConsole::IResult *pResult, void *pUserData);
 	static void ConToggleScoreboardCursor(IConsole::IResult *pResult, void *pUserData);
 
 	const char *GetTeamName(int Team) const;
+	void ResetKogPoints();
+	void PumpKogPointsRequest();
+	void RequestKogPoints(bool KogServer);
+	bool KogPointsForClient(int ClientId, int &Points) const;
+	void ApplyKogPointsForName(const char *pName, int Points);
+	SKogPointsEntry *KogPointsEntryForName(const char *pName, bool Create);
 
 	bool m_Active;
 
@@ -41,6 +55,7 @@ class CScoreboard : public CComponent
 
 	std::optional<vec2> m_LastMousePos;
 	bool m_MouseUnlocked = false;
+	int m_HoveredClientId = -1;
 
 	void SetUiMousePos(vec2 Pos);
 	void LockMouse();
@@ -55,6 +70,7 @@ class CScoreboard : public CComponent
 		CButtonContainer m_CopySkinButton;
 		CButtonContainer m_CopyColorButton;
 		CButtonContainer m_InviteButton;
+		CButtonContainer m_TeamLockButton;
 		CButtonContainer m_BlockEnemyButton;
 		CButtonContainer m_BlockAllyButton;
 		CButtonContainer m_BlockHelperButton;
@@ -87,6 +103,25 @@ class CScoreboard : public CComponent
 		char m_SpectatorSecondLineButtonId;
 	};
 	CPlayerElement m_aPlayers[MAX_CLIENTS];
+
+	struct SKogPointsEntry
+	{
+		char m_aName[MAX_NAME_LENGTH];
+		int m_Points;
+		bool m_HasPoints;
+		int64_t m_LastUpdateTime;
+
+		SKogPointsEntry() :
+			m_aName(""), m_Points(0), m_HasPoints(false), m_LastUpdateTime(0) {}
+	};
+
+	SKogPointsEntry m_aKogPoints[MAX_CLIENTS];
+	std::shared_ptr<CHttpRequest> m_pKogPointsRequest;
+	char m_aaKogPointsPendingNames[MAX_CLIENTS][MAX_NAME_LENGTH];
+	int m_KogPointsPendingNameCount = 0;
+	int64_t m_LastKogPointsRequestTime = 0;
+	int64_t m_KogPointsUnavailableUntil = 0;
+	char m_aKogPointsApiUrl[256] = "";
 
 public:
 	CScoreboard();

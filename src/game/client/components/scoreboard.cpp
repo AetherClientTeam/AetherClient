@@ -12,6 +12,9 @@
 #include <engine/font_icons.h>
 #include <engine/graphics.h>
 #include <engine/shared/config.h>
+#include <engine/shared/http.h>
+#include <engine/shared/json.h>
+#include <engine/shared/jsonwriter.h>
 #include <engine/textrender.h>
 
 #include <generated/client_data7.h>
@@ -25,12 +28,20 @@
 #include <game/client/gameclient.h>
 #include <game/client/ui.h>
 #include <game/localization.h>
+#include <game/version.h>
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
+#include <string>
 
 namespace
 {
+constexpr int KOG_POINTS_REFRESH_SECONDS = 600;
+constexpr int KOG_POINTS_REQUEST_SECONDS = 20;
+constexpr int KOG_POINTS_ENDPOINT_BACKOFF_SECONDS = 300;
+constexpr float SCOREBOARD_PLAYER_POPUP_WIDTH = 178.0f;
+
 ColorRGBA AetherGradientNicknameColor(int ClientId, float Alpha, const CAetherBadges::SGradientNicknameStyle &Style)
 {
 	ColorRGBA Start = color_cast<ColorRGBA>(ColorHSLA(Style.m_StartColor));
@@ -95,6 +106,119 @@ bool AetherScoreboardIsKogServer(IClient *pClient)
 	CServerInfo ServerInfo = {};
 	pClient->GetServerInfo(&ServerInfo);
 	return str_find_nocase(ServerInfo.m_aName, "kog") || str_find_nocase(ServerInfo.m_aGameType, "kog") || str_find_nocase(ServerInfo.m_aAddress, "kog");
+}
+
+void AetherBuildApiUrl(char *pOut, int OutSize, const char *pPath)
+{
+	char aBase[256];
+	str_copy(aBase, g_Config.m_AeBadgesApiUrl, sizeof(aBase));
+	int Len = str_length(aBase);
+	while(Len > 0 && aBase[Len - 1] == '/')
+		aBase[--Len] = '\0';
+	str_format(pOut, OutSize, "%s%s", aBase, pPath);
+}
+
+bool AetherScoreboardCanLockLocalTeam(CGameClient *pGameClient)
+{
+	const int Team = pGameClient->AetherLocalDDTeam();
+	return Team > TEAM_FLOCK && Team != TEAM_SUPER;
+}
+
+float AetherScoreboardPlayerPopupHeight(bool IsLocal, bool IsSpectating, bool HasTeamLockButton)
+{
+	float Height = IsLocal ? 118.0f : (AetherVariant::WarlistEnabled() ? 257.0f : 185.0f);
+	Height += HasTeamLockButton && IsLocal ? 22.0f : 0.0f;
+	if(!IsSpectating)
+		Height += 22.0f;
+	return Height;
+}
+
+ColorRGBA AetherScoreboardAccentColor(CGameClient *pGameClient, int ClientId, float Alpha)
+{
+	if(ClientId >= 0 && ClientId < MAX_CLIENTS)
+	{
+		const int DDTeam = pGameClient->m_Teams.Team(ClientId);
+		if(DDTeam != TEAM_FLOCK)
+			return pGameClient->GetDDTeamColor(DDTeam).WithAlpha(Alpha);
+	}
+	return ColorRGBA(0.98f, 0.68f, 1.0f, Alpha);
+}
+
+void AetherScoreboardTeamLabel(CGameClient *pGameClient, int ClientId, char *pBuffer, int BufferSize)
+{
+	const int DDTeam = pGameClient->m_Teams.Team(ClientId);
+	if(DDTeam == TEAM_SUPER)
+		str_copy(pBuffer, Localize("Super"), BufferSize);
+	else if(DDTeam == TEAM_FLOCK)
+		str_copy(pBuffer, Localize("No team"), BufferSize);
+	else
+		str_format(pBuffer, BufferSize, Localize("Team %d"), DDTeam);
+}
+
+const json_value *JsonObjectGetNoCase(const json_value *pObject, const char *pIndex)
+{
+	if(!pObject || pObject->type != json_object || !pIndex)
+		return nullptr;
+	if(const json_value *pExact = json_object_get(pObject, pIndex))
+		return pExact;
+	for(unsigned i = 0; i < pObject->u.object.length; ++i)
+	{
+		if(str_comp_nocase(pObject->u.object.values[i].name, pIndex) == 0)
+			return pObject->u.object.values[i].value;
+	}
+	return nullptr;
+}
+
+const char *JsonStringValue(const json_value *pValue, const char *pFallback = "")
+{
+	const char *pString = json_string_get(pValue);
+	return pString ? pString : pFallback;
+}
+
+bool JsonIntFlexible(const json_value *pValue, int &Out)
+{
+	if(!pValue)
+		return false;
+	if(pValue->type == json_integer)
+	{
+		Out = (int)pValue->u.integer;
+		return true;
+	}
+	if(pValue->type == json_double)
+	{
+		Out = (int)pValue->u.dbl;
+		return true;
+	}
+	if(pValue->type == json_string && pValue->u.string.ptr && pValue->u.string.ptr[0])
+	{
+		char *pEnd = nullptr;
+		const long Value = std::strtol(pValue->u.string.ptr, &pEnd, 10);
+		if(pEnd && pEnd != pValue->u.string.ptr)
+		{
+			Out = (int)Value;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool JsonKogPointsValue(const json_value *pValue, int &Out)
+{
+	if(JsonIntFlexible(pValue, Out))
+		return true;
+	if(!pValue || pValue->type != json_object)
+		return false;
+	const char *apPointKeys[] = {"points", "Points", "total_points", "totalPoints", "rank_points", "rankPoints"};
+	for(const char *pKey : apPointKeys)
+	{
+		if(JsonIntFlexible(JsonObjectGetNoCase(pValue, pKey), Out))
+			return true;
+	}
+	const json_value *pData = JsonObjectGetNoCase(pValue, "data");
+	if(pData && pData != pValue && JsonKogPointsValue(pData, Out))
+		return true;
+	const json_value *pPlayer = JsonObjectGetNoCase(pValue, "player");
+	return pPlayer && pPlayer != pValue && JsonKogPointsValue(pPlayer, Out);
 }
 }
 
@@ -186,6 +310,7 @@ void CScoreboard::OnReset()
 	m_Active = false;
 	m_MouseUnlocked = false;
 	m_LastMousePos = std::nullopt;
+	ResetKogPoints();
 }
 
 void CScoreboard::OnRelease()
@@ -196,6 +321,212 @@ void CScoreboard::OnRelease()
 	{
 		LockMouse();
 	}
+}
+
+void CScoreboard::ResetKogPoints()
+{
+	m_pKogPointsRequest = nullptr;
+	m_KogPointsPendingNameCount = 0;
+	m_LastKogPointsRequestTime = 0;
+	m_KogPointsUnavailableUntil = 0;
+	str_copy(m_aKogPointsApiUrl, g_Config.m_AeBadgesApiUrl, sizeof(m_aKogPointsApiUrl));
+	for(auto &Entry : m_aKogPoints)
+	{
+		Entry.m_aName[0] = '\0';
+		Entry.m_Points = 0;
+		Entry.m_HasPoints = false;
+		Entry.m_LastUpdateTime = 0;
+	}
+	for(auto &aName : m_aaKogPointsPendingNames)
+		aName[0] = '\0';
+}
+
+CScoreboard::SKogPointsEntry *CScoreboard::KogPointsEntryForName(const char *pName, bool Create)
+{
+	if(!pName || !pName[0])
+		return nullptr;
+	for(auto &Entry : m_aKogPoints)
+	{
+		if(Entry.m_aName[0] && str_comp_nocase(Entry.m_aName, pName) == 0)
+			return &Entry;
+	}
+	if(!Create)
+		return nullptr;
+	for(auto &Entry : m_aKogPoints)
+	{
+		if(!Entry.m_aName[0])
+		{
+			str_copy(Entry.m_aName, pName, sizeof(Entry.m_aName));
+			return &Entry;
+		}
+	}
+	return nullptr;
+}
+
+void CScoreboard::ApplyKogPointsForName(const char *pName, int Points)
+{
+	if(!pName || !pName[0])
+		return;
+
+	const int64_t Now = time_get();
+	SKogPointsEntry *pEntry = KogPointsEntryForName(pName, true);
+	if(!pEntry)
+		return;
+	pEntry->m_Points = Points;
+	pEntry->m_HasPoints = true;
+	pEntry->m_LastUpdateTime = Now;
+}
+
+bool CScoreboard::KogPointsForClient(int ClientId, int &Points) const
+{
+	if(ClientId < 0 || ClientId >= MAX_CLIENTS)
+		return false;
+	const char *pName = GameClient()->m_aClients[ClientId].m_aName;
+	if(!pName[0])
+		return false;
+	for(const auto &Entry : m_aKogPoints)
+	{
+		if(Entry.m_HasPoints && str_comp_nocase(Entry.m_aName, pName) == 0)
+		{
+			Points = Entry.m_Points;
+			return true;
+		}
+	}
+	return false;
+}
+
+void CScoreboard::PumpKogPointsRequest()
+{
+	if(!m_pKogPointsRequest || !m_pKogPointsRequest->Done())
+		return;
+
+	const EHttpState HttpState = m_pKogPointsRequest->State();
+	const int StatusCode = HttpState == EHttpState::DONE ? m_pKogPointsRequest->StatusCode() : 0;
+	if(HttpState == EHttpState::DONE && StatusCode >= 200 && StatusCode < 400)
+	{
+		json_value *pJson = m_pKogPointsRequest->ResultJson();
+		const json_value *pPlayers = pJson && pJson->type == json_object ? JsonObjectGetNoCase(pJson, "players") : pJson;
+		if(pPlayers && pPlayers->type == json_object)
+		{
+			for(int i = 0; i < m_KogPointsPendingNameCount; ++i)
+			{
+				int Points = 0;
+				const json_value *pEntry = JsonObjectGetNoCase(pPlayers, m_aaKogPointsPendingNames[i]);
+				if(JsonKogPointsValue(pEntry, Points))
+					ApplyKogPointsForName(m_aaKogPointsPendingNames[i], Points);
+			}
+		}
+		else if(pPlayers && pPlayers->type == json_array)
+		{
+			for(unsigned i = 0; i < pPlayers->u.array.length; ++i)
+			{
+				const json_value *pEntry = pPlayers->u.array.values[i];
+				if(!pEntry || pEntry->type != json_object)
+					continue;
+				const char *pName = JsonStringValue(JsonObjectGetNoCase(pEntry, "player_name"));
+				if(!pName[0])
+					pName = JsonStringValue(JsonObjectGetNoCase(pEntry, "name"));
+				if(!pName[0])
+					pName = JsonStringValue(JsonObjectGetNoCase(pEntry, "player"));
+				int Points = 0;
+				if(pName[0] && JsonKogPointsValue(pEntry, Points))
+					ApplyKogPointsForName(pName, Points);
+			}
+		}
+		if(pJson)
+			json_value_free(pJson);
+	}
+	else if(StatusCode == 403 || StatusCode == 404 || StatusCode == 503)
+	{
+		m_KogPointsUnavailableUntil = time_get() + (int64_t)KOG_POINTS_ENDPOINT_BACKOFF_SECONDS * time_freq();
+	}
+
+	m_pKogPointsRequest = nullptr;
+	m_KogPointsPendingNameCount = 0;
+}
+
+void CScoreboard::RequestKogPoints(bool KogServer)
+{
+	if(!g_Config.m_AeKogPointsScoreboard || !KogServer || g_Config.m_AeBadgesApiUrl[0] == '\0')
+		return;
+	if(str_comp(m_aKogPointsApiUrl, g_Config.m_AeBadgesApiUrl) != 0)
+		ResetKogPoints();
+	if(m_pKogPointsRequest)
+		return;
+
+	const int64_t Now = time_get();
+	if(m_KogPointsUnavailableUntil > Now)
+		return;
+	if(m_LastKogPointsRequestTime != 0 && Now - m_LastKogPointsRequestTime < (int64_t)KOG_POINTS_REQUEST_SECONDS * time_freq())
+		return;
+
+	CJsonStringWriter Json;
+	Json.BeginObject();
+	Json.WriteAttribute("client");
+	Json.WriteStrValue(AetherVariant::Key());
+	Json.WriteAttribute("version");
+	Json.WriteStrValue(CLIENT_RELEASE_VERSION);
+	Json.WriteAttribute("players");
+	Json.BeginArray();
+
+	int Count = 0;
+	for(int ClientId = 0; ClientId < MAX_CLIENTS; ++ClientId)
+	{
+		const CNetObj_PlayerInfo *pInfo = GameClient()->m_Snap.m_apPlayerInfos[ClientId];
+		if(!pInfo || pInfo->m_ClientId < 0)
+			continue;
+		const char *pName = GameClient()->m_aClients[pInfo->m_ClientId].m_aName;
+		if(!pName[0])
+			continue;
+		KogPointsEntryForName(pName, true);
+
+		bool Fresh = false;
+		for(const auto &Entry : m_aKogPoints)
+		{
+			if(Entry.m_HasPoints && str_comp_nocase(Entry.m_aName, pName) == 0 &&
+				Now - Entry.m_LastUpdateTime < (int64_t)KOG_POINTS_REFRESH_SECONDS * time_freq())
+			{
+				Fresh = true;
+				break;
+			}
+		}
+		if(Fresh)
+			continue;
+
+		bool Duplicate = false;
+		for(int i = 0; i < Count; ++i)
+		{
+			if(str_comp_nocase(m_aaKogPointsPendingNames[i], pName) == 0)
+			{
+				Duplicate = true;
+				break;
+			}
+		}
+		if(Duplicate)
+			continue;
+
+		str_copy(m_aaKogPointsPendingNames[Count], pName, sizeof(m_aaKogPointsPendingNames[Count]));
+		Json.WriteStrValue(pName);
+		++Count;
+		if(Count == MAX_CLIENTS)
+			break;
+	}
+
+	Json.EndArray();
+	Json.EndObject();
+	if(Count == 0)
+		return;
+
+	char aUrl[256];
+	AetherBuildApiUrl(aUrl, sizeof(aUrl), "/v1/kog/points");
+	const std::string Payload = Json.GetOutputString();
+	m_pKogPointsRequest = std::make_shared<CHttpRequest>(aUrl);
+	m_pKogPointsRequest->PostJson(Payload.c_str());
+	m_pKogPointsRequest->MaxResponseSize(128 * 1024);
+	m_pKogPointsRequest->LogProgress(HTTPLOG::NONE);
+	Http()->Run(m_pKogPointsRequest);
+	m_KogPointsPendingNameCount = Count;
+	m_LastKogPointsRequestTime = Now;
 }
 
 bool CScoreboard::OnCursorMove(float x, float y, IInput::ECursorType CursorType)
@@ -488,8 +819,8 @@ void CScoreboard::RenderSpectators(CUIRect Spectators)
 								     (Client()->DummyConnected() && GameClient()->m_aLocalIds[1] == pInfo->m_ClientId);
 				m_ScoreboardPopupContext.m_IsSpectating = true;
 
-				const float PopupHeight = m_ScoreboardPopupContext.m_IsLocal ? 70.0f : (AetherVariant::WarlistEnabled() ? 202.0f : 122.0f);
-				Ui()->DoPopupMenu(&m_ScoreboardPopupContext, Ui()->MouseX(), Ui()->MouseY(), 110.0f,
+				const float PopupHeight = AetherScoreboardPlayerPopupHeight(m_ScoreboardPopupContext.m_IsLocal, m_ScoreboardPopupContext.m_IsSpectating, AetherScoreboardCanLockLocalTeam(GameClient()));
+				Ui()->DoPopupMenu(&m_ScoreboardPopupContext, Ui()->MouseX(), Ui()->MouseY(), SCOREBOARD_PLAYER_POPUP_WIDTH,
 					PopupHeight, &m_ScoreboardPopupContext, CScoreboardPopupContext::Render);
 			}
 
@@ -497,6 +828,7 @@ void CScoreboard::RenderSpectators(CUIRect Spectators)
 				Ui()->HotItem() == &m_aPlayers[pInfo->m_ClientId].m_SpectatorSecondLineButtonId ||
 				(Ui()->IsPopupOpen(&m_ScoreboardPopupContext) && m_ScoreboardPopupContext.m_ClientId == pInfo->m_ClientId))
 			{
+				m_HoveredClientId = pInfo->m_ClientId;
 				if(!LineBreakDetected)
 				{
 					SpectatorRect.Draw(TextRender()->DefaultTextSelectionColor(), IGraphics::CORNER_ALL, 2.5f);
@@ -527,6 +859,7 @@ void CScoreboard::RenderScoreboard(CUIRect Scoreboard, int Team, int CountStart,
 
 	const bool UseTime = Race7 || TimeScore || MillisecondScore;
 	const bool KogServer = AetherScoreboardIsKogServer(Client());
+	const bool ShowKogPoints = false;
 
 	// calculate measurements
 	float LineHeight;
@@ -601,8 +934,10 @@ void CScoreboard::RenderScoreboard(CUIRect Scoreboard, int Team, int CountStart,
 	const float PingLength = 27.5f;
 	const float PingOffset = Scoreboard.x + Scoreboard.w - PingLength - 10.0f;
 	const float CountryOffset = PingOffset - CountryLength;
+	const float PointsLength = ShowKogPoints ? TextRender()->TextWidth(FontSize, "9999999") : 0.0f;
+	const float PointsOffset = ShowKogPoints ? CountryOffset - PointsLength - 8.0f : CountryOffset;
 	const float ClanOffset = NameOffset + NameLength + 2.5f;
-	const float ClanLength = CountryOffset - ClanOffset - 2.5f;
+	const float ClanLength = (ShowKogPoints ? PointsOffset : CountryOffset) - ClanOffset - 2.5f;
 
 	// render headlines
 	const float HeadlineFontsize = 11.0f;
@@ -614,6 +949,11 @@ void CScoreboard::RenderScoreboard(CUIRect Scoreboard, int Team, int CountStart,
 	TextRender()->Text(NameOffset, HeadlineY, HeadlineFontsize, Localize("Name"));
 	const char *pClanLabel = Localize("Clan");
 	TextRender()->Text(ClanOffset + (ClanLength - TextRender()->TextWidth(HeadlineFontsize, pClanLabel)) / 2.0f, HeadlineY, HeadlineFontsize, pClanLabel);
+	if(ShowKogPoints)
+	{
+		const char *pPointsLabel = Localize("Points");
+		TextRender()->Text(PointsOffset + PointsLength - TextRender()->TextWidth(HeadlineFontsize, pPointsLabel), HeadlineY, HeadlineFontsize, pPointsLabel);
+	}
 	const char *pPingLabel = Localize("Ping");
 	TextRender()->Text(PingOffset + PingLength - TextRender()->TextWidth(HeadlineFontsize, pPingLabel), HeadlineY, HeadlineFontsize, pPingLabel);
 
@@ -771,7 +1111,9 @@ void CScoreboard::RenderScoreboard(CUIRect Scoreboard, int Team, int CountStart,
 				if(Ui()->HotItem() == &m_aPlayers[pInfo->m_ClientId].m_PlayerButtonId ||
 					(Ui()->IsPopupOpen(&m_ScoreboardPopupContext) && m_ScoreboardPopupContext.m_ClientId == pInfo->m_ClientId))
 				{
-					Row.Draw(ColorRGBA(0.7f, 0.7f, 0.7f, 0.7f), IGraphics::CORNER_ALL, RoundRadius);
+					CUIRect HoverRect = RowAndSpacing;
+					HoverRect.h = Row.h + Spacing;
+					HoverRect.Draw(ColorRGBA(0.7f, 0.7f, 0.7f, 0.32f), IGraphics::CORNER_ALL, RoundRadius);
 				}
 			}
 
@@ -1026,6 +1368,19 @@ void CScoreboard::RenderScoreboard(CUIRect Scoreboard, int Team, int CountStart,
 			GameClient()->m_CountryFlags.Render(ClientData.m_Country, ColorRGBA(1.0f, 1.0f, 1.0f, 0.5f),
 				CountryOffset, Row.y + (Spacing + TeeSizeMod * 5.0f) / 2.0f, CountryLength, Row.h - Spacing - TeeSizeMod * 5.0f);
 
+			// KoG points
+			if(ShowKogPoints)
+			{
+				int Points = 0;
+				if(KogPointsForClient(pInfo->m_ClientId, Points))
+				{
+					TextRender()->TextColor(ColorRGBA(0.98f, 0.73f, 1.0f, TextColor.a));
+					str_format(aBuf, sizeof(aBuf), "%d", std::clamp(Points, 0, 99999999));
+					TextRender()->Text(PointsOffset + PointsLength - TextRender()->TextWidth(FontSize, aBuf), Row.y + (Row.h - FontSize) / 2.0f, FontSize, aBuf);
+					TextRender()->TextColor(TextRender()->DefaultTextColor());
+				}
+			}
+
 			// ping
 			if(g_Config.m_ClEnablePingColor)
 			{
@@ -1087,6 +1442,130 @@ void CScoreboard::RenderRecordingNotification(float x)
 	Ui()->DoLabel(&Rect, aBuf, FontSize, TEXTALIGN_ML);
 }
 
+void CScoreboard::RenderPlayerHoverCard(int ClientId)
+{
+	if(ClientId < 0 || ClientId >= MAX_CLIENTS || !GameClient()->m_aClients[ClientId].m_Active)
+		return;
+
+	const CNetObj_PlayerInfo *pInfo = GameClient()->m_Snap.m_apPlayerInfos[ClientId];
+	if(!pInfo)
+		return;
+
+	const CGameClient::CClientData &ClientData = GameClient()->m_aClients[ClientId];
+	const CUIRect Screen = *Ui()->Screen();
+	const float CardWidth = 220.0f;
+	const float CardHeight = 74.0f;
+	CUIRect Card = {Ui()->MouseX() + 14.0f, Ui()->MouseY() + 14.0f, CardWidth, CardHeight};
+
+	if(Card.x + Card.w > Screen.w - 6.0f)
+		Card.x = Ui()->MouseX() - Card.w - 14.0f;
+	if(Card.y + Card.h > Screen.h - 6.0f)
+		Card.y = Ui()->MouseY() - Card.h - 14.0f;
+
+	const float MaxX = maximum(6.0f, Screen.w - Card.w - 6.0f);
+	const float MaxY = maximum(6.0f, Screen.h - Card.h - 6.0f);
+	Card.x = std::clamp(Card.x, 6.0f, MaxX);
+	Card.y = std::clamp(Card.y, 6.0f, MaxY);
+
+	const ColorRGBA Accent = AetherScoreboardAccentColor(GameClient(), ClientId, 1.0f);
+	Card.Draw(ColorRGBA(0.025f, 0.022f, 0.035f, 0.93f), IGraphics::CORNER_ALL, 7.0f);
+
+	CUIRect AccentLine = Card;
+	AccentLine.h = 2.5f;
+	AccentLine.Draw(Accent.WithAlpha(0.95f), IGraphics::CORNER_T, 7.0f);
+
+	CUIRect Body;
+	Card.Margin(6.0f, &Body);
+
+	CUIRect TeeColumn, TeePanel, Info;
+	Body.VSplitLeft(56.0f, &TeeColumn, &Info);
+	Info.VSplitLeft(7.0f, nullptr, &Info);
+
+	const float TeePanelSize = minimum(TeeColumn.w, TeeColumn.h);
+	TeePanel = TeeColumn;
+	TeePanel.w = TeePanelSize;
+	TeePanel.h = TeePanelSize;
+	TeePanel.x += (TeeColumn.w - TeePanelSize) * 0.5f;
+	TeePanel.y += (TeeColumn.h - TeePanelSize) * 0.5f;
+
+	TeePanel.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, 0.08f), IGraphics::CORNER_ALL, 6.0f);
+	{
+		CTeeRenderInfo TeeInfo = ClientData.m_RenderInfo;
+		TeeInfo.m_Size = 30.0f;
+		vec2 OffsetToMid;
+		CRenderTools::GetRenderTeeOffsetToRenderedTee(CAnimState::GetIdle(), &TeeInfo, OffsetToMid);
+		RenderTools()->RenderTee(CAnimState::GetIdle(), &TeeInfo, EMOTE_NORMAL, vec2(1.0f, 0.0f), TeePanel.Center() + vec2(0.0f, OffsetToMid.y * 0.45f));
+	}
+
+	CUIRect NameLine, MetaLine, ClanLine, DetailLine;
+	Info.HSplitTop(17.0f, &NameLine, &Info);
+	Info.HSplitTop(15.0f, &MetaLine, &Info);
+	Info.HSplitTop(15.0f, &ClanLine, &Info);
+	Info.HSplitTop(15.0f, &DetailLine, &Info);
+
+	{
+		CTextCursor Cursor;
+		Cursor.SetPosition(vec2(NameLine.x, NameLine.y + 1.0f));
+		Cursor.m_FontSize = 12.5f;
+		Cursor.m_LineWidth = NameLine.w;
+		Cursor.m_Flags |= TEXTFLAG_ELLIPSIS_AT_END;
+		TextRender()->TextColor(ColorRGBA(1.0f, 1.0f, 1.0f, 0.97f));
+		TextRender()->TextEx(&Cursor, ClientData.m_aName);
+	}
+
+	char aTeam[32];
+	AetherScoreboardTeamLabel(GameClient(), ClientId, aTeam, sizeof(aTeam));
+	char aMeta[96];
+	str_format(aMeta, sizeof(aMeta), "#%d  %s  %d ms", ClientId, aTeam, std::clamp(pInfo->m_Latency, 0, 999));
+	TextRender()->TextColor(ColorRGBA(0.76f, 0.80f, 0.90f, 0.86f));
+	TextRender()->Text(MetaLine.x, MetaLine.y + 1.0f, 9.5f, aMeta, MetaLine.w);
+
+	char aAetherClan[64];
+	const char *pClanName = ClientData.m_aClan;
+	if(GameClient()->m_AetherBadges.ScoreboardClanForClient(ClientId, AetherScoreboardIsKogServer(Client()), aAetherClan, sizeof(aAetherClan)))
+		pClanName = aAetherClan;
+	if(pClanName[0])
+	{
+		CTextCursor Cursor;
+		Cursor.SetPosition(vec2(ClanLine.x, ClanLine.y + 1.0f));
+		Cursor.m_FontSize = 9.5f;
+		Cursor.m_LineWidth = ClanLine.w;
+		Cursor.m_Flags |= TEXTFLAG_ELLIPSIS_AT_END;
+		TextRender()->TextColor(ColorRGBA(0.70f, 0.76f, 0.86f, 0.86f));
+		TextRender()->TextEx(&Cursor, pClanName);
+	}
+
+	DetailLine.Draw(Accent.WithAlpha(0.13f), IGraphics::CORNER_ALL, 4.0f);
+	DetailLine.Margin(3.0f, &DetailLine);
+	float DetailX = DetailLine.x;
+	const int BadgeIconCount = g_Config.m_AeBadges && g_Config.m_AeBadgesScoreboard ? GameClient()->m_AetherBadges.BadgeIconCount(ClientId, 4) : 0;
+	if(BadgeIconCount > 0)
+	{
+		const float BadgeIconSize = 10.5f;
+		const float BadgeWidth = GameClient()->m_AetherBadges.BadgeIconsWidth(ClientId, BadgeIconSize, 4);
+		GameClient()->m_AetherBadges.RenderBadgeIcons(ClientId, DetailX, DetailLine.y + 0.2f, BadgeIconSize, 0.95f, 4);
+		DetailX += BadgeWidth + 4.0f;
+	}
+
+	char aDetail[128];
+	aDetail[0] = '\0';
+	char aBadgeText[96];
+	if(g_Config.m_AeBadges && g_Config.m_AeBadgesScoreboard && GameClient()->m_AetherBadges.FormatBadgeText(ClientId, aBadgeText, sizeof(aBadgeText), 4))
+	{
+		const char *pBadgeText = aBadgeText[0] == ' ' ? aBadgeText + 1 : aBadgeText;
+		str_copy(aDetail, pBadgeText, sizeof(aDetail));
+	}
+	else if(ClientData.m_Friend)
+		str_copy(aDetail, Localize("Friend"), sizeof(aDetail));
+	else
+		str_format(aDetail, sizeof(aDetail), "%s: %s", Localize("Skin"), ClientData.m_aSkinName);
+
+	TextRender()->TextColor(ColorRGBA(0.95f, 0.80f, 1.0f, 0.92f));
+	TextRender()->Text(DetailX, DetailLine.y + 0.8f, 8.8f, aDetail, maximum(0.0f, DetailLine.x + DetailLine.w - DetailX));
+
+	TextRender()->TextColor(TextRender()->DefaultTextColor());
+}
+
 void CScoreboard::OnRender()
 {
 	if(g_Config.m_AeFocusMode && g_Config.m_AeFocusModeHideAllUi)
@@ -1116,6 +1595,7 @@ void CScoreboard::OnRender()
 
 	const CUIRect Screen = *Ui()->Screen();
 	Ui()->MapScreen();
+	m_HoveredClientId = -1;
 
 	const CNetObj_GameInfo *pGameInfoObj = GameClient()->m_Snap.m_pGameInfoObj;
 	const bool Teams = GameClient()->IsTeamPlay();
@@ -1302,8 +1782,8 @@ void CScoreboard::OpenPlayerPopup(int ClientId, bool IsSpectating)
 					      (Client()->DummyConnected() && GameClient()->m_aLocalIds[1] == ClientId);
 	m_ScoreboardPopupContext.m_IsSpectating = IsSpectating;
 
-	Ui()->DoPopupMenu(&m_ScoreboardPopupContext, Ui()->MouseX(), Ui()->MouseY(), 130.0f,
-		m_ScoreboardPopupContext.m_IsLocal ? 101.5f : 232.0f, &m_ScoreboardPopupContext, CScoreboardPopupContext::Render);
+	Ui()->DoPopupMenu(&m_ScoreboardPopupContext, Ui()->MouseX(), Ui()->MouseY(), SCOREBOARD_PLAYER_POPUP_WIDTH,
+		AetherScoreboardPlayerPopupHeight(m_ScoreboardPopupContext.m_IsLocal, m_ScoreboardPopupContext.m_IsSpectating, AetherScoreboardCanLockLocalTeam(GameClient())), &m_ScoreboardPopupContext, CScoreboardPopupContext::Render);
 }
 
 const char *CScoreboard::GetTeamName(int Team) const
@@ -1348,25 +1828,58 @@ CUi::EPopupMenuFunctionResult CScoreboard::CScoreboardPopupContext::Render(void 
 	if(!Client.m_Active)
 		return CUi::POPUP_CLOSE_CURRENT;
 
-	const float Margin = 5.0f;
+	const float Margin = 6.0f;
 	View.Margin(Margin, &View);
 
-	CUIRect Label, Container, Action;
-	const float ItemSpacing = 2.0f;
-	const float FontSize = 12.0f;
+	CUIRect Header, HeaderBody, TeePanel, PlayerText, NameLine, MetaLine, Container, Action;
+	const float ItemSpacing = 3.0f;
+	const float FontSize = 11.0f;
 
-	View.HSplitTop(FontSize, &Label, &View);
-	pUi->DoLabel(&Label, Client.m_aName, FontSize, TEXTALIGN_ML);
+	View.HSplitTop(42.0f, &Header, &View);
+	Header.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, 0.08f), IGraphics::CORNER_ALL, 6.0f);
+	Header.Margin(5.0f, &HeaderBody);
+	HeaderBody.VSplitLeft(31.0f, &TeePanel, &PlayerText);
+	PlayerText.VSplitLeft(7.0f, nullptr, &PlayerText);
+	PlayerText.HSplitTop(16.0f, &NameLine, &MetaLine);
+	{
+		CTeeRenderInfo TeeInfo = Client.m_RenderInfo;
+		TeeInfo.m_Size = 24.0f;
+		vec2 OffsetToMid;
+		CRenderTools::GetRenderTeeOffsetToRenderedTee(CAnimState::GetIdle(), &TeeInfo, OffsetToMid);
+		pScoreboard->RenderTools()->RenderTee(CAnimState::GetIdle(), &TeeInfo, EMOTE_NORMAL, vec2(1.0f, 0.0f), TeePanel.Center() + vec2(0.0f, OffsetToMid.y * 0.35f));
+	}
+	{
+		CTextCursor Cursor;
+		Cursor.SetPosition(vec2(NameLine.x, NameLine.y + 1.0f));
+		Cursor.m_FontSize = 11.0f;
+		Cursor.m_LineWidth = NameLine.w;
+		Cursor.m_Flags |= TEXTFLAG_ELLIPSIS_AT_END;
+		pScoreboard->TextRender()->TextColor(ColorRGBA(1.0f, 1.0f, 1.0f, 0.96f));
+		pScoreboard->TextRender()->TextEx(&Cursor, Client.m_aName);
+	}
+	{
+		char aTeam[32];
+		AetherScoreboardTeamLabel(pScoreboard->GameClient(), pPopupContext->m_ClientId, aTeam, sizeof(aTeam));
+		char aMeta[96];
+		const CNetObj_PlayerInfo *pInfo = pScoreboard->GameClient()->m_Snap.m_apPlayerInfos[pPopupContext->m_ClientId];
+		str_format(aMeta, sizeof(aMeta), "%s  /  %d ms", aTeam, pInfo ? std::clamp(pInfo->m_Latency, 0, 999) : 0);
+		pScoreboard->TextRender()->TextColor(ColorRGBA(0.76f, 0.80f, 0.90f, 0.82f));
+		pScoreboard->TextRender()->Text(MetaLine.x, MetaLine.y + 1.0f, 9.0f, aMeta, MetaLine.w);
+		pScoreboard->TextRender()->TextColor(pScoreboard->TextRender()->DefaultTextColor());
+	}
 
 	if(!pPopupContext->m_IsLocal)
 	{
 		const int ActionsNum = 3;
-		const float ActionSize = 25.0f;
-		const float ActionSpacing = (View.w - (ActionsNum * ActionSize)) / 2;
+		const float ActionSize = 27.0f;
+		const float ActionSpacing = 6.0f;
 		int ActionCorners = IGraphics::CORNER_ALL;
 
 		View.HSplitTop(ItemSpacing * 2, nullptr, &View);
 		View.HSplitTop(ActionSize, &Container, &View);
+		const float ActionsWidth = ActionsNum * ActionSize + (ActionsNum - 1) * ActionSpacing;
+		if(Container.w > ActionsWidth)
+			Container.VMargin((Container.w - ActionsWidth) / 2.0f, &Container);
 
 		Container.VSplitLeft(ActionSize, &Action, &Container);
 
@@ -1410,9 +1923,11 @@ CUi::EPopupMenuFunctionResult CScoreboard::CScoreboardPopupContext::Render(void 
 	const float ButtonSize = 17.5f;
 	View.HSplitTop(ItemSpacing * 2, nullptr, &View);
 	View.HSplitTop(ButtonSize, &Container, &View);
+	CUIRect LeftAction, RightAction;
+	Container.VSplitMid(&LeftAction, &RightAction, 4.0f);
 
 	const bool ActiveDummy = g_Config.m_ClDummy && pScoreboard->Client()->DummyConnected();
-	if(pUi->DoButton_PopupMenu(&pPopupContext->m_CopySkinButton, "Copy skin", &Container, FontSize, TEXTALIGN_MC, 0.0f, false, true))
+	if(pUi->DoButton_PopupMenu(&pPopupContext->m_CopySkinButton, Localize("Skin"), &LeftAction, FontSize, TEXTALIGN_MC, 0.0f, false, true, ColorRGBA(1.0f, 1.0f, 1.0f, 0.14f * pUi->ButtonColorMul(&pPopupContext->m_CopySkinButton))))
 	{
 		if(ActiveDummy)
 		{
@@ -1427,10 +1942,9 @@ CUi::EPopupMenuFunctionResult CScoreboard::CScoreboardPopupContext::Render(void 
 		pScoreboard->GameClient()->m_Chat.Echo(Localize("Copied player skin."));
 		return CUi::POPUP_CLOSE_CURRENT;
 	}
+	pScoreboard->GameClient()->m_Tooltips.DoToolTip(&pPopupContext->m_CopySkinButton, &LeftAction, Localize("Copy skin"));
 
-	View.HSplitTop(ItemSpacing, nullptr, &View);
-	View.HSplitTop(ButtonSize, &Container, &View);
-	if(pUi->DoButton_PopupMenu(&pPopupContext->m_CopyColorButton, "Copy colors", &Container, FontSize, TEXTALIGN_MC, 0.0f, false, true))
+	if(pUi->DoButton_PopupMenu(&pPopupContext->m_CopyColorButton, Localize("Colors"), &RightAction, FontSize, TEXTALIGN_MC, 0.0f, false, true, ColorRGBA(1.0f, 1.0f, 1.0f, 0.14f * pUi->ButtonColorMul(&pPopupContext->m_CopyColorButton))))
 	{
 		if(ActiveDummy)
 		{
@@ -1449,17 +1963,46 @@ CUi::EPopupMenuFunctionResult CScoreboard::CScoreboardPopupContext::Render(void 
 		pScoreboard->GameClient()->m_Chat.Echo(Localize("Copied player colors."));
 		return CUi::POPUP_CLOSE_CURRENT;
 	}
+	pScoreboard->GameClient()->m_Tooltips.DoToolTip(&pPopupContext->m_CopyColorButton, &RightAction, Localize("Copy colors"));
 
-	if(!pPopupContext->m_IsLocal)
+	const bool ShowInviteAction = !pPopupContext->m_IsLocal;
+	const bool ShowLockAction = AetherScoreboardCanLockLocalTeam(pScoreboard->GameClient());
+	if(ShowInviteAction || ShowLockAction)
 	{
 		View.HSplitTop(ItemSpacing, nullptr, &View);
 		View.HSplitTop(ButtonSize, &Container, &View);
-		if(pUi->DoButton_PopupMenu(&pPopupContext->m_InviteButton, Localize("Invite"), &Container, FontSize, TEXTALIGN_MC, 0.0f, false, true))
+		if(ShowInviteAction && ShowLockAction)
+			Container.VSplitMid(&LeftAction, &RightAction, 4.0f);
+		else
 		{
-			char aCommand[128 + MAX_NAME_LENGTH];
-			str_format(aCommand, sizeof(aCommand), "/invite %s", Client.m_aName);
-			pScoreboard->GameClient()->m_Chat.SendChat(0, aCommand);
-			return CUi::POPUP_CLOSE_CURRENT;
+			LeftAction = Container;
+			RightAction = Container;
+		}
+		if(ShowInviteAction)
+		{
+			const ColorRGBA InviteColor = AetherScoreboardAccentColor(pScoreboard->GameClient(), pPopupContext->m_ClientId, 0.35f * pUi->ButtonColorMul(&pPopupContext->m_InviteButton));
+			if(pUi->DoButton_PopupMenu(&pPopupContext->m_InviteButton, Localize("Invite"), &LeftAction, FontSize, TEXTALIGN_MC, 0.0f, false, true, InviteColor))
+			{
+				char aCommand[128 + MAX_NAME_LENGTH];
+				str_format(aCommand, sizeof(aCommand), "/invite %s", Client.m_aName);
+				pScoreboard->GameClient()->m_Chat.SendChat(0, aCommand);
+				return CUi::POPUP_CLOSE_CURRENT;
+			}
+		}
+		if(ShowLockAction)
+		{
+			CUIRect &LockRect = ShowInviteAction ? RightAction : LeftAction;
+			const bool Locked = pScoreboard->GameClient()->AetherLocalTeamLocked();
+			const ColorRGBA LockColor = Locked ?
+							    ColorRGBA(0.58f, 0.86f, 1.0f, 0.30f * pUi->ButtonColorMul(&pPopupContext->m_TeamLockButton)) :
+							    ColorRGBA(0.98f, 0.68f, 1.0f, 0.30f * pUi->ButtonColorMul(&pPopupContext->m_TeamLockButton));
+			if(pUi->DoButton_PopupMenu(&pPopupContext->m_TeamLockButton, Locked ? Localize("Unlock") : Localize("Lock"), &LockRect, FontSize, TEXTALIGN_MC, 0.0f, false, true, LockColor))
+			{
+				pScoreboard->GameClient()->m_Chat.SendChat(0, Locked ? "/lock 0" : "/lock 1");
+				pScoreboard->GameClient()->AetherSetLocalTeamLocked(!Locked);
+				return CUi::POPUP_CLOSE_CURRENT;
+			}
+			pScoreboard->GameClient()->m_Tooltips.DoToolTip(&pPopupContext->m_TeamLockButton, &LockRect, Locked ? Localize("Unlock team") : Localize("Lock team"));
 		}
 	}
 
@@ -1528,13 +2071,14 @@ CUi::EPopupMenuFunctionResult CScoreboard::CScoreboardPopupContext::Render(void 
 		}
 	}
 
-	View.HSplitTop(ItemSpacing * 2, nullptr, &View);
-	View.HSplitTop(ButtonSize, &Container, &View);
-
-	bool IsSpectating = pScoreboard->GameClient()->m_Snap.m_SpecInfo.m_Active && pScoreboard->GameClient()->m_Snap.m_SpecInfo.m_SpectatorId == pPopupContext->m_ClientId;
-	ColorRGBA SpectateButtonColor = ColorRGBA(1.0f, 1.0f, 1.0f, (IsSpectating ? 0.25f : 0.5f) * pUi->ButtonColorMul(&pPopupContext->m_SpectateButton));
 	if(!pPopupContext->m_IsSpectating)
 	{
+		View.HSplitTop(ItemSpacing * 2, nullptr, &View);
+		View.HSplitTop(ButtonSize, &Container, &View);
+		bool IsSpectating = pScoreboard->GameClient()->m_Snap.m_SpecInfo.m_Active && pScoreboard->GameClient()->m_Snap.m_SpecInfo.m_SpectatorId == pPopupContext->m_ClientId;
+		ColorRGBA SpectateButtonColor = IsSpectating ?
+							ColorRGBA(1.0f, 1.0f, 1.0f, 0.18f * pUi->ButtonColorMul(&pPopupContext->m_SpectateButton)) :
+							ColorRGBA(0.42f, 0.66f, 1.0f, 0.34f * pUi->ButtonColorMul(&pPopupContext->m_SpectateButton));
 		if(pUi->DoButton_PopupMenu(&pPopupContext->m_SpectateButton, Localize("Spectate"), &Container, FontSize, TEXTALIGN_MC, 0.0f, false, true, SpectateButtonColor))
 		{
 			if(IsSpectating)

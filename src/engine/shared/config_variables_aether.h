@@ -19,6 +19,7 @@ MACRO_CONFIG_INT(AeMusicVisualizer, ae_music_visualizer, 1, 0, 1, CFGFLAG_CLIENT
 MACRO_CONFIG_INT(AeMusicVisualizerStyle, ae_music_visualizer_style, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Music visualizer style: bars or mountain")
 MACRO_CONFIG_INT(AeMusicVisualizerGlow, ae_music_visualizer_glow, 45, 0, 100, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Music visualizer glow amount")
 MACRO_CONFIG_INT(AeMusicVisualizerSensitivity, ae_music_visualizer_sensitivity, 100, 50, 1500, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Music visualizer sensitivity")
+MACRO_CONFIG_INT(AeMusicVisualizerAutoGain, ae_music_visualizer_auto_gain, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Boost real low-volume captured audio for the music visualizer")
 MACRO_CONFIG_INT(AeMusicOffsetX, ae_music_offset_x, 0, -1000, 1000, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Music panel horizontal offset from top center")
 MACRO_CONFIG_INT(AeMusicOffsetY, ae_music_offset_y, 0, -1000, 1000, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Music panel vertical offset from top center")
 
@@ -137,6 +138,7 @@ MACRO_CONFIG_INT(AeBadgesScoreboard, ae_badges_scoreboard, 1, 0, 1, CFGFLAG_CLIE
 MACRO_CONFIG_INT(AeBadgesClientOnly, ae_badges_client_only, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Only show automatic client identity badges")
 MACRO_CONFIG_INT(AeBadgesRefreshSeconds, ae_badges_refresh_seconds, 300, 30, 3600, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Aether badge API refresh interval")
 MACRO_CONFIG_STR(AeBadgesApiUrl, ae_badges_api_url, 256, "https://aetherclient-api-production.up.railway.app", CFGFLAG_CLIENT | CFGFLAG_SAVE, "Aether badge API base URL")
+MACRO_CONFIG_INT(AeKogPointsScoreboard, ae_kog_points_scoreboard, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Show KoG points in the scoreboard on KoG servers")
 MACRO_CONFIG_STR(AeClanId, ae_clan_id, 96, "", CFGFLAG_CLIENT | CFGFLAG_SAVE, "Stored Aether clan id")
 MACRO_CONFIG_STR(AeClanSecret, ae_clan_secret, 128, "", CFGFLAG_CLIENT | CFGFLAG_SAVE, "Stored Aether clan membership secret")
 MACRO_CONFIG_STR(AeClanGeneralId, ae_clan_general_id, 96, "", CFGFLAG_CLIENT | CFGFLAG_SAVE, "Stored Aether general clan id")
@@ -308,6 +310,10 @@ MACRO_CONFIG_INT(AeTeamInvitePopupOffsetX, ae_team_invite_popup_offset_x, 8, -10
 MACRO_CONFIG_INT(AeTeamInvitePopupOffsetY, ae_team_invite_popup_offset_y, 8, -1000, 1000, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Team invite popup vertical offset from the top")
 MACRO_CONFIG_INT(AeTeamInvitePopupScale, ae_team_invite_popup_scale, 100, 50, 200, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Team invite popup HUD size")
 MACRO_CONFIG_INT(AeTeamLastWarningVisual, ae_team_last_warning_visual, 0, 0, 3, CFGFLAG_CLIENT, "Legacy unused Aether last warning visual mode")
+MACRO_CONFIG_INT(AeVotePanel, ae_vote_panel, 1, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Show modern Aether vote panel")
+MACRO_CONFIG_INT(AeVotePanelOffsetX, ae_vote_panel_offset_x, 6, -1000, 1000, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Vote panel horizontal offset from the left")
+MACRO_CONFIG_INT(AeVotePanelOffsetY, ae_vote_panel_offset_y, 54, -1000, 1000, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Vote panel vertical offset from the top")
+MACRO_CONFIG_INT(AeVotePanelScale, ae_vote_panel_scale, 100, 50, 200, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Vote panel HUD size")
 
 MACRO_CONFIG_INT(Ae3DParticles, ae_3d_particles, 0, 0, 1, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Draw layered Aether 3D ambient particles")
 MACRO_CONFIG_INT(Ae3DParticlesCount, ae_3d_particles_count, 60, 0, 180, CFGFLAG_CLIENT | CFGFLAG_SAVE, "Aether 3D particle count")

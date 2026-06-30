@@ -123,6 +123,12 @@ private:
 		bool m_Valid = false;
 		std::vector<SBadge> m_vBadges;
 	};
+	struct SRememberedClientBadges
+	{
+		char m_aName[MAX_NAME_LENGTH] = "";
+		std::vector<SBadge> m_vBadges;
+		int64_t m_LastSeenTime = 0;
+	};
 	struct SPingEvent
 	{
 		int m_Seq = 0;
@@ -165,6 +171,7 @@ private:
 	std::array<IGraphics::CTextureHandle, 7> m_aIconTextures;
 	std::array<SChessOnlinePlayer, MAX_CLIENTS> m_aChessOnline{};
 	std::array<SChessOnlinePlayer, MAX_CLIENTS> m_aAetherOnline{};
+	std::vector<SRememberedClientBadges> m_vRememberedClientBadges;
 	std::vector<SPingEvent> m_vPings;
 	std::vector<SPublicClanMembership> m_vPublicClanMemberships;
 	CAetherRealtimeClient m_Realtime;
@@ -263,6 +270,9 @@ private:
 	void PumpRealtimeMessages();
 	void LoadIconTextures();
 	void UnloadIconTextures();
+	bool ApplyRememberedClientBadges(const char *pName, std::vector<SBadge> &vBadges) const;
+	void RememberClientBadges(const char *pName, const std::vector<SBadge> &vBadges);
+	void PruneRememberedClientBadges();
 	bool ApplyBadgeArrayForClient(int ClientId, const json_value *pBadgeArray);
 	bool ApplyBadgeArrayForName(const char *pName, const json_value *pBadgeArray);
 	bool ApplyPlayersBadgeObject(const json_value *pPlayers);

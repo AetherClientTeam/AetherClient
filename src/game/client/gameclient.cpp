@@ -185,6 +185,53 @@ bool CGameClient::AetherMaybeHandleTeamInviteMessage(const char *pLine)
 	return true;
 }
 
+int CGameClient::AetherLocalDDTeam() const
+{
+	const int LocalId = m_Snap.m_LocalClientId;
+	if(LocalId < 0 || LocalId >= MAX_CLIENTS)
+		return TEAM_FLOCK;
+	return m_Teams.Team(LocalId);
+}
+
+bool CGameClient::AetherLocalTeamLockKnown() const
+{
+	return m_AetherLocalTeamLockKnown && m_AetherLocalTeamLockTeam == AetherLocalDDTeam();
+}
+
+bool CGameClient::AetherLocalTeamLocked() const
+{
+	return AetherLocalTeamLockKnown() && m_AetherLocalTeamLocked;
+}
+
+void CGameClient::AetherSetLocalTeamLocked(bool Locked)
+{
+	const int Team = AetherLocalDDTeam();
+	if(Team <= TEAM_FLOCK || Team == TEAM_SUPER)
+		return;
+
+	m_AetherLocalTeamLockTeam = Team;
+	m_AetherLocalTeamLockKnown = true;
+	m_AetherLocalTeamLocked = Locked;
+}
+
+bool CGameClient::AetherMaybeHandleTeamLockMessage(const char *pLine)
+{
+	if(!pLine || pLine[0] != '\'')
+		return false;
+
+	if(str_find(pLine + 1, "' locked your team"))
+	{
+		AetherSetLocalTeamLocked(true);
+		return true;
+	}
+	if(str_find(pLine + 1, "' unlocked your team"))
+	{
+		AetherSetLocalTeamLocked(false);
+		return true;
+	}
+	return false;
+}
+
 bool CGameClient::AetherTeamInvitePopupActive() const
 {
 	return m_AetherTeamInviteTeam > 0 && m_AetherTeamInviteEnd > time_get();
@@ -261,6 +308,9 @@ void AetherMigrateAndClampConfig()
 	g_Config.m_AeTeamInviteHideInTeam = std::clamp(g_Config.m_AeTeamInviteHideInTeam, 0, 1);
 	g_Config.m_AeTeamInviteHideRunning = std::clamp(g_Config.m_AeTeamInviteHideRunning, 0, 1);
 	g_Config.m_AeTeamInviteBindMigrated = std::clamp(g_Config.m_AeTeamInviteBindMigrated, 0, 1);
+	g_Config.m_AeVotePanel = std::clamp(g_Config.m_AeVotePanel, 0, 1);
+	g_Config.m_AeVotePanelScale = std::clamp(g_Config.m_AeVotePanelScale, 50, 200);
+	g_Config.m_AeMusicVisualizerAutoGain = std::clamp(g_Config.m_AeMusicVisualizerAutoGain, 0, 1);
 }
 
 bool AetherStartupGuardWasLeftBehind(IStorage *pStorage)
@@ -680,12 +730,12 @@ void CGameClient::OnConsoleInit()
 					      &m_Broadcast,
 					      &m_ImportantAlert,
 					      &m_DebugHud,
+					      &m_AetherCrosshairLayer,
 					      &m_TouchControls,
 					      &m_Scoreboard,
 					      &m_Statboard,
 					      &m_Motd,
 					      &m_AetherBlockAwareness,
-					      &m_AetherCrosshairLayer,
 					      &m_Menus,
 					      &m_Tooltips,
 					      &m_Scripting, // TClient

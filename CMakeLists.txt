@@ -1051,72 +1051,13 @@ set(EXPECTED_DATA
   core/ddrace_configs/super_off.cfg
   core/ddrace_configs/super_on.cfg
   core/icons/aether_settings_indicator.png
-  core/icons/menu_gear.png
-  core/logos/aether_1024.png
-  core/logos/aether_256.png
-  core/logos/aether_512.png
-  core/logos/aether_icon_large_1024.png
-  core/logos/aether_icon_large_256.png
-  core/logos/aether_icon_large_512.png
-  core/logos/aether_icon_medium_1024.png
-  core/logos/aether_icon_medium_256.png
-  core/logos/aether_icon_medium_512.png
-  core/logos/aether_icon_small_1024.png
-  core/logos/aether_icon_small_256.png
-  core/logos/aether_icon_small_512.png
-  core/logos/aether_lockup_1024.png
-  core/logos/aether_lockup_256.png
-  core/logos/aether_lockup_512.png
-  core/logos/aether_updater_2048.png
   core/logos/aether_vera_big_1024.png
   core/logos/aether_vera_logo.png
-  core/logos/aether_vera_text.png
-  core/logos/manifest.json
-  core/logos/vera_1024.png
-  core/logos/vera_256.png
   core/logos/vera_512.png
-  core/logos/vera_icon_large_1024.png
-  core/logos/vera_icon_large_256.png
-  core/logos/vera_icon_large_512.png
-  core/logos/vera_icon_medium_1024.png
-  core/logos/vera_icon_medium_256.png
-  core/logos/vera_icon_medium_512.png
-  core/logos/vera_icon_small_1024.png
   core/logos/vera_icon_small_256.png
-  core/logos/vera_icon_small_512.png
   core/logos/vera_lockup_1024.png
-  core/logos/vera_lockup_256.png
-  core/logos/vera_lockup_512.png
-  core/logos/vex_1024.png
-  core/logos/vex_256.png
-  core/logos/vex_512.png
-  core/logos/vex_icon_large_1024.png
-  core/logos/vex_icon_large_256.png
-  core/logos/vex_icon_large_512.png
-  core/logos/vex_icon_medium_1024.png
-  core/logos/vex_icon_medium_256.png
-  core/logos/vex_icon_medium_512.png
-  core/logos/vex_icon_small_1024.png
-  core/logos/vex_icon_small_256.png
-  core/logos/vex_icon_small_512.png
   core/logos/vex_lockup_1024.png
-  core/logos/vex_lockup_256.png
-  core/logos/vex_lockup_512.png
-  core/logos/via_1024.png
-  core/logos/via_256.png
-  core/logos/via_512.png
-  core/logos/via_icon_large_1024.png
-  core/logos/via_icon_large_256.png
-  core/logos/via_icon_large_512.png
-  core/logos/via_icon_medium_1024.png
-  core/logos/via_icon_medium_256.png
-  core/logos/via_icon_medium_512.png
-  core/logos/via_icon_small_1024.png
-  core/logos/via_icon_small_256.png
-  core/logos/via_icon_small_512.png
   core/logos/via_lockup_1024.png
-  core/logos/via_lockup_256.png
-  core/logos/via_lockup_512.png
   announcement.txt
   arrow.png
   assets/entities/comfort/ddnet.png

@@ -26,9 +26,9 @@ $UpdaterExe = "AetherUpdater.exe"
 $UpdaterRelPath = "tools\updater\$UpdaterExe"
 $BadgeNames = @("founder.png", "tester.png", "chess_winner.png")
 $LogoNames = @(
-	"aether_icon_small_256.png", "vera_icon_small_256.png", "via_icon_small_256.png", "vex_icon_small_256.png",
-	"aether_lockup_1024.png", "vera_lockup_1024.png", "via_lockup_1024.png", "vex_lockup_1024.png",
-	"aether_vera_big_1024.png", "aether_vera_logo.png", "aether_vera_text.png"
+	"aether_vera_big_1024.png", "aether_vera_logo.png",
+	"vera_512.png", "vera_icon_small_256.png",
+	"vera_lockup_1024.png", "via_lockup_1024.png", "vex_lockup_1024.png"
 )
 
 function Remove-LegacyAetherData($Root)
@@ -37,6 +37,22 @@ function Remove-LegacyAetherData($Root)
 	if(Test-Path $LegacyAetherPath)
 	{
 		Remove-Item -LiteralPath $LegacyAetherPath -Recurse -Force
+	}
+}
+
+function Remove-UnusedCoreBrandAssets($Root)
+{
+	$LogoPath = Join-Path $Root "data\core\logos"
+	if(Test-Path $LogoPath)
+	{
+		Get-ChildItem -LiteralPath $LogoPath -File | Where-Object { $LogoNames -notcontains $_.Name } | ForEach-Object {
+			Remove-Item -LiteralPath $_.FullName -Force
+		}
+	}
+	$LegacyGearPath = Join-Path $Root "data\core\icons\menu_gear.png"
+	if(Test-Path $LegacyGearPath)
+	{
+		Remove-Item -LiteralPath $LegacyGearPath -Force
 	}
 }
 
@@ -116,6 +132,7 @@ Get-ChildItem -LiteralPath $BuildPath -Filter "*.dll" | ForEach-Object {
 }
 Copy-Item -LiteralPath $DataPath -Destination $ReleasePath -Recurse -Force
 Remove-LegacyAetherData $ReleasePath
+Remove-UnusedCoreBrandAssets $ReleasePath
 Copy-Item -LiteralPath $SteamAppIdPath -Destination (Join-Path $ReleasePath "steam_appid.txt") -Force
 Copy-Item -LiteralPath (Join-Path $RepoRoot "storage.cfg") -Destination (Join-Path $ReleasePath "storage.cfg") -Force
 Copy-Item -LiteralPath (Join-Path $RepoRoot "license.txt") -Destination (Join-Path $ReleasePath "license.txt") -Force
@@ -137,6 +154,7 @@ Get-ChildItem -LiteralPath $BuildPath -Filter "*.dll" | ForEach-Object {
 }
 Copy-Item -LiteralPath $DataPath -Destination $PortablePath -Recurse -Force
 Remove-LegacyAetherData $PortablePath
+Remove-UnusedCoreBrandAssets $PortablePath
 Copy-Item -LiteralPath $SteamAppIdPath -Destination (Join-Path $PortablePath "steam_appid.txt") -Force
 Copy-Item -LiteralPath (Join-Path $RepoRoot "storage.cfg") -Destination (Join-Path $PortablePath "storage.cfg") -Force
 Copy-Item -LiteralPath (Join-Path $RepoRoot "license.txt") -Destination (Join-Path $PortablePath "license.txt") -Force

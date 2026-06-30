@@ -737,7 +737,7 @@ void CAetherMusicPlayer::OnUpdate()
 	{
 		if(!m_MediaBackend.Running())
 			m_MediaBackend.Start();
-		m_MediaBackend.SetVisualizer(g_Config.m_AeMusicVisualizer != 0, g_Config.m_AeMusicVisualizerSensitivity);
+		m_MediaBackend.SetVisualizer(g_Config.m_AeMusicVisualizer != 0, g_Config.m_AeMusicVisualizerSensitivity, g_Config.m_AeMusicVisualizerAutoGain != 0);
 	}
 	else if(m_MediaBackend.Running())
 		m_MediaBackend.Stop();

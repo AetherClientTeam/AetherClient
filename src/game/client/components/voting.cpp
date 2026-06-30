@@ -2,6 +2,7 @@
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include "voting.h"
 
+#include <base/color.h>
 #include <base/system.h>
 
 #include <engine/shared/config.h>
@@ -13,6 +14,8 @@
 #include <game/client/components/sounds.h>
 #include <game/client/gameclient.h>
 #include <game/localization.h>
+
+#include <algorithm>
 
 void CVoting::ConCallvote(IConsole::IResult *pResult, void *pUserData)
 {
@@ -336,12 +339,19 @@ void CVoting::OnMessage(int MsgType, void *pRawMsg)
 
 void CVoting::Render()
 {
-	if((!g_Config.m_ClShowVotesAfterVoting && !GameClient()->m_Scoreboard.IsActive() && TakenChoice()) || !IsVoting())
+	const bool EditorShow = g_Config.m_AeVotePanel && GameClient()->m_Hud.IsTClientFrozenTextEditorOpen();
+	if(((!g_Config.m_ClShowVotesAfterVoting && !GameClient()->m_Scoreboard.IsActive() && TakenChoice()) || !IsVoting()) && !EditorShow)
 		return;
-	const int Seconds = SecondsLeft();
-	if(Seconds < 0)
+	const int Seconds = EditorShow && !IsVoting() ? 27 : SecondsLeft();
+	if(Seconds < 0 && !EditorShow)
 	{
 		OnReset();
+		return;
+	}
+
+	if(g_Config.m_AeVotePanel)
+	{
+		RenderAetherPanel(EditorShow, Seconds);
 		return;
 	}
 
@@ -402,6 +412,127 @@ void CVoting::Render()
 	str_format(aBuf, sizeof(aBuf), "%s - %s", Localize("Vote no"), aKey);
 	TextRender()->TextColor(TakenChoice() == -1 ? ColorRGBA(0.95f, 0.25f, 0.25f, 0.85f) : TextRender()->DefaultTextColor());
 	Ui()->DoLabel(&RightColumn, aBuf, 6.0f, TEXTALIGN_MR);
+
+	TextRender()->TextColor(TextRender()->DefaultTextColor());
+}
+
+void CVoting::RenderAetherPanel(bool EditorShow, int Seconds)
+{
+	const float Scale = std::clamp(g_Config.m_AeVotePanelScale / 100.0f, 0.5f, 2.0f);
+	const float PanelW = 168.0f * Scale;
+	const float PanelH = 66.0f * Scale;
+	CUIRect Panel(
+		std::clamp((float)g_Config.m_AeVotePanelOffsetX, 0.0f, std::max(0.0f, 300.0f * Graphics()->ScreenAspect() - PanelW)),
+		std::clamp((float)g_Config.m_AeVotePanelOffsetY, 0.0f, std::max(0.0f, 300.0f - PanelH)),
+		PanelW,
+		PanelH);
+
+	const int64_t Now = time();
+	const int64_t TotalTicks = std::max<int64_t>(1, m_Closetime - m_Opentime);
+	const float TimeLeftProgress = IsVoting() ? std::clamp((m_Closetime - Now) / (float)TotalTicks, 0.0f, 1.0f) : 0.72f;
+	const float Intro = EditorShow || !IsVoting() ? 1.0f : std::clamp((Now - m_Opentime) / (time_freq() * 0.18f), 0.0f, 1.0f);
+	if(Intro <= 0.01f)
+		return;
+	Panel.y -= (1.0f - Intro) * 5.0f * Scale;
+
+	const int Yes = IsVoting() ? m_Yes : 7;
+	const int No = IsVoting() ? m_No : 2;
+	const int Total = std::max(1, IsVoting() ? m_Total : 10);
+	const float YesRatio = std::clamp(Yes / (float)Total, 0.0f, 1.0f);
+	const float NoRatio = std::clamp(No / (float)Total, 0.0f, 1.0f);
+	ColorRGBA Theme = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_UiColor, true));
+	const float ThemeLuma = Theme.r * 0.2126f + Theme.g * 0.7152f + Theme.b * 0.0722f;
+	if(ThemeLuma < 0.16f)
+		Theme = ColorRGBA(0.58f, 0.43f, 0.66f, 1.0f);
+	Theme.r = std::clamp(Theme.r * 0.56f + 0.23f, 0.0f, 0.72f);
+	Theme.g = std::clamp(Theme.g * 0.56f + 0.18f, 0.0f, 0.60f);
+	Theme.b = std::clamp(Theme.b * 0.56f + 0.26f, 0.0f, 0.76f);
+	const ColorRGBA PanelColor(0.025f, 0.028f, 0.038f, 0.90f * Intro);
+	const ColorRGBA Accent = Theme.WithAlpha(0.72f * Intro);
+	const ColorRGBA NoColor(0.82f, 0.24f, 0.30f, 0.70f * Intro);
+
+	Graphics()->TextureClear();
+	Graphics()->DrawRect(Panel.x + 1.3f * Scale, Panel.y + 1.7f * Scale, Panel.w, Panel.h, ColorRGBA(0.0f, 0.0f, 0.0f, 0.22f * Intro), IGraphics::CORNER_ALL, 5.5f * Scale);
+	Graphics()->DrawRect(Panel.x, Panel.y, Panel.w, Panel.h, PanelColor, IGraphics::CORNER_ALL, 5.5f * Scale);
+	const float TopProgressW = Panel.w - 16.0f * Scale;
+	Graphics()->DrawRect(Panel.x + 8.0f * Scale, Panel.y + 4.0f * Scale, TopProgressW, 1.1f * Scale, Accent.WithAlpha(0.18f * Intro), IGraphics::CORNER_ALL, 1.0f * Scale);
+	Graphics()->DrawRect(Panel.x + 8.0f * Scale, Panel.y + 4.0f * Scale, TopProgressW * TimeLeftProgress, 1.1f * Scale, Accent.WithAlpha(0.60f * Intro), IGraphics::CORNER_ALL, 1.0f * Scale);
+
+	CUIRect Inner = Panel;
+	Inner.Margin(8.0f * Scale, &Inner);
+	Inner.y += 3.0f * Scale;
+	Inner.h -= 3.0f * Scale;
+
+	CUIRect Desc, Reason, Bars, Actions;
+	Inner.HSplitTop(13.0f * Scale, &Desc, &Inner);
+	Inner.HSplitTop(8.5f * Scale, &Reason, &Inner);
+	Inner.HSplitTop(4.0f * Scale, nullptr, &Inner);
+	Inner.HSplitTop(5.2f * Scale, &Bars, &Inner);
+	Inner.HSplitTop(5.0f * Scale, nullptr, &Inner);
+	Inner.HSplitTop(13.0f * Scale, &Actions, &Inner);
+
+	char aBuf[256];
+	char aSeconds[32];
+	str_format(aSeconds, sizeof(aSeconds), "%ds", std::max(0, Seconds));
+
+	SLabelProperties Props;
+	Props.m_EllipsisAtEnd = true;
+
+	CUIRect DescText, TimeText;
+	Desc.VSplitRight(30.0f * Scale, &DescText, &TimeText);
+
+	const char *pDescription = IsVoting() && VoteDescription()[0] ? VoteDescription() : "Change map to Aether";
+	Props.m_MaxWidth = DescText.w;
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 0.96f * Intro);
+	Ui()->DoLabel(&DescText, pDescription, 7.0f * Scale, TEXTALIGN_ML, Props);
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 0.82f * Intro);
+	Ui()->DoLabel(&TimeText, aSeconds, 5.8f * Scale, TEXTALIGN_MR);
+
+	if(IsVoting() && VoteReason()[0])
+		str_format(aBuf, sizeof(aBuf), "%s %s", Localize("Reason:"), VoteReason());
+	else
+		str_copy(aBuf, Localize("Waiting for votes"), sizeof(aBuf));
+	Props.m_MaxWidth = Reason.w;
+	TextRender()->TextColor(0.72f, 0.78f, 0.88f, 0.78f * Intro);
+	Ui()->DoLabel(&Reason, aBuf, 5.2f * Scale, TEXTALIGN_ML, Props);
+
+	Bars.Draw(ColorRGBA(0.10f, 0.105f, 0.13f, 0.82f * Intro), IGraphics::CORNER_ALL, Bars.h * 0.5f);
+	if(YesRatio > 0.0f)
+	{
+		CUIRect YesArea;
+		Bars.VSplitLeft(Bars.w * YesRatio, &YesArea, nullptr);
+		YesArea.Draw(Accent.WithAlpha(0.74f * Intro), IGraphics::CORNER_ALL, Bars.h * 0.5f);
+	}
+	if(NoRatio > 0.0f)
+	{
+		CUIRect NoArea;
+		Bars.VSplitRight(Bars.w * NoRatio, nullptr, &NoArea);
+		NoArea.Draw(NoColor, IGraphics::CORNER_ALL, Bars.h * 0.5f);
+	}
+
+	CUIRect YesButton, NoButton;
+	Actions.VSplitMid(&YesButton, &NoButton, 6.0f * Scale);
+	const bool ChoseYes = TakenChoice() == 1;
+	const bool ChoseNo = TakenChoice() == -1;
+	YesButton.Draw((ChoseYes ? Accent : ColorRGBA(1.0f, 1.0f, 1.0f, 0.10f * Intro)).WithAlpha(ChoseYes ? 0.48f * Intro : 0.10f * Intro), IGraphics::CORNER_ALL, 4.0f * Scale);
+	NoButton.Draw((ChoseNo ? NoColor : ColorRGBA(1.0f, 1.0f, 1.0f, 0.10f * Intro)).WithAlpha(ChoseNo ? 0.48f * Intro : 0.10f * Intro), IGraphics::CORNER_ALL, 4.0f * Scale);
+
+	char aKey[64];
+	GameClient()->m_Binds.GetKey("vote yes", aKey, sizeof(aKey));
+	for(char *p = aKey; *p; ++p)
+		if(*p >= 'a' && *p <= 'z')
+			*p += 'A' - 'a';
+	str_format(aBuf, sizeof(aBuf), "%s %s", aKey[0] ? aKey : "F3", Localize("Yes"));
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, (ChoseYes ? 0.98f : 0.82f) * Intro);
+	Ui()->DoLabel(&YesButton, aBuf, 5.6f * Scale, TEXTALIGN_MC);
+
+	GameClient()->m_Binds.GetKey("vote no", aKey, sizeof(aKey));
+	for(char *p = aKey; *p; ++p)
+		if(*p >= 'a' && *p <= 'z')
+			*p += 'A' - 'a';
+	str_format(aBuf, sizeof(aBuf), "%s %s", aKey[0] ? aKey : "F4", Localize("No"));
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, (ChoseNo ? 0.98f : 0.82f) * Intro);
+	Ui()->DoLabel(&NoButton, aBuf, 5.6f * Scale, TEXTALIGN_MC);
 
 	TextRender()->TextColor(TextRender()->DefaultTextColor());
 }

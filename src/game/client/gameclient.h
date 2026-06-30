@@ -446,6 +446,7 @@ public:
 
 	bool AetherTeamFreezeCounts(int TeamClientId, int &NumInTeam, int &NumFrozen) const;
 	bool AetherMaybeHandleTeamInviteMessage(const char *pLine);
+	bool AetherMaybeHandleTeamLockMessage(const char *pLine);
 	bool AetherTeamInvitePopupActive() const;
 	bool AetherTeamInvitePopupVisible() const;
 	float AetherTeamInvitePopupProgress() const;
@@ -454,10 +455,17 @@ public:
 	int AetherTeamInviteTeam() const { return m_AetherTeamInviteTeam; }
 	void AetherAcceptTeamInvite();
 	void AetherIgnoreTeamInvite();
+	int AetherLocalDDTeam() const;
+	bool AetherLocalTeamLockKnown() const;
+	bool AetherLocalTeamLocked() const;
+	void AetherSetLocalTeamLocked(bool Locked);
 	char m_aAetherTeamInvitePlayer[MAX_NAME_LENGTH] = "";
 	int m_AetherTeamInviteTeam = 0;
 	int64_t m_AetherTeamInviteStart = 0;
 	int64_t m_AetherTeamInviteEnd = 0;
+	int m_AetherLocalTeamLockTeam = TEAM_FLOCK;
+	bool m_AetherLocalTeamLockKnown = false;
+	bool m_AetherLocalTeamLocked = false;
 
 	vec2 m_LocalCharacterPos;
 

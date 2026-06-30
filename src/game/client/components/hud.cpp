@@ -99,6 +99,12 @@ CUIRect CHud::AetherTeamInviteResizeHandleRect() const
 	return CUIRect(m_AetherTeamInviteRect.x + m_AetherTeamInviteRect.w - 2.0f * Scale, m_AetherTeamInviteRect.y + m_AetherTeamInviteRect.h - 2.0f * Scale, 5.0f * Scale, 5.0f * Scale);
 }
 
+CUIRect CHud::AetherVotePanelResizeHandleRect() const
+{
+	const float Scale = std::clamp(g_Config.m_AeVotePanelScale / 100.0f, 0.5f, 2.0f);
+	return CUIRect(m_AetherVotePanelRect.x + m_AetherVotePanelRect.w - 2.0f * Scale, m_AetherVotePanelRect.y + m_AetherVotePanelRect.h - 2.0f * Scale, 5.0f * Scale, 5.0f * Scale);
+}
+
 void CHud::InitializeTClientEditorRects()
 {
 	m_Width = 300.0f * Graphics()->ScreenAspect();
@@ -159,6 +165,10 @@ void CHud::InitializeTClientEditorRects()
 	const float InviteScale = std::clamp(g_Config.m_AeTeamInvitePopupScale / 100.0f, 0.5f, 2.0f);
 	m_AetherTeamInviteRect = CUIRect((float)g_Config.m_AeTeamInvitePopupOffsetX, (float)g_Config.m_AeTeamInvitePopupOffsetY, 128.0f * InviteScale, 26.0f * InviteScale);
 	ClampAetherTeamInvite();
+
+	const float VoteScale = std::clamp(g_Config.m_AeVotePanelScale / 100.0f, 0.5f, 2.0f);
+	m_AetherVotePanelRect = CUIRect((float)g_Config.m_AeVotePanelOffsetX, (float)g_Config.m_AeVotePanelOffsetY, 168.0f * VoteScale, 66.0f * VoteScale);
+	ClampAetherVotePanel();
 }
 
 void CHud::ClampTClientFrozenText()
@@ -226,6 +236,14 @@ void CHud::ClampAetherTeamInvite()
 	m_AetherTeamInviteRect.y = std::clamp(m_AetherTeamInviteRect.y, 0.0f, std::max(0.0f, m_Height - m_AetherTeamInviteRect.h));
 	g_Config.m_AeTeamInvitePopupOffsetX = round_to_int(m_AetherTeamInviteRect.x);
 	g_Config.m_AeTeamInvitePopupOffsetY = round_to_int(m_AetherTeamInviteRect.y);
+}
+
+void CHud::ClampAetherVotePanel()
+{
+	m_AetherVotePanelRect.x = std::clamp(m_AetherVotePanelRect.x, 0.0f, std::max(0.0f, m_Width - m_AetherVotePanelRect.w));
+	m_AetherVotePanelRect.y = std::clamp(m_AetherVotePanelRect.y, 0.0f, std::max(0.0f, m_Height - m_AetherVotePanelRect.h));
+	g_Config.m_AeVotePanelOffsetX = round_to_int(m_AetherVotePanelRect.x);
+	g_Config.m_AeVotePanelOffsetY = round_to_int(m_AetherVotePanelRect.y);
 }
 
 void CHud::SetTClientFrozenTextScaleKeepingCenter(int NewScale, vec2 Center)
@@ -327,6 +345,17 @@ void CHud::SetAetherTeamInviteScaleKeepingCenter(int NewScale, vec2 Center)
 	ClampAetherTeamInvite();
 }
 
+void CHud::SetAetherVotePanelScaleKeepingCenter(int NewScale, vec2 Center)
+{
+	g_Config.m_AeVotePanelScale = std::clamp(NewScale, 50, 200);
+	const float Scale = std::clamp(g_Config.m_AeVotePanelScale / 100.0f, 0.5f, 2.0f);
+	m_AetherVotePanelRect.w = 168.0f * Scale;
+	m_AetherVotePanelRect.h = 66.0f * Scale;
+	m_AetherVotePanelRect.x = Center.x - m_AetherVotePanelRect.w * 0.5f;
+	m_AetherVotePanelRect.y = Center.y - m_AetherVotePanelRect.h * 0.5f;
+	ClampAetherVotePanel();
+}
+
 void CHud::RenderTClientHudEditorOverlay(const CUIRect &Rect, const CUIRect &Handle)
 {
 	const ColorRGBA Theme = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_UiColor, true));
@@ -378,6 +407,7 @@ bool CHud::OnInput(const IInput::CEvent &Event)
 	const bool EditAetherTeamCounter = g_Config.m_AeTeamFreezeCounter > 0;
 	const bool EditAetherTimerPanel = g_Config.m_AeTimerPanel && g_Config.m_ClShowhudTimer && !g_Config.m_AeMusicPlayer;
 	const bool EditAetherTeamInvite = g_Config.m_AeTeamInvitePopup != 0;
+	const bool EditAetherVotePanel = g_Config.m_AeVotePanel != 0;
 	const bool EditFrozenText = false;
 	const bool EditLastNotify = false;
 	const bool EditFrozenHud = false;
@@ -412,6 +442,9 @@ bool CHud::OnInput(const IInput::CEvent &Event)
 		g_Config.m_AeTeamInvitePopupOffsetX = 8;
 		g_Config.m_AeTeamInvitePopupOffsetY = 8;
 		g_Config.m_AeTeamInvitePopupScale = 100;
+		g_Config.m_AeVotePanelOffsetX = 6;
+		g_Config.m_AeVotePanelOffsetY = 54;
+		g_Config.m_AeVotePanelScale = 100;
 		return true;
 	}
 	if((Event.m_Flags & IInput::FLAG_PRESS) && (Event.m_Key == KEY_MOUSE_WHEEL_UP || Event.m_Key == KEY_MOUSE_WHEEL_DOWN))
@@ -439,6 +472,12 @@ bool CHud::OnInput(const IInput::CEvent &Event)
 		{
 			const vec2 Center(m_AetherTeamInviteRect.x + m_AetherTeamInviteRect.w * 0.5f, m_AetherTeamInviteRect.y + m_AetherTeamInviteRect.h * 0.5f);
 			SetAetherTeamInviteScaleKeepingCenter(g_Config.m_AeTeamInvitePopupScale + (Event.m_Key == KEY_MOUSE_WHEEL_UP ? 5 : -5), Center);
+			return true;
+		}
+		if(EditAetherVotePanel && m_AetherVotePanelRect.Inside(Mouse))
+		{
+			const vec2 Center(m_AetherVotePanelRect.x + m_AetherVotePanelRect.w * 0.5f, m_AetherVotePanelRect.y + m_AetherVotePanelRect.h * 0.5f);
+			SetAetherVotePanelScaleKeepingCenter(g_Config.m_AeVotePanelScale + (Event.m_Key == KEY_MOUSE_WHEEL_UP ? 5 : -5), Center);
 			return true;
 		}
 		if(EditFrozenText && m_TClientFrozenTextRect.Inside(Mouse))
@@ -496,6 +535,12 @@ bool CHud::OnInput(const IInput::CEvent &Event)
 				m_AetherTeamInviteResizeCenter = vec2(m_AetherTeamInviteRect.x + m_AetherTeamInviteRect.w * 0.5f, m_AetherTeamInviteRect.y + m_AetherTeamInviteRect.h * 0.5f);
 				return true;
 			}
+			if(EditAetherVotePanel && AetherVotePanelResizeHandleRect().Inside(Mouse))
+			{
+				m_TClientFrozenTextEditorInteraction = ETClientFrozenTextEditorInteraction::RESIZING_AETHER_VOTE_PANEL;
+				m_AetherVotePanelResizeCenter = vec2(m_AetherVotePanelRect.x + m_AetherVotePanelRect.w * 0.5f, m_AetherVotePanelRect.y + m_AetherVotePanelRect.h * 0.5f);
+				return true;
+			}
 			if(EditFrozenHud && TClientFrozenHudResizeHandleRect().Inside(Mouse))
 			{
 				m_TClientFrozenTextEditorInteraction = ETClientFrozenTextEditorInteraction::RESIZING_FROZEN_HUD;
@@ -548,6 +593,12 @@ bool CHud::OnInput(const IInput::CEvent &Event)
 			{
 				m_TClientFrozenTextEditorInteraction = ETClientFrozenTextEditorInteraction::DRAGGING_AETHER_TEAM_INVITE;
 				m_AetherTeamInviteDragOffset = Mouse - vec2(m_AetherTeamInviteRect.x, m_AetherTeamInviteRect.y);
+				return true;
+			}
+			if(EditAetherVotePanel && m_AetherVotePanelRect.Inside(Mouse))
+			{
+				m_TClientFrozenTextEditorInteraction = ETClientFrozenTextEditorInteraction::DRAGGING_AETHER_VOTE_PANEL;
+				m_AetherVotePanelDragOffset = Mouse - vec2(m_AetherVotePanelRect.x, m_AetherVotePanelRect.y);
 				return true;
 			}
 			if(EditFrozenHud && m_TClientFrozenHudRect.Inside(Mouse))
@@ -678,6 +729,17 @@ bool CHud::OnCursorMove(float x, float y, IInput::ECursorType CursorType)
 		ClampAetherTeamInvite();
 		return true;
 	}
+	if(m_TClientFrozenTextEditorInteraction == ETClientFrozenTextEditorInteraction::DRAGGING_AETHER_VOTE_PANEL)
+	{
+		m_AetherVotePanelRect.x = Mouse.x - m_AetherVotePanelDragOffset.x;
+		m_AetherVotePanelRect.y = Mouse.y - m_AetherVotePanelDragOffset.y;
+		if(std::abs((m_AetherVotePanelRect.x + m_AetherVotePanelRect.w * 0.5f) - m_Width * 0.5f) <= 4.0f)
+			m_AetherVotePanelRect.x = m_Width * 0.5f - m_AetherVotePanelRect.w * 0.5f;
+		if(std::abs((m_AetherVotePanelRect.y + m_AetherVotePanelRect.h * 0.5f) - m_Height * 0.5f) <= 4.0f)
+			m_AetherVotePanelRect.y = m_Height * 0.5f - m_AetherVotePanelRect.h * 0.5f;
+		ClampAetherVotePanel();
+		return true;
+	}
 	if(m_TClientFrozenTextEditorInteraction == ETClientFrozenTextEditorInteraction::RESIZING_FROZEN_TEXT)
 	{
 		const float BaseWidth = std::max(28.0f, m_TClientFrozenTextRect.w / std::max(0.01f, g_Config.m_TcFrozenTextScale / 100.0f));
@@ -753,6 +815,15 @@ bool CHud::OnCursorMove(float x, float y, IInput::ECursorType CursorType)
 		const float HorizontalScale = std::abs(Mouse.x - m_AetherTeamInviteResizeCenter.x) / (BaseWidth * 0.5f);
 		const float VerticalScale = std::abs(Mouse.y - m_AetherTeamInviteResizeCenter.y) / (BaseHeight * 0.5f);
 		SetAetherTeamInviteScaleKeepingCenter((int)std::round(std::max(HorizontalScale, VerticalScale) * 100.0f), m_AetherTeamInviteResizeCenter);
+		return true;
+	}
+	if(m_TClientFrozenTextEditorInteraction == ETClientFrozenTextEditorInteraction::RESIZING_AETHER_VOTE_PANEL)
+	{
+		const float BaseWidth = 168.0f;
+		const float BaseHeight = 66.0f;
+		const float HorizontalScale = std::abs(Mouse.x - m_AetherVotePanelResizeCenter.x) / (BaseWidth * 0.5f);
+		const float VerticalScale = std::abs(Mouse.y - m_AetherVotePanelResizeCenter.y) / (BaseHeight * 0.5f);
+		SetAetherVotePanelScaleKeepingCenter((int)std::round(std::max(HorizontalScale, VerticalScale) * 100.0f), m_AetherVotePanelResizeCenter);
 		return true;
 	}
 	return true;
@@ -853,6 +924,16 @@ void CHud::OnUpdate()
 			m_AetherTeamInviteRect.y = m_Height * 0.5f - m_AetherTeamInviteRect.h * 0.5f;
 		ClampAetherTeamInvite();
 	}
+	else if(m_TClientFrozenTextEditorInteraction == ETClientFrozenTextEditorInteraction::DRAGGING_AETHER_VOTE_PANEL)
+	{
+		m_AetherVotePanelRect.x = Mouse.x - m_AetherVotePanelDragOffset.x;
+		m_AetherVotePanelRect.y = Mouse.y - m_AetherVotePanelDragOffset.y;
+		if(std::abs((m_AetherVotePanelRect.x + m_AetherVotePanelRect.w * 0.5f) - m_Width * 0.5f) <= 4.0f)
+			m_AetherVotePanelRect.x = m_Width * 0.5f - m_AetherVotePanelRect.w * 0.5f;
+		if(std::abs((m_AetherVotePanelRect.y + m_AetherVotePanelRect.h * 0.5f) - m_Height * 0.5f) <= 4.0f)
+			m_AetherVotePanelRect.y = m_Height * 0.5f - m_AetherVotePanelRect.h * 0.5f;
+		ClampAetherVotePanel();
+	}
 	else if(m_TClientFrozenTextEditorInteraction == ETClientFrozenTextEditorInteraction::RESIZING_FROZEN_TEXT)
 	{
 		const float BaseWidth = std::max(28.0f, m_TClientFrozenTextRect.w / std::max(0.01f, g_Config.m_TcFrozenTextScale / 100.0f));
@@ -921,6 +1002,14 @@ void CHud::OnUpdate()
 		const float HorizontalScale = std::abs(Mouse.x - m_AetherTeamInviteResizeCenter.x) / (BaseWidth * 0.5f);
 		const float VerticalScale = std::abs(Mouse.y - m_AetherTeamInviteResizeCenter.y) / (BaseHeight * 0.5f);
 		SetAetherTeamInviteScaleKeepingCenter((int)std::round(std::max(HorizontalScale, VerticalScale) * 100.0f), m_AetherTeamInviteResizeCenter);
+	}
+	else if(m_TClientFrozenTextEditorInteraction == ETClientFrozenTextEditorInteraction::RESIZING_AETHER_VOTE_PANEL)
+	{
+		const float BaseWidth = 168.0f;
+		const float BaseHeight = 66.0f;
+		const float HorizontalScale = std::abs(Mouse.x - m_AetherVotePanelResizeCenter.x) / (BaseWidth * 0.5f);
+		const float VerticalScale = std::abs(Mouse.y - m_AetherVotePanelResizeCenter.y) / (BaseHeight * 0.5f);
+		SetAetherVotePanelScaleKeepingCenter((int)std::round(std::max(HorizontalScale, VerticalScale) * 100.0f), m_AetherVotePanelResizeCenter);
 	}
 }
 
@@ -3149,6 +3238,19 @@ void CHud::RenderAetherTeamInvitePopup()
 		RenderTClientHudEditorOverlay(m_AetherTeamInviteRect, AetherTeamInviteResizeHandleRect());
 }
 
+void CHud::RenderAetherVotePanelEditorOverlay()
+{
+	if(!m_TClientFrozenTextEditorOpen || !g_Config.m_AeVotePanel)
+		return;
+	const float Scale = std::clamp(g_Config.m_AeVotePanelScale / 100.0f, 0.5f, 2.0f);
+	m_AetherVotePanelRect = CUIRect(
+		std::clamp((float)g_Config.m_AeVotePanelOffsetX, 0.0f, std::max(0.0f, m_Width - 168.0f * Scale)),
+		std::clamp((float)g_Config.m_AeVotePanelOffsetY, 0.0f, std::max(0.0f, m_Height - 66.0f * Scale)),
+		168.0f * Scale,
+		66.0f * Scale);
+	RenderTClientHudEditorOverlay(m_AetherVotePanelRect, AetherVotePanelResizeHandleRect());
+}
+
 void CHud::OnRender()
 {
 	if(Client()->State() != IClient::STATE_ONLINE && Client()->State() != IClient::STATE_DEMOPLAYBACK)
@@ -3274,6 +3376,7 @@ void CHud::OnRender()
 			RenderConnectionWarning();
 		RenderTeambalanceWarning();
 		GameClient()->m_Voting.Render();
+		RenderAetherVotePanelEditorOverlay();
 		if(g_Config.m_ClShowRecord)
 			RenderRecord();
 		RenderAetherTeamInvitePopup();

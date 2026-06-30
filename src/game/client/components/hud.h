@@ -65,6 +65,8 @@ class CHud : public CComponent
 		RESIZING_AETHER_TIMER_PANEL,
 		DRAGGING_AETHER_TEAM_INVITE,
 		RESIZING_AETHER_TEAM_INVITE,
+		DRAGGING_AETHER_VOTE_PANEL,
+		RESIZING_AETHER_VOTE_PANEL,
 	};
 
 	float m_Width, m_Height;
@@ -131,6 +133,7 @@ class CHud : public CComponent
 	CUIRect m_AetherTeamCounterRect;
 	CUIRect m_AetherTimerPanelRect;
 	CUIRect m_AetherTeamInviteRect;
+	CUIRect m_AetherVotePanelRect;
 	vec2 m_TClientFrozenTextDragOffset;
 	vec2 m_TClientFrozenTextResizeCenter;
 	vec2 m_TClientLastNotifyDragOffset;
@@ -147,6 +150,8 @@ class CHud : public CComponent
 	vec2 m_AetherTimerPanelResizeCenter;
 	vec2 m_AetherTeamInviteDragOffset;
 	vec2 m_AetherTeamInviteResizeCenter;
+	vec2 m_AetherVotePanelDragOffset;
+	vec2 m_AetherVotePanelResizeCenter;
 
 	void InitializeTClientEditorRects();
 	void RenderSpectatorHud();
@@ -192,6 +197,7 @@ private:
 	CUIRect AetherTeamCounterResizeHandleRect() const;
 	CUIRect AetherTimerPanelResizeHandleRect() const;
 	CUIRect AetherTeamInviteResizeHandleRect() const;
+	CUIRect AetherVotePanelResizeHandleRect() const;
 	void SetTClientFrozenTextScaleKeepingCenter(int NewScale, vec2 Center);
 	void SetTClientLastNotifySizeKeepingCenter(int NewSize, vec2 Center);
 	void SetTClientFrozenHudSizeKeepingCenter(int NewSize, vec2 Center);
@@ -200,6 +206,7 @@ private:
 	void SetAetherTeamCounterScaleKeepingCenter(int NewScale, vec2 Center);
 	void SetAetherTimerPanelScaleKeepingCenter(int NewScale, vec2 Center);
 	void SetAetherTeamInviteScaleKeepingCenter(int NewScale, vec2 Center);
+	void SetAetherVotePanelScaleKeepingCenter(int NewScale, vec2 Center);
 	void ClampTClientFrozenText();
 	void ClampTClientLastNotify();
 	void ClampTClientFrozenHud();
@@ -208,7 +215,9 @@ private:
 	void ClampAetherTeamCounter();
 	void ClampAetherTimerPanel();
 	void ClampAetherTeamInvite();
+	void ClampAetherVotePanel();
 	void RenderTClientHudEditorOverlay(const CUIRect &Rect, const CUIRect &Handle);
+	void RenderAetherVotePanelEditorOverlay();
 	bool AetherNinjaTimerState(int *pRemainingMs, float *pProgress) const;
 	void RenderAetherNinjaTimer();
 	void RenderAetherTimerPanel();

@@ -196,6 +196,8 @@ bool AetherFeatureAllowed(AetherMusic::EAetherFeatureId Id)
 		case EAetherFeatureId::REAL_HITBOX:
 		case EAetherFeatureId::NINJA_TEE_PREVIEW:
 		case EAetherFeatureId::TEAM_OVERLAYS:
+		case EAetherFeatureId::TEAM_INVITE_POPUP:
+		case EAetherFeatureId::VOTE_PANEL:
 		case EAetherFeatureId::FINISH_PREDICTION:
 		case EAetherFeatureId::LOADING_THEME_BACKGROUND:
 		case EAetherFeatureId::CLIENT_BADGES:
@@ -235,6 +237,8 @@ bool AetherFeatureAllowed(AetherMusic::EAetherFeatureId Id)
 		case EAetherFeatureId::DDRACE_CONFIGS:
 		case EAetherFeatureId::NINJA_TIMER:
 		case EAetherFeatureId::TEAM_OVERLAYS:
+		case EAetherFeatureId::TEAM_INVITE_POPUP:
+		case EAetherFeatureId::VOTE_PANEL:
 		case EAetherFeatureId::MUSIC_PLAYER:
 		case EAetherFeatureId::REAL_HITBOX:
 		case EAetherFeatureId::NINJA_TEE_PREVIEW:
@@ -275,6 +279,8 @@ bool AetherFeatureAllowed(AetherMusic::EAetherFeatureId Id)
 		case EAetherFeatureId::REAL_HITBOX:
 		case EAetherFeatureId::NINJA_TEE_PREVIEW:
 		case EAetherFeatureId::TEAM_OVERLAYS:
+		case EAetherFeatureId::TEAM_INVITE_POPUP:
+		case EAetherFeatureId::VOTE_PANEL:
 		case EAetherFeatureId::FINISH_PREDICTION:
 		case EAetherFeatureId::LOADING_THEME_BACKGROUND:
 		case EAetherFeatureId::CLIENT_BADGES:
@@ -438,13 +444,18 @@ const char *AetherLocalize(const char *pText)
 		{"Local", "Yerel"},
 		{"Cloud", "Cloud"},
 		{"Last warning sound", "Son kalan ses uyarisi"},
+		{"Last alive", "Son kalan"},
+		{"Frozen counter", "Frozen sayaci"},
 		{"Last sound", "Son sesi"},
 		{"Last volume", "Son sesi seviyesi"},
 		{"Sound folder", "Ses klasoru"},
+		{"Team Invite Popup", "Takim Davet Paneli"},
 		{"Team invite popup", "Takim davet paneli"},
 		{"Hide while in team", "Takimdayken gizle"},
 		{"Hide while running", "Run'dayken gizle"},
 		{"Invite join key", "Davet katilma tusu"},
+		{"Vote Panel", "Vote Paneli"},
+		{"Modern vote panel", "Modern vote paneli"},
 		{"Refresh sounds", "Sesleri yenile"},
 		{"Open sounds", "Sesleri ac"},
 		{"Enable custom background", "Ozel arka plani ac"},
@@ -466,6 +477,7 @@ const char *AetherLocalize(const char *pText)
 		{"Visualizer", "Görselleştirici"},
 		{"Visualizer style", "Görselleştirici stili"},
 		{"Visualizer sensitivity", "Görselleştirici hassasiyeti"},
+		{"Low volume boost", "Dusuk ses guclendirme"},
 		{"Visualizer glow", "Görselleştirici parlaması"},
 		{"Coded background", "Kodlu arka plan"},
 		{"Parallax", "Parallax"},
@@ -504,6 +516,7 @@ const char *AetherLocalize(const char *pText)
 		{"Kill/respawn sounds from other players", "Baskalarinin kill/respawn sesleri"},
 		{"Show in nameplates", "Nameplate'te göster"},
 		{"Show in scoreboard", "Scoreboard'da göster"},
+		{"KoG points in tab", "Tab'da KoG points göster"},
 		{"Show client badges only", "Sadece client rozetlerini göster"},
 		{"Show friend heart", "Arkadaş kalbini göster"},
 		{"Show Aether pings", "Aether pinglerini göster"},
@@ -955,6 +968,10 @@ const char *AetherFeatureTooltip(AetherMusic::EAetherFeatureId Id)
 		return "Shows remaining DDRace ninja time while ninja is active.";
 	case EAetherFeatureId::TEAM_OVERLAYS:
 		return "Modern replacement for TClient last alive text and frozen tee display.";
+	case EAetherFeatureId::TEAM_INVITE_POPUP:
+		return "Shows a separate compact team invite popup with its own bind and HUD position.";
+	case EAetherFeatureId::VOTE_PANEL:
+		return "Replaces the default vote popup with a compact Aether panel that can be moved in HUD Editor.";
 	case EAetherFeatureId::SWEAT_WEAPON:
 		return "Adds a visual sweat-style weapon effect.";
 	case EAetherFeatureId::ORBIT_AURA:
@@ -1063,6 +1080,7 @@ const char *AetherControlTooltip(const char *pLabel)
 		{"Hide while in team", "Suppresses team invite popups while you are already in a DDNet team."},
 		{"Hide while running", "Suppresses team invite popups while your local race timer is running."},
 		{"Invite join key", "Key bound to accept the latest visible team invite popup."},
+		{"Modern vote panel", "Replaces the default vote popup with an Aether-styled HUD panel."},
 		{"Counter background", "Draws a compact background behind the frozen/alive team counter."},
 		{"Enable custom background", "Applies or disables the generated Aether entities background separately from the builder."},
 		{"Background image", "Uses a PNG from assets/backgrounds as the exported cl_background_entities map background."},
@@ -1263,6 +1281,7 @@ const char *AetherControlTooltip(const char *pLabel)
 		{"Timeline", "Shows the current media time and progress bar under the media title."},
 		{"Visualizer", "Shows the music visualizer in the player panel."},
 		{"Visualizer sensitivity", "How strongly audio affects visualizer height."},
+		{"Low volume boost", "Boosts real captured audio bands when media volume is low; silence and noise floor stay silent."},
 		{"Visualizer glow", "Glow amount around the visualizer."},
 		{"Only enabled", "Filters the feature list to only show enabled features."},
 		{"Show legal moves", "Shows legal chess moves for the selected piece."},
@@ -4903,8 +4922,6 @@ void CMenus::RenderSettingsAetherTeamOverlays(CUIRect Body)
 	static CButtonContainer s_LastWarningSoundTestButton;
 	static CButtonContainer s_LastWarningSoundRefreshButton;
 	static CButtonContainer s_LastWarningSoundOpenFolderButton;
-	static CButtonContainer s_InviteJoinReaderButton;
-	static CButtonContainer s_InviteJoinClearButton;
 	static int s_LastWarningPreviewSample = -1;
 	static char s_aLastWarningPreviewFile[128] = "";
 	static bool s_LastWarningSoundListDirty = true;
@@ -4929,25 +4946,38 @@ void CMenus::RenderSettingsAetherTeamOverlays(CUIRect Body)
 		s_LastWarningSoundListDirty = false;
 	}
 
-	Body.HSplitTop(22.0f * S, &Row, &Body);
+	auto DrawSectionTitle = [&](CUIRect &Column, const char *pTitle) {
+		Column.HSplitTop(18.0f * S, &Row, &Column);
+		TextRender()->TextColor(0.95f, 0.76f, 1.0f, 1.0f);
+		Ui()->DoLabel(&Row, AetherLocalize(pTitle), 13.0f * S, TEXTALIGN_ML);
+		TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+		Column.HSplitTop(4.0f * S, nullptr, &Column);
+	};
+
+	CUIRect LastColumn, CounterColumn;
+	Body.VSplitMid(&LastColumn, &CounterColumn, 12.0f * S);
+
+	DrawSectionTitle(LastColumn, "Last alive");
+	LastColumn.HSplitTop(22.0f * S, &Row, &LastColumn);
 	if(DoButton_CheckBox(&g_Config.m_AeTeamLastOverlay, "Last alive display", g_Config.m_AeTeamLastOverlay, &Row))
 		g_Config.m_AeTeamLastOverlay ^= 1;
 	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeTeamLastOverlay, Row, "Last alive display");
 
-	Body.HSplitTop(24.0f * S, &Row, &Body);
+	LastColumn.HSplitTop(24.0f * S, &Row, &LastColumn);
 	AetherOptionRow(Row, S, &Label, &Control);
 	Ui()->DoLabel(&Label, AetherLocalize("Last text"), 13.0f * S, TEXTALIGN_ML);
 	s_LastTextInput.SetBuffer(g_Config.m_AeTeamLastText, sizeof(g_Config.m_AeTeamLastText));
 	s_LastTextInput.SetEmptyText("LAST");
 	Ui()->DoEditBox(&s_LastTextInput, &Control, 13.0f * S, IGraphics::CORNER_ALL, {}, 5.0f * S);
 
-	DoLine_ColorPicker(&s_LastColorReset, 24.0f * S, 13.0f * S, 3.0f * S, &Body, "Last color", &g_Config.m_AeTeamLastColor, ColorRGBA(1.0f, 0.42f, 0.30f), false);
-	Body.HSplitTop(22.0f * S, &Row, &Body);
+	DoLine_ColorPicker(&s_LastColorReset, 24.0f * S, 13.0f * S, 3.0f * S, &LastColumn, "Last color", &g_Config.m_AeTeamLastColor, ColorRGBA(1.0f, 0.42f, 0.30f), false);
+	LastColumn.HSplitTop(22.0f * S, &Row, &LastColumn);
 	if(DoButton_CheckBox(&g_Config.m_AeTeamLastBackground, "Last background", g_Config.m_AeTeamLastBackground, &Row))
 		g_Config.m_AeTeamLastBackground ^= 1;
 	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeTeamLastBackground, Row, "Last background");
 
-	Body.HSplitTop(22.0f * S, &Row, &Body);
+	LastColumn.HSplitTop(4.0f * S, nullptr, &LastColumn);
+	LastColumn.HSplitTop(22.0f * S, &Row, &LastColumn);
 	if(DoButton_CheckBox(&g_Config.m_AeFreezeFailSoundTeamLast, "Last warning sound", g_Config.m_AeFreezeFailSoundTeamLast, &Row))
 	{
 		g_Config.m_AeFreezeFailSoundTeamLast ^= 1;
@@ -4956,11 +4986,11 @@ void CMenus::RenderSettingsAetherTeamOverlays(CUIRect Body)
 	}
 	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeFreezeFailSoundTeamLast, Row, "Last warning sound");
 
-	Body.HSplitTop(22.0f * S, &Row, &Body);
+	LastColumn.HSplitTop(24.0f * S, &Row, &LastColumn);
 	AetherOptionRow(Row, S, &Label, &Control);
 	Ui()->DoLabel(&Label, AetherLocalize("Last sound"), 12.0f * S, TEXTALIGN_ML);
 	CUIRect Drop, Test;
-	Control.VSplitRight(58.0f * S, &Drop, &Test);
+	Control.VSplitRight(48.0f * S, &Drop, &Test);
 	Drop.VSplitRight(6.0f * S, &Drop, nullptr);
 	s_LastWarningSoundDropState.m_SelectionPopupContext.m_pScrollRegion = &s_LastWarningSoundDropScroll;
 	const int CurLastSound = SelectedSoundFileIndex(s_vLastWarningSoundLabels, g_Config.m_AeFreezeFailSoundTeamLastFile);
@@ -4976,17 +5006,15 @@ void CMenus::RenderSettingsAetherTeamOverlays(CUIRect Body)
 	if(DoButton_Menu(&s_LastWarningSoundTestButton, "Test", 0, &Test))
 		PreviewAetherUserSound(Storage(), Sound(), "failsound", g_Config.m_AeFreezeFailSoundTeamLastFile, g_Config.m_AeFreezeFailSoundTeamLastVol, s_LastWarningPreviewSample, s_aLastWarningPreviewFile, sizeof(s_aLastWarningPreviewFile), CSounds::CHN_GLOBAL);
 
-	Body.HSplitTop(22.0f * S, &Row, &Body);
+	LastColumn.HSplitTop(22.0f * S, &Row, &LastColumn);
 	Ui()->DoScrollbarOption(&g_Config.m_AeFreezeFailSoundTeamLastVol, &g_Config.m_AeFreezeFailSoundTeamLastVol, &Row, "Last volume", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
 	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeFreezeFailSoundTeamLastVol, Row, "Last volume");
 
-	Body.HSplitTop(24.0f * S, &Row, &Body);
+	LastColumn.HSplitTop(24.0f * S, &Row, &LastColumn);
 	AetherOptionRow(Row, S, &Label, &Control);
 	Ui()->DoLabel(&Label, AetherLocalize("Sound folder"), 12.0f * S, TEXTALIGN_ML);
 	CUIRect RefreshSounds, OpenSounds;
-	Control.VSplitLeft(82.0f * S, &RefreshSounds, &Control);
-	Control.VSplitLeft(6.0f * S, nullptr, &Control);
-	Control.VSplitLeft(82.0f * S, &OpenSounds, nullptr);
+	Control.VSplitMid(&RefreshSounds, &OpenSounds, 6.0f * S);
 	if(DoButton_Menu(&s_LastWarningSoundRefreshButton, "Reload", 0, &RefreshSounds))
 	{
 		s_LastWarningSoundListDirty = true;
@@ -5000,26 +5028,8 @@ void CMenus::RenderSettingsAetherTeamOverlays(CUIRect Body)
 		Client()->ViewFile(aDir);
 	}
 
-	Body.HSplitTop(8.0f * S, nullptr, &Body);
-	Body.HSplitTop(22.0f * S, &Row, &Body);
-	if(DoButton_CheckBox(&g_Config.m_AeTeamInvitePopup, "Team invite popup", g_Config.m_AeTeamInvitePopup, &Row))
-		g_Config.m_AeTeamInvitePopup ^= 1;
-	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeTeamInvitePopup, Row, "Team invite popup");
-	Body.HSplitTop(3.0f * S, nullptr, &Body);
-	Body.HSplitTop(22.0f * S, &Row, &Body);
-	if(DoButton_CheckBox(&g_Config.m_AeTeamInviteHideInTeam, "Hide while in team", g_Config.m_AeTeamInviteHideInTeam, &Row))
-		g_Config.m_AeTeamInviteHideInTeam ^= 1;
-	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeTeamInviteHideInTeam, Row, "Hide while in team");
-	Body.HSplitTop(3.0f * S, nullptr, &Body);
-	Body.HSplitTop(22.0f * S, &Row, &Body);
-	if(DoButton_CheckBox(&g_Config.m_AeTeamInviteHideRunning, "Hide while running", g_Config.m_AeTeamInviteHideRunning, &Row))
-		g_Config.m_AeTeamInviteHideRunning ^= 1;
-	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeTeamInviteHideRunning, Row, "Hide while running");
-	Body.HSplitTop(3.0f * S, nullptr, &Body);
-	DoLine_KeyReader(Body, s_InviteJoinReaderButton, s_InviteJoinClearButton, "Invite join key", "ae_team_invite_join");
-
-	Body.HSplitTop(8.0f * S, nullptr, &Body);
-	Body.HSplitTop(24.0f * S, &Row, &Body);
+	DrawSectionTitle(CounterColumn, "Frozen counter");
+	CounterColumn.HSplitTop(24.0f * S, &Row, &CounterColumn);
 	AetherOptionRow(Row, S, &Label, &Control);
 	Ui()->DoLabel(&Label, AetherLocalize("Frozen tee counter"), 13.0f * S, TEXTALIGN_ML);
 	const char *apModeLabels[] = {"Off", "Alive", "Frozen"};
@@ -5033,22 +5043,63 @@ void CMenus::RenderSettingsAetherTeamOverlays(CUIRect Body)
 			g_Config.m_AeTeamFreezeCounter = i;
 	}
 
-	DoLine_ColorPicker(&s_CounterColorReset, 24.0f * S, 13.0f * S, 3.0f * S, &Body, "Counter color", &g_Config.m_AeTeamFreezeCounterColor, ColorRGBA(0.66f, 0.84f, 1.0f), false);
-	Body.HSplitTop(22.0f * S, &Row, &Body);
+	DoLine_ColorPicker(&s_CounterColorReset, 24.0f * S, 13.0f * S, 3.0f * S, &CounterColumn, "Counter color", &g_Config.m_AeTeamFreezeCounterColor, ColorRGBA(0.66f, 0.84f, 1.0f), false);
+	CounterColumn.HSplitTop(22.0f * S, &Row, &CounterColumn);
 	if(DoButton_CheckBox(&g_Config.m_AeTeamFreezeCounterBackground, "Counter background", g_Config.m_AeTeamFreezeCounterBackground, &Row))
 		g_Config.m_AeTeamFreezeCounterBackground ^= 1;
 	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeTeamFreezeCounterBackground, Row, "Counter background");
 
-	Body.HSplitTop(6.0f * S, nullptr, &Body);
+	CounterColumn.HSplitTop(10.0f * S, nullptr, &CounterColumn);
+	CounterColumn.HSplitTop(18.0f * S, &Row, &CounterColumn);
+	TextRender()->TextColor(0.72f, 0.78f, 0.86f, 1.0f);
+	Ui()->DoLabel(&Row, AetherLocalize("Position and scale are HUD Editor only."), 11.0f * S, TEXTALIGN_ML);
+	CounterColumn.HSplitTop(18.0f * S, &Row, &CounterColumn);
+	Ui()->DoLabel(&Row, AetherLocalize("Independent from the old TClient last text and frozen tee display settings."), 11.0f * S, TEXTALIGN_ML);
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+}
+
+void CMenus::RenderSettingsAetherTeamInvitePopup(CUIRect Body)
+{
+	static CButtonContainer s_InviteJoinReaderButton;
+	static CButtonContainer s_InviteJoinClearButton;
+	const float S = AetherSettingsScale();
+
+	Body.Draw(AetherPanelColor(0.34f), IGraphics::CORNER_ALL, 6.0f);
+	Body.Margin(12.0f * S, &Body);
+
+	CUIRect Row;
 	Body.HSplitTop(22.0f * S, &Row, &Body);
+	if(DoButton_CheckBox(&g_Config.m_AeTeamInviteHideInTeam, "Hide while in team", g_Config.m_AeTeamInviteHideInTeam, &Row))
+		g_Config.m_AeTeamInviteHideInTeam ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeTeamInviteHideInTeam, Row, "Hide while in team");
+	Body.HSplitTop(4.0f * S, nullptr, &Body);
+
+	Body.HSplitTop(22.0f * S, &Row, &Body);
+	if(DoButton_CheckBox(&g_Config.m_AeTeamInviteHideRunning, "Hide while running", g_Config.m_AeTeamInviteHideRunning, &Row))
+		g_Config.m_AeTeamInviteHideRunning ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeTeamInviteHideRunning, Row, "Hide while running");
+	Body.HSplitTop(5.0f * S, nullptr, &Body);
+
+	DoLine_KeyReader(Body, s_InviteJoinReaderButton, s_InviteJoinClearButton, "Invite join key", "ae_team_invite_join");
+
+	Body.HSplitTop(8.0f * S, nullptr, &Body);
+	Body.HSplitTop(20.0f * S, &Row, &Body);
 	TextRender()->TextColor(0.72f, 0.78f, 0.86f, 1.0f);
 	Ui()->DoLabel(&Row, AetherLocalize("Position and scale are HUD Editor only."), 11.0f * S, TEXTALIGN_ML);
 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+}
 
-	Body.HSplitTop(6.0f * S, nullptr, &Body);
-	Body.HSplitTop(30.0f * S, &Row, &Body);
+void CMenus::RenderSettingsAetherVotePanel(CUIRect Body)
+{
+	const float S = AetherSettingsScale();
+
+	Body.Draw(AetherPanelColor(0.34f), IGraphics::CORNER_ALL, 6.0f);
+	Body.Margin(12.0f * S, &Body);
+
+	CUIRect Row;
+	Body.HSplitTop(20.0f * S, &Row, &Body);
 	TextRender()->TextColor(0.72f, 0.78f, 0.86f, 1.0f);
-	Ui()->DoLabel(&Row, AetherLocalize("Independent from the old TClient last text and frozen tee display settings."), 11.0f * S, TEXTALIGN_ML);
+	Ui()->DoLabel(&Row, AetherLocalize("Position and scale are HUD Editor only."), 11.0f * S, TEXTALIGN_ML);
 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
@@ -8093,6 +8144,10 @@ void CMenus::RenderSettingsAetherMusicPlayer(CUIRect Body)
 	Ui()->DoScrollbarOption(&g_Config.m_AeMusicVisualizerSensitivity, &g_Config.m_AeMusicVisualizerSensitivity, &Control, Localize("Visualizer sensitivity"), 50, 1500, &CUi::ms_LinearScrollbarScale, 0, "%");
 	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeMusicVisualizerSensitivity, Control, "Visualizer sensitivity");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
+	if(DoButton_CheckBox(&g_Config.m_AeMusicVisualizerAutoGain, Localize("Low volume boost"), g_Config.m_AeMusicVisualizerAutoGain, &Control))
+		g_Config.m_AeMusicVisualizerAutoGain ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeMusicVisualizerAutoGain, Control, "Low volume boost");
+	Body.HSplitTop(22.0f * S, &Control, &Body);
 	Ui()->DoScrollbarOption(&g_Config.m_AeMusicVisualizerGlow, &g_Config.m_AeMusicVisualizerGlow, &Control, Localize("Visualizer glow"), 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
 	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeMusicVisualizerGlow, Control, "Visualizer glow");
 }
@@ -8111,7 +8166,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		RenderSettingsAetherMapBackgroundBuilderPopup(MainView);
 		return;
 	}
-	static const std::array<const char *, 10> s_apMusicChildren = {
+	static const std::array<const char *, 11> s_apMusicChildren = {
 		"Dynamic cover color",
 		"Background color",
 		"Panel opacity",
@@ -8121,6 +8176,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		"Visualizer",
 		"Visualizer style",
 		"Visualizer sensitivity",
+		"Low volume boost",
 		"Visualizer glow"};
 	static const std::array<const char *, 4> s_apCustomMenuThemeChildren = {
 		"PNG image",
@@ -8168,7 +8224,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 	static const std::array<const char *, 2> s_apNinjaTimerChildren = {
 		"Timer",
 		"HUD editor"};
-	static const std::array<const char *, 17> s_apTeamOverlaysChildren = {
+	static const std::array<const char *, 10> s_apTeamOverlaysChildren = {
 		"Last alive display",
 		"Last text",
 		"Last color",
@@ -8176,16 +8232,15 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		"Last warning sound",
 		"Last sound",
 		"Last volume",
-		"Sound folder",
-		"Team invite popup",
-		"Hide while in team",
-		"Hide while running",
-		"Invite join key",
 		"Frozen tee counter",
-		"Alive",
-		"Frozen",
 		"Counter color",
 		"Counter background"};
+	static const std::array<const char *, 3> s_apTeamInvitePopupChildren = {
+		"Hide while in team",
+		"Hide while running",
+		"Invite join key"};
+	static const std::array<const char *, 1> s_apVotePanelChildren = {
+		"HUD editor"};
 	static const std::array<const char *, 16> s_apSweatWeaponChildren = {
 		"Crystal laser",
 		"Sand shotgun",
@@ -8482,9 +8537,11 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		"Coded background",
 		"Parallax",
 		"Override"};
-	const std::array<SFeature, 48> aFeatures = {{
+	const std::array<SFeature, 50> aFeatures = {{
 		{AetherMusic::EAetherFeatureId::TEAM_OVERLAYS, EAetherPage::VISUALS, ESection::VISUALS, "Last & Frozen Display", nullptr, s_apTeamOverlaysChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::GRADIENT_TEAM_COLORS, EAetherPage::VISUALS, ESection::VISUALS, "Gradient Effects", nullptr, s_apGradientTeamColorChildren, EEditorAction::NONE},
+		{AetherMusic::EAetherFeatureId::TEAM_INVITE_POPUP, EAetherPage::VISUALS, ESection::VISUALS, "Team Invite Popup", &g_Config.m_AeTeamInvitePopup, s_apTeamInvitePopupChildren, EEditorAction::NONE},
+		{AetherMusic::EAetherFeatureId::VOTE_PANEL, EAetherPage::VISUALS, ESection::VISUALS, "Vote Panel", &g_Config.m_AeVotePanel, s_apVotePanelChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::AETHER_MENU_THEME, EAetherPage::VISUALS, ESection::VISUALS, "Aether Menu Theme", &g_Config.m_AeMenuThemeOverride, s_apAetherMenuThemeChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::MUSIC_PLAYER, EAetherPage::VISUALS, ESection::VISUALS, "Music Player", &g_Config.m_AeMusicPlayer, s_apMusicChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::KEYSTROKES, EAetherPage::VISUALS, ESection::VISUALS, "Keystrokes", &g_Config.m_AeKeystrokes, s_apKeystrokesChildren, EEditorAction::NONE},
@@ -8683,7 +8740,9 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		case AetherMusic::EAetherFeatureId::REAL_HITBOX: return 74.0f * S;
 		case AetherMusic::EAetherFeatureId::NINJA_TEE_PREVIEW: return 116.0f * S;
 		case AetherMusic::EAetherFeatureId::NINJA_TIMER: return 54.0f * S;
-		case AetherMusic::EAetherFeatureId::TEAM_OVERLAYS: return 452.0f * S;
+		case AetherMusic::EAetherFeatureId::TEAM_OVERLAYS: return 348.0f * S;
+		case AetherMusic::EAetherFeatureId::TEAM_INVITE_POPUP: return 128.0f * S;
+		case AetherMusic::EAetherFeatureId::VOTE_PANEL: return 62.0f * S;
 		case AetherMusic::EAetherFeatureId::SWEAT_WEAPON:
 			return (430.0f +
 				(g_Config.m_AeSweatWeaponShine ? 24.0f : 0.0f) +
@@ -8696,7 +8755,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		case AetherMusic::EAetherFeatureId::THREE_D_PARTICLES: return (g_Config.m_Ae3DParticlesColorMode == 0 ? 266.0f : 230.0f) * S;
 		case AetherMusic::EAetherFeatureId::AETHER_MENU_THEME: return 68.0f * S;
 		case AetherMusic::EAetherFeatureId::LOADING_THEME_BACKGROUND: return 52.0f * S;
-		case AetherMusic::EAetherFeatureId::CLIENT_BADGES: return 170.0f * S;
+		case AetherMusic::EAetherFeatureId::CLIENT_BADGES: return 148.0f * S;
 		case AetherMusic::EAetherFeatureId::PING_WHEEL: return 126.0f * S;
 		case AetherMusic::EAetherFeatureId::CHAT_BUBBLES: return 238.0f * S;
 		case AetherMusic::EAetherFeatureId::BLOCK_AWARENESS:
@@ -8783,6 +8842,12 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 			break;
 		case AetherMusic::EAetherFeatureId::TEAM_OVERLAYS:
 			RenderSettingsAetherTeamOverlays(Body);
+			break;
+		case AetherMusic::EAetherFeatureId::TEAM_INVITE_POPUP:
+			RenderSettingsAetherTeamInvitePopup(Body);
+			break;
+		case AetherMusic::EAetherFeatureId::VOTE_PANEL:
+			RenderSettingsAetherVotePanel(Body);
 			break;
 		case AetherMusic::EAetherFeatureId::SWEAT_WEAPON:
 			RenderSettingsAetherSweatWeapon(Body);

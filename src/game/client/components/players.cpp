@@ -1993,10 +1993,6 @@ bool CPlayers::EnsureAetherBlockTeeRenderInfoReady()
 void CPlayers::OnInit()
 {
 	m_AetherMenuStatusIconTexture = Graphics()->LoadTexture("core/icons/aether_settings_indicator.png", IStorage::TYPE_ALL);
-	if(!m_AetherMenuStatusIconTexture.IsValid())
-		m_AetherMenuStatusIconTexture = Graphics()->LoadTexture("core/icons/menu_gear.png", IStorage::TYPE_ALL);
-	if(!m_AetherMenuStatusIconTexture.IsValid())
-		m_AetherMenuStatusIconTexture = Graphics()->LoadTexture("aether/icons/menu_gear.png", IStorage::TYPE_ALL);
 
 	m_WeaponEmoteQuadContainerIndex = Graphics()->CreateQuadContainer(false);
 

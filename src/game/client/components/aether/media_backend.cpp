@@ -71,6 +71,7 @@ public:
 	std::thread m_Thread;
 	std::atomic_bool m_Stop{false};
 	std::atomic_bool m_VisualizerEnabled{false};
+	std::atomic_bool m_AutoGain{false};
 	std::atomic_int m_Sensitivity{100};
 
 #if defined(CONF_FAMILY_WINDOWS)
@@ -219,7 +220,7 @@ public:
 			return true;
 		}
 
-		SPollResult Poll(int Sensitivity)
+		SPollResult Poll(int Sensitivity, bool AutoGain)
 		{
 			SPollResult Result;
 			if(!m_CaptureClient || m_Format.nChannels == 0)
@@ -255,7 +256,14 @@ public:
 			for(const float Sample : m_vMonoSamples)
 				SumSquares += Sample * Sample;
 			Result.m_RootMeanSquare = std::sqrt(SumSquares / m_vMonoSamples.size());
-			Result.m_aBands = AetherMusic::FiveBands(m_vMonoSamples, m_Format.nSamplesPerSec, Sensitivity);
+			int EffectiveSensitivity = Sensitivity;
+			if(AutoGain && Result.m_RootMeanSquare > 0.0015f)
+			{
+				const float TargetRms = 0.040f;
+				const float Gain = std::clamp(TargetRms / Result.m_RootMeanSquare, 1.0f, 4.5f);
+				EffectiveSensitivity = std::clamp((int)std::lround(Sensitivity * Gain), 50, 1500);
+			}
+			Result.m_aBands = AetherMusic::FiveBands(m_vMonoSamples, m_Format.nSamplesPerSec, EffectiveSensitivity);
 			Result.m_HasSamples = true;
 			m_vMonoSamples.clear();
 			return Result;
@@ -664,7 +672,7 @@ public:
 
 						const std::string ArtworkIdentity = Source + "\n" + Title + "\n" + Artist;
 						const bool IdentityChanged = ArtworkIdentity != LastArtworkIdentity;
-						const bool ArtworkChanged = vArtwork != vLastArtworkEncoded || (IdentityChanged && vArtwork.empty());
+						const bool ArtworkChanged = IdentityChanged || vArtwork != vLastArtworkEncoded;
 						std::shared_ptr<const std::vector<uint8_t>> pArtworkRgba;
 						uint32_t ArtworkWidth = 0;
 						uint32_t ArtworkHeight = 0;
@@ -815,7 +823,7 @@ public:
 
 			CProcessCapture::SPollResult PollResult;
 			if(Capture.Active())
-				PollResult = Capture.Poll(m_Sensitivity.load());
+				PollResult = Capture.Poll(m_Sensitivity.load(), m_AutoGain.load());
 			CapturedFrames += PollResult.m_Frames;
 			if(PollResult.m_HasSamples)
 				LastRootMeanSquare = PollResult.m_RootMeanSquare;
@@ -971,8 +979,9 @@ CAetherMediaBackend::SSnapshot CAetherMediaBackend::Snapshot() const
 	return m_pImpl->m_Snapshot;
 }
 
-void CAetherMediaBackend::SetVisualizer(bool Enabled, int Sensitivity)
+void CAetherMediaBackend::SetVisualizer(bool Enabled, int Sensitivity, bool AutoGain)
 {
 	m_pImpl->m_VisualizerEnabled.store(Enabled);
+	m_pImpl->m_AutoGain.store(AutoGain);
 	m_pImpl->m_Sensitivity.store(std::clamp(Sensitivity, 50, 1500));
 }

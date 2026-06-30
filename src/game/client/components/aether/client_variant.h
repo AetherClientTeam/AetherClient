@@ -92,17 +92,6 @@ inline const char *LogoLockupPath()
 	return "core/logos/vera_lockup_1024.png";
 }
 
-inline const char *IconPath(int Index)
-{
-	static constexpr const char *s_apPaths[] = {
-		"core/logos/aether_512.png",
-		"core/logos/vera_512.png",
-		"core/logos/via_512.png",
-		"core/logos/vex_512.png",
-	};
-	return Index >= 0 && Index < 4 ? s_apPaths[Index] : s_apPaths[0];
-}
-
 inline const char *ExecutableName(int Index)
 {
 #if defined(CONF_PLATFORM_WINDOWS) || defined(_WIN32)

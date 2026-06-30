@@ -894,7 +894,10 @@ void CChat::OnMessage(int MsgType, void *pRawMsg)
 		*/
 
 		if(pMsg->m_ClientId == SERVER_MSG)
+		{
 			GameClient()->AetherMaybeHandleTeamInviteMessage(pMsg->m_pMessage);
+			GameClient()->AetherMaybeHandleTeamLockMessage(pMsg->m_pMessage);
+		}
 
 		AddLine(pMsg->m_ClientId, pMsg->m_Team, pMsg->m_pMessage);
 
