@@ -239,6 +239,9 @@ bool CHttpRequest::ConfigureHandle(void *pHandle)
 	case REQUEST::HEAD:
 		curl_easy_setopt(pH, CURLOPT_NOBODY, 1L);
 		break;
+	case REQUEST::DELETE_METHOD:
+		curl_easy_setopt(pH, CURLOPT_CUSTOMREQUEST, "DELETE");
+		break;
 	case REQUEST::POST:
 	case REQUEST::POST_JSON:
 		if(m_Type == REQUEST::POST_JSON)

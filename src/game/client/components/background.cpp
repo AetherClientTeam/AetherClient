@@ -11,6 +11,13 @@
 #include <game/layers.h>
 #include <game/localization.h>
 
+namespace {
+bool AetherIsMediaBackgroundMap(const char *pMap)
+{
+	return pMap && str_comp_nocase(pMap, "/aether_media_bg.map") == 0;
+}
+}
+
 CBackground::CBackground(ERenderType MapType, bool OnlineOnly) :
 	CMapLayers(MapType, OnlineOnly)
 {
@@ -34,12 +41,22 @@ void CBackground::OnInit()
 	m_pMap = m_pBackgroundMap.get();
 
 	m_pImages->OnInterfacesInit(GameClient());
+	if(!g_Config.m_AeMediaBackgroundGame && AetherIsMediaBackgroundMap(g_Config.m_ClBackgroundEntities))
+		g_Config.m_ClBackgroundEntities[0] = '\0';
 	if(g_Config.m_ClBackgroundEntities[0] != '\0' && str_comp(g_Config.m_ClBackgroundEntities, CURRENT_MAP))
 		LoadBackground();
 }
 
 void CBackground::LoadBackground()
 {
+	if(!g_Config.m_AeMediaBackgroundGame && AetherIsMediaBackgroundMap(g_Config.m_ClBackgroundEntities))
+	{
+		g_Config.m_ClBackgroundEntities[0] = '\0';
+		m_aMapName[0] = '\0';
+		m_Loaded = false;
+		return;
+	}
+
 	if(m_Loaded && m_pMap == m_pBackgroundMap.get())
 		m_pMap->Unload();
 
@@ -99,7 +116,8 @@ void CBackground::OnRender()
 	if(Client()->State() != IClient::STATE_ONLINE && Client()->State() != IClient::STATE_DEMOPLAYBACK)
 		return;
 
-	if(g_Config.m_ClOverlayEntities != 100)
+	const bool MediaBackgroundActive = g_Config.m_AeMediaBackgroundGame && AetherIsMediaBackgroundMap(g_Config.m_ClBackgroundEntities);
+	if(g_Config.m_ClOverlayEntities != 100 && !MediaBackgroundActive)
 		return;
 
 	CMapLayers::OnRender();

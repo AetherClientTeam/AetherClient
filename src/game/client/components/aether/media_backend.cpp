@@ -49,6 +49,18 @@ int64_t SteadyMilliseconds()
 {
 	return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 }
+
+#if defined(CONF_FAMILY_WINDOWS)
+int64_t MediaTimelineMilliseconds(winrt::Windows::Foundation::TimeSpan Time)
+{
+	return std::chrono::duration_cast<std::chrono::milliseconds>(Time).count();
+}
+
+int64_t MediaTimelineUpdateAgeMilliseconds(winrt::Windows::Foundation::DateTime Time)
+{
+	return std::chrono::duration_cast<std::chrono::milliseconds>(winrt::clock::now() - Time).count();
+}
+#endif
 }
 
 class CAetherMediaBackend::CImpl
@@ -530,6 +542,12 @@ public:
 			if(HadArtwork)
 				++m_Snapshot.m_ArtworkGeneration;
 		};
+		auto ClearTimelineSnapshot = [&]() {
+			m_Snapshot.m_TimelineValid = false;
+			m_Snapshot.m_PositionMs = 0;
+			m_Snapshot.m_DurationMs = 0;
+			m_Snapshot.m_TimelineUpdatedMs = 0;
+		};
 		winrt::Windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager Manager{nullptr};
 		try
 		{
@@ -546,7 +564,7 @@ public:
 			const int64_t Now = SteadyMilliseconds();
 			if(Manager && Now >= NextMetadataPoll)
 			{
-				NextMetadataPoll = Now + 1000;
+				NextMetadataPoll = Now + 500;
 				try
 				{
 					auto Session = SelectMediaSession(Manager);
@@ -559,6 +577,41 @@ public:
 							MediaPlaybackState = AetherMusic::EPlaybackState::PLAYING;
 						else if(Status == winrt::Windows::Media::Control::GlobalSystemMediaTransportControlsSessionPlaybackStatus::Paused)
 							MediaPlaybackState = AetherMusic::EPlaybackState::PAUSED;
+
+						bool TimelineValid = false;
+						int64_t PositionMs = 0;
+						int64_t DurationMs = 0;
+						try
+						{
+							auto Timeline = Session.GetTimelineProperties();
+							const int64_t StartMs = MediaTimelineMilliseconds(Timeline.StartTime());
+							const int64_t EndMs = MediaTimelineMilliseconds(Timeline.EndTime());
+							const int64_t RawPositionMs = MediaTimelineMilliseconds(Timeline.Position());
+							DurationMs = EndMs > StartMs ? EndMs - StartMs : EndMs;
+							PositionMs = RawPositionMs;
+							if(EndMs > StartMs && RawPositionMs >= StartMs && RawPositionMs <= EndMs)
+								PositionMs = RawPositionMs - StartMs;
+							if(MediaPlaybackState == AetherMusic::EPlaybackState::PLAYING)
+							{
+								const int64_t UpdateAgeMs = MediaTimelineUpdateAgeMilliseconds(Timeline.LastUpdatedTime());
+								if(UpdateAgeMs > 0 && UpdateAgeMs < 24ll * 60ll * 60ll * 1000ll)
+									PositionMs += UpdateAgeMs;
+							}
+							if(DurationMs > 0)
+							{
+								TimelineValid = true;
+								PositionMs = std::clamp(PositionMs, (int64_t)0, DurationMs);
+							}
+							else
+							{
+								DurationMs = 0;
+								PositionMs = 0;
+							}
+						}
+						catch(const winrt::hresult_error &Error)
+						{
+							log_debug("aether/media", "timeline read failed hr=0x%08X", (unsigned)Error.code().value);
+						}
 
 						const std::string Source = winrt::to_string(Session.SourceAppUserModelId());
 						const DWORD ProcessId = FindSessionProcessId(Session.SourceAppUserModelId());
@@ -623,11 +676,26 @@ public:
 						}
 
 						std::lock_guard Lock(m_Mutex);
+						const int64_t DurationDeltaMs = m_Snapshot.m_DurationMs - DurationMs;
+						if(TimelineValid && MediaPlaybackState == AetherMusic::EPlaybackState::PLAYING &&
+							m_Snapshot.m_TimelineValid && m_Snapshot.m_TimelineUpdatedMs > 0 &&
+							DurationDeltaMs >= -2000 && DurationDeltaMs <= 2000 &&
+							m_Snapshot.m_Source == Source && m_Snapshot.m_Title == Title && m_Snapshot.m_Artist == Artist)
+						{
+							const int64_t ProjectedPositionMs = std::clamp(m_Snapshot.m_PositionMs + std::max<int64_t>(0, Now - m_Snapshot.m_TimelineUpdatedMs), (int64_t)0, DurationMs);
+							const bool LooksLikeFreshTrackStart = PositionMs < 2500 && ProjectedPositionMs > 8000;
+							if(!LooksLikeFreshTrackStart && PositionMs + 350 < ProjectedPositionMs)
+								PositionMs = ProjectedPositionMs;
+						}
 						m_Snapshot.m_MediaPlaybackState = MediaPlaybackState;
 						m_Snapshot.m_Source = Source;
 						m_Snapshot.m_Title = Title;
 						m_Snapshot.m_Artist = Artist;
 						m_Snapshot.m_ProcessId = ProcessId;
+						m_Snapshot.m_TimelineValid = TimelineValid;
+						m_Snapshot.m_PositionMs = PositionMs;
+						m_Snapshot.m_DurationMs = DurationMs;
+						m_Snapshot.m_TimelineUpdatedMs = TimelineValid ? Now : 0;
 						if(MediaPlaybackState == AetherMusic::EPlaybackState::PLAYING)
 							m_Snapshot.m_LastPlayingMs = Now;
 						if(ArtworkChanged)
@@ -670,6 +738,7 @@ public:
 						m_Snapshot.m_Source.clear();
 						m_Snapshot.m_Title.clear();
 						m_Snapshot.m_Artist.clear();
+						ClearTimelineSnapshot();
 						ClearArtworkSnapshot();
 						vLastArtworkEncoded.clear();
 						LastArtworkIdentity.clear();
@@ -700,6 +769,7 @@ public:
 					m_Snapshot.m_Source.clear();
 					m_Snapshot.m_Title.clear();
 					m_Snapshot.m_Artist.clear();
+					ClearTimelineSnapshot();
 					ClearArtworkSnapshot();
 					vLastArtworkEncoded.clear();
 					LastArtworkIdentity.clear();
@@ -858,6 +928,10 @@ public:
 		m_Snapshot.m_Artist.clear();
 		m_Snapshot.m_LastPlayingMs = 0;
 		m_Snapshot.m_ArtworkReceivedMs = 0;
+		m_Snapshot.m_TimelineValid = false;
+		m_Snapshot.m_PositionMs = 0;
+		m_Snapshot.m_DurationMs = 0;
+		m_Snapshot.m_TimelineUpdatedMs = 0;
 		if(m_Snapshot.m_pArtworkRgba || m_Snapshot.m_ArtworkWidth != 0 || m_Snapshot.m_ArtworkHeight != 0)
 			++m_Snapshot.m_ArtworkGeneration;
 		m_Snapshot.m_pArtworkRgba.reset();

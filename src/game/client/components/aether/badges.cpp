@@ -352,8 +352,11 @@ void CAetherBadges::Clear()
 void CAetherBadges::OnInit()
 {
 	LoadIconTextures();
-	m_Realtime.Start();
-	m_Realtime.SetEndpointFromHttpBase(g_Config.m_AeBadgesApiUrl);
+	if(g_Config.m_AeBadges && g_Config.m_AeBadgesApiUrl[0] != '\0')
+	{
+		m_Realtime.Start();
+		m_Realtime.SetEndpointFromHttpBase(g_Config.m_AeBadgesApiUrl);
+	}
 }
 
 void CAetherBadges::OnConsoleInit()
@@ -494,6 +497,13 @@ bool CAetherBadges::BuildPresencePayload(std::string &Payload) const
 void CAetherBadges::RestartRealtime()
 {
 	m_Realtime.Stop();
+	if(!g_Config.m_AeBadges || g_Config.m_AeBadgesApiUrl[0] == '\0')
+	{
+		m_LastRealtimeHelloTime = 0;
+		m_LastRealtimePayload.clear();
+		m_Realtime.SetHelloPayload("");
+		return;
+	}
 	m_Realtime.Start();
 	m_Realtime.SetEndpointFromHttpBase(g_Config.m_AeBadgesApiUrl);
 	m_LastRealtimeHelloTime = 0;
@@ -502,7 +512,7 @@ void CAetherBadges::RestartRealtime()
 
 void CAetherBadges::RequestHeartbeat(bool Force)
 {
-	if(g_Config.m_AeBadgesApiUrl[0] == '\0' || m_pHeartbeatRequest)
+	if(!g_Config.m_AeBadges || g_Config.m_AeBadgesApiUrl[0] == '\0' || m_pHeartbeatRequest)
 		return;
 
 	char aName[MAX_NAME_LENGTH];
@@ -548,7 +558,7 @@ void CAetherBadges::PumpHeartbeatRequest()
 
 void CAetherBadges::RequestOracleEvents(bool Force)
 {
-	if(g_Config.m_AeBadgesApiUrl[0] == '\0' || m_pOracleEventsRequest)
+	if(!g_Config.m_AeBadges || g_Config.m_AeBadgesApiUrl[0] == '\0' || m_pOracleEventsRequest)
 		return;
 
 	const int64_t Now = time_get();
@@ -711,7 +721,7 @@ void CAetherBadges::RequestChessOnline(bool Force)
 
 void CAetherBadges::RequestAetherOnline(bool Force)
 {
-	if(g_Config.m_AeBadgesApiUrl[0] == '\0')
+	if(!g_Config.m_AeBadges || g_Config.m_AeBadgesApiUrl[0] == '\0')
 		return;
 	const int64_t Now = time_get();
 	if(!Force && m_LastAetherOnlineRequestTime != 0 && Now - m_LastAetherOnlineRequestTime < 12 * time_freq())
@@ -1407,7 +1417,7 @@ void CAetherBadges::PumpClanRequest()
 
 void CAetherBadges::RequestClanMine(bool Force)
 {
-	if(g_Config.m_AeBadgesApiUrl[0] == '\0' || m_pClanRequest)
+	if(!g_Config.m_AeBadges || g_Config.m_AeBadgesApiUrl[0] == '\0' || m_pClanRequest)
 		return;
 	if(Force)
 		m_ClanManagementAvailable = true;
@@ -1424,7 +1434,7 @@ void CAetherBadges::RequestClanMine(bool Force)
 
 void CAetherBadges::RequestClanDirectory(bool Force)
 {
-	if(g_Config.m_AeBadgesApiUrl[0] == '\0' || m_pClanRequest)
+	if(!g_Config.m_AeBadges || g_Config.m_AeBadgesApiUrl[0] == '\0' || m_pClanRequest)
 		return;
 	const int64_t Now = time_get();
 	if(!Force && m_LastClanDirectoryTime != 0 && Now - m_LastClanDirectoryTime < 90 * time_freq())
@@ -2106,15 +2116,10 @@ bool CAetherBadges::ApplyBadgeArrayForClient(int ClientId, const json_value *pBa
 	const char *pName = GameClient()->m_aClients[ClientId].m_aName;
 	if(pName[0] == '\0')
 		return false;
-
-	SClientBadges &ClientBadges = m_aClientBadges[ClientId];
-	str_copy(ClientBadges.m_aName, pName, sizeof(ClientBadges.m_aName));
-	ClientBadges.m_Valid = true;
-	ClientBadges.m_vBadges.clear();
-
 	if(!pBadgeArray || pBadgeArray->type != json_array)
-		return true;
+		return false;
 
+	std::vector<SBadge> vNewBadges;
 	for(int i = 0; i < json_array_length(pBadgeArray); ++i)
 	{
 		const json_value *pBadge = json_array_get(pBadgeArray, i);
@@ -2128,10 +2133,10 @@ bool CAetherBadges::ApplyBadgeArrayForClient(int ClientId, const json_value *pBa
 		str_copy(Entry.m_aKey, pKey, sizeof(Entry.m_aKey));
 		str_copy(Entry.m_aName, pBadgeName ? pBadgeName : pKey, sizeof(Entry.m_aName));
 		Entry.m_Priority = json_int_get(json_object_get(pBadge, "priority"));
-		ClientBadges.m_vBadges.push_back(Entry);
+		vNewBadges.push_back(Entry);
 	}
 
-	std::sort(ClientBadges.m_vBadges.begin(), ClientBadges.m_vBadges.end(), [](const SBadge &A, const SBadge &B) {
+	std::sort(vNewBadges.begin(), vNewBadges.end(), [](const SBadge &A, const SBadge &B) {
 		const int RankA = BadgeRenderRank(A);
 		const int RankB = BadgeRenderRank(B);
 		if(RankA != RankB)
@@ -2140,6 +2145,28 @@ bool CAetherBadges::ApplyBadgeArrayForClient(int ClientId, const json_value *pBa
 			return A.m_Priority > B.m_Priority;
 		return str_comp(A.m_aName, B.m_aName) < 0;
 	});
+
+	SClientBadges &ClientBadges = m_aClientBadges[ClientId];
+	bool Changed = !ClientBadges.m_Valid || str_comp(ClientBadges.m_aName, pName) != 0 || ClientBadges.m_vBadges.size() != vNewBadges.size();
+	if(!Changed)
+	{
+		for(size_t i = 0; i < vNewBadges.size(); ++i)
+		{
+			const SBadge &Old = ClientBadges.m_vBadges[i];
+			const SBadge &New = vNewBadges[i];
+			if(str_comp(Old.m_aKey, New.m_aKey) != 0 || str_comp(Old.m_aName, New.m_aName) != 0 || Old.m_Priority != New.m_Priority)
+			{
+				Changed = true;
+				break;
+			}
+		}
+	}
+	if(!Changed)
+		return false;
+
+	str_copy(ClientBadges.m_aName, pName, sizeof(ClientBadges.m_aName));
+	ClientBadges.m_Valid = true;
+	ClientBadges.m_vBadges = std::move(vNewBadges);
 	return true;
 }
 
@@ -2171,7 +2198,10 @@ bool CAetherBadges::ApplyPlayersBadgeObject(const json_value *pPlayers)
 		const char *pName = GameClient()->m_aClients[pInfo->m_ClientId].m_aName;
 		if(pName[0] == '\0')
 			continue;
-		Applied |= ApplyBadgeArrayForClient(pInfo->m_ClientId, json_object_get(pPlayers, pName));
+		const json_value *pBadgeArray = json_object_get(pPlayers, pName);
+		if(!pBadgeArray)
+			continue;
+		Applied |= ApplyBadgeArrayForClient(pInfo->m_ClientId, pBadgeArray);
 	}
 	if(Applied)
 		GameClient()->m_Chat.RebuildChat();
@@ -2225,17 +2255,6 @@ void CAetherBadges::ApplyPresenceBadgeObject(const json_value *pRoot)
 		if(!pName)
 			return;
 		ApplyAetherOnlineLeft(pName);
-		bool BadgeLayoutChanged = false;
-		for(SClientBadges &ClientBadges : m_aClientBadges)
-		{
-			if(ClientBadges.m_Valid && str_comp(ClientBadges.m_aName, pName) == 0)
-			{
-				ClientBadges.m_Valid = false;
-				BadgeLayoutChanged = true;
-			}
-		}
-		if(BadgeLayoutChanged)
-			GameClient()->m_Chat.RebuildChat();
 	}
 }
 
@@ -2810,33 +2829,43 @@ void CAetherBadges::OnUpdate()
 		m_LastAetherOnlineRequestTime = 0;
 	}
 
-	std::string PresencePayload;
-	if(BuildPresencePayload(PresencePayload))
+	if(g_Config.m_AeBadges && g_Config.m_AeBadgesApiUrl[0] != '\0')
 	{
-		const int64_t Now = time_get();
-		if(PresencePayload != m_LastRealtimePayload || m_LastRealtimeHelloTime == 0 || Now - m_LastRealtimeHelloTime > (int64_t)CLIENT_REALTIME_HELLO_SECONDS * time_freq())
+		m_Realtime.Start();
+		std::string PresencePayload;
+		if(BuildPresencePayload(PresencePayload))
 		{
-			m_Realtime.SetHelloPayload(PresencePayload);
-			m_LastRealtimePayload = PresencePayload;
-			m_LastRealtimeHelloTime = Now;
+			const int64_t Now = time_get();
+			if(PresencePayload != m_LastRealtimePayload || m_LastRealtimeHelloTime == 0 || Now - m_LastRealtimeHelloTime > (int64_t)CLIENT_REALTIME_HELLO_SECONDS * time_freq())
+			{
+				m_Realtime.SetHelloPayload(PresencePayload);
+				m_LastRealtimePayload = PresencePayload;
+				m_LastRealtimeHelloTime = Now;
+			}
 		}
+		else
+		{
+			m_LastRealtimePayload.clear();
+			m_Realtime.SetHelloPayload("");
+		}
+
+		RequestHeartbeat(false);
+		RequestOracleEvents(false);
+		RequestResolve(false);
+		if(Client()->State() == IClient::STATE_ONLINE)
+			RequestAetherOnline(false);
+		RequestClanMine(false);
+		RequestClanDirectory(false);
 	}
 	else
 	{
 		m_LastRealtimePayload.clear();
+		m_LastRealtimeHelloTime = 0;
 		m_Realtime.SetHelloPayload("");
+		m_Realtime.Stop();
 	}
-
-	RequestHeartbeat(false);
-	RequestOracleEvents(false);
-	if(g_Config.m_AeBadges)
-		RequestResolve(false);
-	if(Client()->State() == IClient::STATE_ONLINE)
-		RequestAetherOnline(false);
 	RequestChessRoomSnapshot(false);
 	RequestPingPoll(false);
-	RequestClanMine(false);
-	RequestClanDirectory(false);
 	ScanAutoHelpPings();
 }
 

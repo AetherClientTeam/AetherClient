@@ -10,6 +10,7 @@
 
 #include <engine/font_icons.h>
 #include <engine/gfx/image_loader.h>
+#include <engine/gfx/image_manipulation.h>
 #include <engine/image.h>
 #include <engine/sound.h>
 #include <engine/shared/config.h>
@@ -32,6 +33,7 @@
 #include <game/client/skin.h>
 #include <game/client/ui_scrollregion.h>
 #include <game/localization.h>
+#include <game/version.h>
 
 #include <algorithm>
 #include <array>
@@ -77,6 +79,7 @@ enum class EAetherAssetsCloudAction
 	LIST,
 	UPLOAD,
 	DOWNLOAD,
+	DELETE_ASSET,
 };
 
 struct SAetherCloudAsset
@@ -212,6 +215,7 @@ bool AetherFeatureAllowed(AetherMusic::EAetherFeatureId Id)
 		case EAetherFeatureId::HUD_EDITOR:
 		case EAetherFeatureId::ASSETS_EDITOR:
 		case EAetherFeatureId::MAP_BACKGROUND_BUILDER:
+		case EAetherFeatureId::MEDIA_BACKGROUND:
 		case EAetherFeatureId::GORES_MAPS:
 		case EAetherFeatureId::BROWSER_UTILS:
 			return true;
@@ -251,6 +255,7 @@ bool AetherFeatureAllowed(AetherMusic::EAetherFeatureId Id)
 		case EAetherFeatureId::HUD_EDITOR:
 		case EAetherFeatureId::ASSETS_EDITOR:
 		case EAetherFeatureId::MAP_BACKGROUND_BUILDER:
+		case EAetherFeatureId::MEDIA_BACKGROUND:
 		case EAetherFeatureId::BROWSER_UTILS:
 			return true;
 		default:
@@ -287,6 +292,7 @@ bool AetherFeatureAllowed(AetherMusic::EAetherFeatureId Id)
 		case EAetherFeatureId::HUD_EDITOR:
 		case EAetherFeatureId::ASSETS_EDITOR:
 		case EAetherFeatureId::MAP_BACKGROUND_BUILDER:
+		case EAetherFeatureId::MEDIA_BACKGROUND:
 		case EAetherFeatureId::BROWSER_UTILS:
 			return true;
 		default:
@@ -354,7 +360,6 @@ const char *AetherLocalize(const char *pText)
 		{"Join", "Katıl"},
 		{"Upload", "Yükle"},
 		{"Download", "İndir"},
-		{"Apply cloud", "Cloud'u uygula"},
 		{"Compact local", "Yereli daralt"},
 		{"Expand local", "Yereli genişlet"},
 		{"Start", "Başlat"},
@@ -417,12 +422,45 @@ const char *AetherLocalize(const char *pText)
 		{"Rollback Demo", "Demo Geri Sarma"},
 		{"Aim Training", "Aim Antrenmanı"},
 		{"PSA", "PSA"},
+		{"Custom Background", "Ozel Arka Plan"},
+		{"Media Background", "Media Arka Plan"},
+		{"Features", "Ozellikler"},
+		{"Settings & Backup", "Ayarlar & Yedek"},
+		{"Version & Support", "Surum & Destek"},
+		{"Open Config", "Config Ac"},
+		{"Version:", "Surum:"},
+		{"Aether is a clean DDNet-based client focused on smooth gameplay, modern visuals, QoL tools, and Gores-friendly systems.", "Aether; akici oynanis, modern gorseller, QoL araclari ve Gores dostu sistemlere odaklanan temiz bir DDNet tabanli client."},
+		{"Fast input modes, Music Player HUD, Assets Editor, custom visuals, cloud assets, team overlays and gameplay utilities live in one client.", "Fast input modlari, Music Player HUD, Assets Editor, ozel gorseller, cloud assets, takim overlayleri ve gameplay araclari tek client icinde."},
+		{"Aether settings are stored separately with ae_* configs. Vault CFG can export your setup so you can move or restore it safely.", "Aether ayarlari ae_* configleriyle ayri saklanir. Vault CFG ayarlarini guvenle tasimak veya geri yuklemek icin preset export edebilir."},
+		{"Built on DDNet with inspiration from TClient and the original AetherClient branch. Mascots, names and legacy ideas are preserved with care.", "DDNet uzerine kuruldu; TClient ve eski AetherClient dalindan ilham aldi. Mascotlar, isimler ve eski fikirler ozenle korundu."},
+		{"Report bugs or feedback through Discord, or follow development on GitHub.", "Hata ve feedback icin Discord'u kullanabilir, gelistirmeyi GitHub'dan takip edebilirsin."},
+		{"Apply", "Uygula"},
+		{"Local", "Yerel"},
+		{"Cloud", "Cloud"},
+		{"Last warning sound", "Son kalan ses uyarisi"},
+		{"Last sound", "Son sesi"},
+		{"Last volume", "Son sesi seviyesi"},
+		{"Sound folder", "Ses klasoru"},
+		{"Team invite popup", "Takim davet paneli"},
+		{"Invite join key", "Davet katilma tusu"},
+		{"Refresh sounds", "Sesleri yenile"},
+		{"Open sounds", "Sesleri ac"},
+		{"Enable custom background", "Ozel arka plani ac"},
+		{"Background image", "Arka plan gorseli"},
+		{"Media image", "Media gorseli"},
+		{"Refresh images", "Gorselleri yenile"},
+		{"Open images", "Gorselleri ac"},
+		{"Apply background", "Arka plani uygula"},
+		{"Advanced builder", "Gelismis builder"},
+		{"Create a custom entities background from a PNG, imported map or gradient.", "PNG, ice aktarilan map veya gradient ile ozel entities arka plani olusturur."},
+		{"Creates and applies a custom entities background map from gradients, imported maps or a PNG image.", "Gradient, ice aktarilan map veya PNG gorseliyle ozel entities arka plan mapi olusturup uygular."},
 
 		{"Dynamic cover color", "Kapak rengine uyarla"},
 		{"Background color", "Arka plan rengi"},
 		{"Panel opacity", "Panel opaklığı"},
 		{"Freeze counter", "Freeze sayacı"},
 		{"Media title", "Medya adı"},
+		{"Timeline", "Zaman çizgisi"},
 		{"Visualizer", "Görselleştirici"},
 		{"Visualizer style", "Görselleştirici stili"},
 		{"Visualizer sensitivity", "Görselleştirici hassasiyeti"},
@@ -451,6 +489,17 @@ const char *AetherLocalize(const char *pText)
 		{"Keyboard typing sound", "Klavye yazma sesi"},
 		{"Sound file", "Ses dosyası"},
 		{"Typing sound volume", "Yazma sesi seviyesi"},
+		{"Local hook sounds", "Yerel hook sesleri"},
+		{"Hook sounds from other players", "Baskalarinin hook sesleri"},
+		{"Hammer sounds from other players", "Baskalarinin hammer sesleri"},
+		{"Local hammer sounds", "Yerel hammer sesleri"},
+		{"Local weapon switch sounds", "Yerel silah degistirme sesi"},
+		{"Weapon switch sounds from other players", "Baskalarinin silah degistirme sesleri"},
+		{"Local double jump sounds", "Yerel double jump sesleri"},
+		{"Double jump sounds from other players", "Baskalarinin double jump sesleri"},
+		{"Others double jump", "Baskalarinin double jump"},
+		{"Local kill/respawn sounds", "Yerel kill/respawn sesleri"},
+		{"Kill/respawn sounds from other players", "Baskalarinin kill/respawn sesleri"},
 		{"Show in nameplates", "Nameplate'te göster"},
 		{"Show in scoreboard", "Scoreboard'da göster"},
 		{"Show client badges only", "Sadece client rozetlerini göster"},
@@ -614,6 +663,8 @@ const char *AetherLocalize(const char *pText)
 		{"Opacity", "Opaklık"},
 		{"Donor Asset", "Donor Asset"},
 		{"Main Asset", "Ana Asset"},
+		{"Donor Search", "Donor Ara"},
+		{"Main Search", "Ana Ara"},
 		{"Reset All", "Hepsini sıfırla"},
 		{"Map Background Builder", "Map Arka Plan Oluşturucu"},
 		{"Open builder", "Builder'ı aç"},
@@ -954,6 +1005,8 @@ const char *AetherFeatureTooltip(AetherMusic::EAetherFeatureId Id)
 		return "Opens the visual editor for skins, game, particles, emoticons and entities.";
 	case EAetherFeatureId::MAP_BACKGROUND_BUILDER:
 		return "Opens the builder for creating or recoloring simple background maps.";
+	case EAetherFeatureId::MEDIA_BACKGROUND:
+		return "Uses a PNG from assets/backgrounds as a separate entities game background.";
 	case EAetherFeatureId::GORES_MAPS:
 		return "Downloads and manages gores map packs.";
 	case EAetherFeatureId::VAULT_CFG:
@@ -1001,7 +1054,16 @@ const char *AetherControlTooltip(const char *pLabel)
 		{"Show Aether pings", "Enables Aether ping markers from the ping wheel and cloud ping events."},
 		{"Last alive display", "Shows the modern last-alive text when your DDNet team is down to one active tee."},
 		{"Last background", "Draws a compact background behind the last-alive text."},
+		{"Last warning sound", "Plays the selected warning sound when your DDNet team becomes last alive. This is independent from regular fail sounds."},
+		{"Last sound", "Sound file used for the last-alive warning."},
+		{"Sound folder", "Reload or open the folder for custom warning sounds."},
+		{"Team invite popup", "Shows a compact popup when another player invites you to a DDNet team."},
+		{"Invite join key", "Key bound to accept the latest visible team invite popup."},
 		{"Counter background", "Draws a compact background behind the frozen/alive team counter."},
+		{"Enable custom background", "Applies or disables the generated Aether entities background separately from the builder."},
+		{"Background image", "Uses a PNG from assets/backgrounds as the exported cl_background_entities map background."},
+		{"Media image", "PNG from assets/backgrounds used by the game background feature."},
+		{"Refresh images", "Reloads the PNG list from assets/backgrounds."},
 		{"Image dim", "Darkens the selected custom menu PNG so foreground buttons remain readable."},
 		{"Bubble duration", "How long chat bubbles stay above tees."},
 		{"Bubble opacity", "Transparency of chat bubble panels."},
@@ -1056,6 +1118,8 @@ const char *AetherControlTooltip(const char *pLabel)
 		{"Local weapon switch sounds", "Enables or disables your own weapon switch sound."},
 		{"Weapon switch sounds from other players", "Enables or disables weapon switch sounds from other players."},
 		{"Double jump sounds", "Enables or disables air-jump/double-jump sounds."},
+		{"Local double jump sounds", "Enables or disables air-jump/double-jump sounds from your own tee."},
+		{"Double jump sounds from other players", "Enables or disables air-jump/double-jump sounds from other players."},
 		{"Local kill/respawn sounds", "Enables or disables kill and respawn sounds for your own tee."},
 		{"Kill/respawn sounds from other players", "Enables or disables kill and respawn sounds from other players."},
 		{"Color player tees", "Colors tees using Block Awareness enemy/ally/helper/natural groups."},
@@ -1192,6 +1256,7 @@ const char *AetherControlTooltip(const char *pLabel)
 		{"Panel opacity", "Transparency of the music player panel."},
 		{"Freeze counter", "Shows frozen tees in your current DDNet team inside the music player."},
 		{"Media title", "Shows the current media title under the timer."},
+		{"Timeline", "Shows the current media time and progress bar under the media title."},
 		{"Visualizer", "Shows the music visualizer in the player panel."},
 		{"Visualizer sensitivity", "How strongly audio affects visualizer height."},
 		{"Visualizer glow", "Glow amount around the visualizer."},
@@ -1579,7 +1644,7 @@ void AetherDrawImportedBackgroundPreview(IGraphics *pGraphics, const CUIRect &Re
 	pGraphics->QuadsEnd();
 }
 
-bool AetherWriteBackgroundTemplateMap(IStorage *pStorage, const char *pMapName, char *pError, int ErrorSize, const SAetherMapBgImportedLayer *pImportedLayer = nullptr)
+bool AetherWriteBackgroundTemplateMap(IStorage *pStorage, IGraphics *pGraphics, const char *pMapName, char *pError, int ErrorSize, const SAetherMapBgImportedLayer *pImportedLayer = nullptr, const char *pImageName = nullptr, int ImageOffsetPercent = 0)
 {
 	char aCleanName[64];
 	AetherSanitizeExportName(pMapName, aCleanName, sizeof(aCleanName));
@@ -1587,6 +1652,25 @@ bool AetherWriteBackgroundTemplateMap(IStorage *pStorage, const char *pMapName, 
 		str_copy(aCleanName, "aether_bg");
 	if(pImportedLayer && pImportedLayer->m_aSourceName[0] != '\0' && str_comp_nocase(aCleanName, pImportedLayer->m_aSourceName) == 0)
 		str_format(aCleanName, sizeof(aCleanName), "%s_aether", pImportedLayer->m_aSourceName);
+
+	CImageInfo BackgroundImage;
+	bool HasBackgroundImage = pImageName && pImageName[0] != '\0';
+	if(HasBackgroundImage)
+	{
+		char aImagePath[IO_MAX_PATH_LENGTH];
+		if(str_find(pImageName, "/") || str_find(pImageName, "\\"))
+			str_copy(aImagePath, pImageName);
+		else if(str_endswith_nocase(pImageName, ".png"))
+			str_format(aImagePath, sizeof(aImagePath), "assets/backgrounds/%s", pImageName);
+		else
+			str_format(aImagePath, sizeof(aImagePath), "assets/backgrounds/%s.png", pImageName);
+		if(!pGraphics || !pGraphics->LoadPng(BackgroundImage, aImagePath, IStorage::TYPE_ALL))
+		{
+			str_format(pError, ErrorSize, "Could not load %s.", aImagePath);
+			return false;
+		}
+		ConvertToRgba(BackgroundImage);
+	}
 
 	char aPath[IO_MAX_PATH_LENGTH];
 	str_format(aPath, sizeof(aPath), "maps/%s.map", aCleanName);
@@ -1596,6 +1680,8 @@ bool AetherWriteBackgroundTemplateMap(IStorage *pStorage, const char *pMapName, 
 	if(!Writer.Open(pStorage, aPath, IStorage::TYPE_SAVE))
 	{
 		str_format(pError, ErrorSize, "Could not write %s.", aPath);
+		if(HasBackgroundImage)
+			BackgroundImage.Free();
 		return false;
 	}
 
@@ -1613,7 +1699,51 @@ bool AetherWriteBackgroundTemplateMap(IStorage *pStorage, const char *pMapName, 
 	Writer.AddItem(MAPITEMTYPE_INFO, 0, sizeof(Info), &Info);
 
 	std::vector<CQuad> vQuads;
-	if(pImportedLayer && !pImportedLayer->m_vQuads.empty())
+	int BackgroundImageIndex = -1;
+	if(HasBackgroundImage)
+	{
+		CMapItemImage ImageItem{};
+		ImageItem.m_Version = 1;
+		ImageItem.m_Width = BackgroundImage.m_Width;
+		ImageItem.m_Height = BackgroundImage.m_Height;
+		ImageItem.m_External = 0;
+		ImageItem.m_ImageName = Writer.AddDataString("aether_custom_background");
+		ImageItem.m_ImageData = Writer.AddData((int)BackgroundImage.DataSize(), BackgroundImage.m_pData);
+		Writer.AddItem(MAPITEMTYPE_IMAGE, 0, sizeof(ImageItem), &ImageItem);
+		BackgroundImageIndex = 0;
+
+		const float ImageAspect = BackgroundImage.m_Height > 0 ? std::max(0.1f, BackgroundImage.m_Width / (float)BackgroundImage.m_Height) : 16.0f / 9.0f;
+		constexpr float TargetAspect = 16.0f / 9.0f;
+		float HalfW = 900.0f;
+		float HalfH = 520.0f;
+		if(ImageAspect >= TargetAspect)
+			HalfW = HalfH * ImageAspect;
+		else
+			HalfH = HalfW / ImageAspect;
+
+		const float OffsetY = HalfH * std::clamp(ImageOffsetPercent, -100, 100) / 100.0f;
+
+		CQuad Quad{};
+		Quad.m_aPoints[0] = CPoint(round_to_int(-HalfW * 1024.0f), round_to_int(-HalfH * 1024.0f));
+		Quad.m_aPoints[1] = CPoint(round_to_int(HalfW * 1024.0f), round_to_int(-HalfH * 1024.0f));
+		Quad.m_aPoints[2] = CPoint(round_to_int(-HalfW * 1024.0f), round_to_int(HalfH * 1024.0f));
+		Quad.m_aPoints[3] = CPoint(round_to_int(HalfW * 1024.0f), round_to_int(HalfH * 1024.0f));
+		Quad.m_aPoints[4] = CPoint(0, 0);
+		for(CPoint &Point : Quad.m_aPoints)
+			Point.y += round_to_int(OffsetY * 1024.0f);
+		for(CColor &Color : Quad.m_aColors)
+			Color = CColor(255, 255, 255, 255);
+		Quad.m_aTexcoords[0] = CPoint(0, 0);
+		Quad.m_aTexcoords[1] = CPoint(1024, 0);
+		Quad.m_aTexcoords[2] = CPoint(0, 1024);
+		Quad.m_aTexcoords[3] = CPoint(1024, 1024);
+		Quad.m_PosEnv = -1;
+		Quad.m_PosEnvOffset = 0;
+		Quad.m_ColorEnv = -1;
+		Quad.m_ColorEnvOffset = 0;
+		vQuads.push_back(Quad);
+	}
+	else if(pImportedLayer && !pImportedLayer->m_vQuads.empty())
 	{
 		vQuads = pImportedLayer->m_vQuads;
 		AetherMapBgApplyConfigToImportedQuads(vQuads);
@@ -1660,7 +1790,7 @@ bool AetherWriteBackgroundTemplateMap(IStorage *pStorage, const char *pMapName, 
 	QuadLayer.m_Version = 2;
 	QuadLayer.m_NumQuads = (int)vQuads.size();
 	QuadLayer.m_Data = QuadData;
-	QuadLayer.m_Image = -1;
+	QuadLayer.m_Image = BackgroundImageIndex;
 	StrToInts(QuadLayer.m_aName, std::size(QuadLayer.m_aName), "Background");
 
 	constexpr int LayerWidth = 50;
@@ -1726,8 +1856,103 @@ bool AetherWriteBackgroundTemplateMap(IStorage *pStorage, const char *pMapName, 
 	Writer.AddItem(MAPITEMTYPE_LAYER, 1, sizeof(GameLayer), &GameLayer);
 	Writer.Finish();
 
+	if(HasBackgroundImage)
+		BackgroundImage.Free();
 	str_format(pError, ErrorSize, "Exported maps/%s.map.", aCleanName);
 	return true;
+}
+
+void AetherCustomBackgroundPath(char *pOut, int OutSize)
+{
+	char aCleanName[64];
+	AetherSanitizeExportName(g_Config.m_AeMapBgExportName, aCleanName, sizeof(aCleanName));
+	if(aCleanName[0] == '\0')
+		str_copy(aCleanName, "aether_bg");
+	str_format(pOut, OutSize, "/%s.map", aCleanName);
+}
+
+bool AetherApplyCustomBackground(IStorage *pStorage, IGraphics *pGraphics, CGameClient *pGameClient, char *pStatus, int StatusSize)
+{
+	char aCleanName[64];
+	AetherSanitizeExportName(g_Config.m_AeMapBgExportName, aCleanName, sizeof(aCleanName));
+	if(aCleanName[0] == '\0')
+		str_copy(aCleanName, "aether_bg");
+
+	char aStatus[192];
+	if(!AetherWriteBackgroundTemplateMap(pStorage, pGraphics, aCleanName, aStatus, sizeof(aStatus), nullptr, g_Config.m_AeMapBgImage))
+	{
+		str_copy(pStatus, aStatus, StatusSize);
+		return false;
+	}
+
+	str_format(g_Config.m_ClBackgroundEntities, sizeof(g_Config.m_ClBackgroundEntities), "/%s.map", aCleanName);
+	g_Config.m_ClBackgroundShowTilesLayers = 0;
+	g_Config.m_AeCustomBackground = 1;
+	if(pGameClient)
+		pGameClient->m_Background.LoadBackground();
+	str_format(pStatus, StatusSize, "Custom background applied: /%s.map.", aCleanName);
+	return true;
+}
+
+void AetherDisableCustomBackground(CGameClient *pGameClient, char *pStatus, int StatusSize)
+{
+	char aGeneratedPath[IO_MAX_PATH_LENGTH];
+	AetherCustomBackgroundPath(aGeneratedPath, sizeof(aGeneratedPath));
+	g_Config.m_AeCustomBackground = 0;
+	if(str_comp_nocase(g_Config.m_ClBackgroundEntities, aGeneratedPath) == 0)
+	{
+		g_Config.m_ClBackgroundEntities[0] = '\0';
+		if(pGameClient)
+			pGameClient->m_Background.LoadBackground();
+		str_copy(pStatus, "Custom background disabled.", StatusSize);
+	}
+	else
+		str_copy(pStatus, "Custom background disabled. Current manual background was left untouched.", StatusSize);
+}
+
+void AetherMediaBackgroundPath(char *pOut, int OutSize)
+{
+	str_copy(pOut, "/aether_media_bg.map", OutSize);
+}
+
+bool AetherApplyMediaBackground(IStorage *pStorage, IGraphics *pGraphics, CGameClient *pGameClient, char *pStatus, int StatusSize)
+{
+	if(g_Config.m_AeMediaBackgroundImage[0] == '\0')
+	{
+		str_copy(pStatus, "Select an image first.", StatusSize);
+		return false;
+	}
+
+	char aStatus[192];
+	if(!AetherWriteBackgroundTemplateMap(pStorage, pGraphics, "aether_media_bg", aStatus, sizeof(aStatus), nullptr, g_Config.m_AeMediaBackgroundImage, 0))
+	{
+		str_copy(pStatus, aStatus, StatusSize);
+		return false;
+	}
+
+	str_copy(g_Config.m_ClBackgroundEntities, "/aether_media_bg.map", sizeof(g_Config.m_ClBackgroundEntities));
+	g_Config.m_ClBackgroundShowTilesLayers = 0;
+	g_Config.m_AeMediaBackgroundGame = 1;
+	if(pGameClient)
+		pGameClient->m_Background.LoadBackground();
+	str_copy(pStatus, "Loaded image.", StatusSize);
+	return true;
+}
+
+void AetherDisableMediaBackground(CGameClient *pGameClient, char *pStatus, int StatusSize)
+{
+	char aGeneratedPath[IO_MAX_PATH_LENGTH];
+	AetherMediaBackgroundPath(aGeneratedPath, sizeof(aGeneratedPath));
+	g_Config.m_AeMediaBackgroundGame = 0;
+	if(str_comp_nocase(g_Config.m_ClBackgroundEntities, aGeneratedPath) == 0)
+	{
+		g_Config.m_ClBackgroundEntities[0] = '\0';
+		if(pGameClient)
+			pGameClient->m_Background.LoadBackground();
+		str_copy(pStatus, "Media game background disabled.", StatusSize);
+	}
+	else
+		str_copy(pStatus, "Media game background disabled. Current manual background was left untouched.", StatusSize);
 }
 
 struct SAetherNameScanContext
@@ -2778,6 +3003,10 @@ SAetherAssetPartState s_aaAetherAssetsEditorStates[AETHER_ASSET_EDITOR_MAX_CATEG
 std::vector<std::string> s_vAetherAssetsEditorAssetSources;
 std::vector<std::string> s_vAetherAssetsEditorSkinSources;
 char s_aAetherAssetsEditorExportName[64] = "aether_mix";
+char s_aAetherAssetsEditorBaseName[IO_MAX_PATH_LENGTH] = {};
+char s_aAetherAssetsEditorDonorName[IO_MAX_PATH_LENGTH] = {};
+char s_aAetherAssetsEditorMainSearch[64] = {};
+char s_aAetherAssetsEditorDonorSearch[64] = {};
 char s_aAetherAssetsEditorStatus[256] = "Drag a source onto a mixed part, then tune tint and opacity.";
 IGraphics::CTextureHandle s_AetherAssetsEditorSourceTexture;
 char s_aAetherAssetsEditorSourcePath[IO_MAX_PATH_LENGTH] = {};
@@ -2800,6 +3029,46 @@ bool s_AetherAssetsEditorEditPanelOpen = false;
 float s_AetherAssetsEditorEditDragOffsetX = 0.0f;
 float s_AetherAssetsEditorEditDragOffsetY = 0.0f;
 bool s_AetherAssetsEditorPickColor = false;
+
+int AetherAssetEditorFindNameIndex(const std::vector<std::string> &vNames, const char *pName, int Fallback)
+{
+	if(vNames.empty())
+		return 0;
+	if(pName && pName[0] != '\0')
+	{
+		for(size_t i = 0; i < vNames.size(); ++i)
+		{
+			if(str_comp(vNames[i].c_str(), pName) == 0)
+				return (int)i;
+		}
+	}
+	return std::clamp(Fallback, 0, (int)vNames.size() - 1);
+}
+
+void AetherAssetEditorStoreSelectionNames(const std::vector<std::string> &vNames)
+{
+	if(vNames.empty())
+		return;
+	s_AetherAssetsEditorBaseIndex = std::clamp(s_AetherAssetsEditorBaseIndex, 0, (int)vNames.size() - 1);
+	s_AetherAssetsEditorDonorIndex = std::clamp(s_AetherAssetsEditorDonorIndex, 0, (int)vNames.size() - 1);
+	str_copy(s_aAetherAssetsEditorBaseName, vNames[s_AetherAssetsEditorBaseIndex].c_str(), sizeof(s_aAetherAssetsEditorBaseName));
+	str_copy(s_aAetherAssetsEditorDonorName, vNames[s_AetherAssetsEditorDonorIndex].c_str(), sizeof(s_aAetherAssetsEditorDonorName));
+}
+
+bool AetherAssetEditorNameMatchesSearch(const char *pName, const char *pSearch)
+{
+	return !pSearch || pSearch[0] == '\0' || str_find_nocase(pName, pSearch);
+}
+
+int AetherAssetEditorDisplaySelection(const std::vector<int> &vDisplayIndices, int SourceIndex)
+{
+	for(size_t i = 0; i < vDisplayIndices.size(); ++i)
+	{
+		if(vDisplayIndices[i] == SourceIndex)
+			return (int)i;
+	}
+	return 0;
+}
 
 void AetherResetAssetsEditorLivePartTexture(IGraphics *pGraphics)
 {
@@ -3915,21 +4184,16 @@ void CMenus::RenderSettingsAetherFailSound(CUIRect Body)
 {
 	static CUi::SDropDownState s_LocalDropState;
 	static CUi::SDropDownState s_OthersDropState;
-	static CUi::SDropDownState s_TeamLastDropState;
 	static CScrollRegion s_LocalDropScroll;
 	static CScrollRegion s_OthersDropScroll;
-	static CScrollRegion s_TeamLastDropScroll;
 	static CButtonContainer s_OpenFolderButton;
 	static CButtonContainer s_RefreshButton;
 	static CButtonContainer s_LocalTestButton;
 	static CButtonContainer s_OthersTestButton;
-	static CButtonContainer s_TeamLastTestButton;
 	static int s_LocalPreviewSample = -1;
 	static int s_OthersPreviewSample = -1;
-	static int s_TeamLastPreviewSample = -1;
 	static char s_aLocalPreviewFile[128] = "";
 	static char s_aOthersPreviewFile[128] = "";
-	static char s_aTeamLastPreviewFile[128] = "";
 	static bool s_ListDirty = true;
 	const float S = AetherSettingsScale();
 	Body.Draw(AetherPanelColor(0.34f), IGraphics::CORNER_ALL, 6.0f);
@@ -3952,11 +4216,6 @@ void CMenus::RenderSettingsAetherFailSound(CUIRect Body)
 		{
 			g_Config.m_AeFreezeFailSoundOthersFile[0] = '\0';
 			UnloadAetherPreviewSound(Sound(), s_OthersPreviewSample, s_aOthersPreviewFile, sizeof(s_aOthersPreviewFile));
-		}
-		if(!AetherSoundSelectionExists(s_vFailSoundLabels, g_Config.m_AeFreezeFailSoundTeamLastFile))
-		{
-			g_Config.m_AeFreezeFailSoundTeamLastFile[0] = '\0';
-			UnloadAetherPreviewSound(Sound(), s_TeamLastPreviewSample, s_aTeamLastPreviewFile, sizeof(s_aTeamLastPreviewFile));
 		}
 		s_ListDirty = false;
 	}
@@ -4005,17 +4264,6 @@ void CMenus::RenderSettingsAetherFailSound(CUIRect Body)
 	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeFreezeFailSoundOthersVol, Control, "Team volume");
 
 	Body.HSplitTop(8.0f * S, nullptr, &Body);
-	Body.HSplitTop(22.0f * S, &Control, &Body);
-	if(DoButton_CheckBox(&g_Config.m_AeFreezeFailSoundTeamLast, "Last unfrozen tee warning", g_Config.m_AeFreezeFailSoundTeamLast, &Control))
-		g_Config.m_AeFreezeFailSoundTeamLast ^= 1;
-	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeFreezeFailSoundTeamLast, Control, "Last unfrozen tee warning");
-	Body.HSplitTop(22.0f * S, &Control, &Body);
-	RenderFileDropdown(Control, "Last sound", g_Config.m_AeFreezeFailSoundTeamLastFile, sizeof(g_Config.m_AeFreezeFailSoundTeamLastFile), s_TeamLastDropState, s_TeamLastDropScroll, s_TeamLastTestButton, g_Config.m_AeFreezeFailSoundTeamLastVol, s_TeamLastPreviewSample, s_aTeamLastPreviewFile, sizeof(s_aTeamLastPreviewFile));
-	Body.HSplitTop(22.0f * S, &Control, &Body);
-	Ui()->DoScrollbarOption(&g_Config.m_AeFreezeFailSoundTeamLastVol, &g_Config.m_AeFreezeFailSoundTeamLastVol, &Control, "Last volume", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
-	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeFreezeFailSoundTeamLastVol, Control, "Last volume");
-
-	Body.HSplitTop(8.0f * S, nullptr, &Body);
 	Body.HSplitTop(24.0f * S, &Control, &Body);
 	CUIRect Refresh, OpenFolder;
 	Control.VSplitMid(&Refresh, &OpenFolder, 8.0f * S);
@@ -4024,10 +4272,8 @@ void CMenus::RenderSettingsAetherFailSound(CUIRect Body)
 		s_ListDirty = true;
 		s_LocalDropState.m_Init = false;
 		s_OthersDropState.m_Init = false;
-		s_TeamLastDropState.m_Init = false;
 		UnloadAetherPreviewSound(Sound(), s_LocalPreviewSample, s_aLocalPreviewFile, sizeof(s_aLocalPreviewFile));
 		UnloadAetherPreviewSound(Sound(), s_OthersPreviewSample, s_aOthersPreviewFile, sizeof(s_aOthersPreviewFile));
-		UnloadAetherPreviewSound(Sound(), s_TeamLastPreviewSample, s_aTeamLastPreviewFile, sizeof(s_aTeamLastPreviewFile));
 	}
 	if(DoButton_Menu(&s_OpenFolderButton, "Open folder", 0, &OpenFolder))
 	{
@@ -4076,9 +4322,13 @@ void CMenus::RenderSettingsAetherSound(CUIRect Body)
 		g_Config.m_AeSoundOthersWeaponSwitch ^= 1;
 	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeSoundOthersWeaponSwitch, Control, "Weapon switch sounds from other players");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
-	if(DoButton_CheckBox(&g_Config.m_AeSoundAirJump, "Double jump sounds", g_Config.m_AeSoundAirJump, &Control))
-		g_Config.m_AeSoundAirJump ^= 1;
-	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeSoundAirJump, Control, "Double jump sounds");
+	if(DoButton_CheckBox(&g_Config.m_AeSoundLocalAirJump, "Local double jump sounds", g_Config.m_AeSoundLocalAirJump, &Control))
+		g_Config.m_AeSoundLocalAirJump ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeSoundLocalAirJump, Control, "Local double jump sounds");
+	Body.HSplitTop(22.0f * S, &Control, &Body);
+	if(DoButton_CheckBox(&g_Config.m_AeSoundOthersAirJump, "Double jump sounds from other players", g_Config.m_AeSoundOthersAirJump, &Control))
+		g_Config.m_AeSoundOthersAirJump ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeSoundOthersAirJump, Control, "Double jump sounds from other players");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeSoundLocalKillRespawn, "Local kill/respawn sounds", g_Config.m_AeSoundLocalKillRespawn, &Control))
 		g_Config.m_AeSoundLocalKillRespawn ^= 1;
@@ -4644,11 +4894,36 @@ void CMenus::RenderSettingsAetherTeamOverlays(CUIRect Body)
 	static CButtonContainer s_LastColorReset;
 	static CButtonContainer s_CounterColorReset;
 	static CButtonContainer s_aCounterModeButtons[3];
+	static CUi::SDropDownState s_LastWarningSoundDropState;
+	static CScrollRegion s_LastWarningSoundDropScroll;
+	static CButtonContainer s_LastWarningSoundTestButton;
+	static CButtonContainer s_LastWarningSoundRefreshButton;
+	static CButtonContainer s_LastWarningSoundOpenFolderButton;
+	static CButtonContainer s_InviteJoinReaderButton;
+	static CButtonContainer s_InviteJoinClearButton;
+	static int s_LastWarningPreviewSample = -1;
+	static char s_aLastWarningPreviewFile[128] = "";
+	static bool s_LastWarningSoundListDirty = true;
 	const float S = AetherSettingsScale();
 
 	Body.Draw(AetherPanelColor(0.34f), IGraphics::CORNER_ALL, 6.0f);
 	Body.Margin(12.0f * S, &Body);
 	CUIRect Row, Label, Control;
+
+	Storage()->CreateFolder("assets", IStorage::TYPE_SAVE);
+	Storage()->CreateFolder("assets/failsound", IStorage::TYPE_SAVE);
+	static std::vector<std::string> s_vLastWarningSoundLabels;
+	static std::vector<const char *> s_vLastWarningSoundPtrs;
+	if(s_LastWarningSoundListDirty || s_vLastWarningSoundLabels.empty())
+	{
+		BuildAetherSoundFileList(Storage(), "failsound", s_vLastWarningSoundLabels, s_vLastWarningSoundPtrs);
+		if(!AetherSoundSelectionExists(s_vLastWarningSoundLabels, g_Config.m_AeFreezeFailSoundTeamLastFile))
+		{
+			g_Config.m_AeFreezeFailSoundTeamLastFile[0] = '\0';
+			UnloadAetherPreviewSound(Sound(), s_LastWarningPreviewSample, s_aLastWarningPreviewFile, sizeof(s_aLastWarningPreviewFile));
+		}
+		s_LastWarningSoundListDirty = false;
+	}
 
 	Body.HSplitTop(22.0f * S, &Row, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeTeamLastOverlay, "Last alive display", g_Config.m_AeTeamLastOverlay, &Row))
@@ -4667,6 +4942,67 @@ void CMenus::RenderSettingsAetherTeamOverlays(CUIRect Body)
 	if(DoButton_CheckBox(&g_Config.m_AeTeamLastBackground, "Last background", g_Config.m_AeTeamLastBackground, &Row))
 		g_Config.m_AeTeamLastBackground ^= 1;
 	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeTeamLastBackground, Row, "Last background");
+
+	Body.HSplitTop(22.0f * S, &Row, &Body);
+	if(DoButton_CheckBox(&g_Config.m_AeFreezeFailSoundTeamLast, "Last warning sound", g_Config.m_AeFreezeFailSoundTeamLast, &Row))
+	{
+		g_Config.m_AeFreezeFailSoundTeamLast ^= 1;
+		if(g_Config.m_AeFreezeFailSoundTeamLast && g_Config.m_AeFreezeFailSoundTeamLastFile[0] == '\0' && s_vLastWarningSoundLabels.size() > 1)
+			str_copy(g_Config.m_AeFreezeFailSoundTeamLastFile, s_vLastWarningSoundLabels[1].c_str(), sizeof(g_Config.m_AeFreezeFailSoundTeamLastFile));
+	}
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeFreezeFailSoundTeamLast, Row, "Last warning sound");
+
+	Body.HSplitTop(22.0f * S, &Row, &Body);
+	AetherOptionRow(Row, S, &Label, &Control);
+	Ui()->DoLabel(&Label, AetherLocalize("Last sound"), 12.0f * S, TEXTALIGN_ML);
+	CUIRect Drop, Test;
+	Control.VSplitRight(58.0f * S, &Drop, &Test);
+	Drop.VSplitRight(6.0f * S, &Drop, nullptr);
+	s_LastWarningSoundDropState.m_SelectionPopupContext.m_pScrollRegion = &s_LastWarningSoundDropScroll;
+	const int CurLastSound = SelectedSoundFileIndex(s_vLastWarningSoundLabels, g_Config.m_AeFreezeFailSoundTeamLastFile);
+	const int NewLastSound = Ui()->DoDropDown(&Drop, CurLastSound, s_vLastWarningSoundPtrs.data(), (int)s_vLastWarningSoundPtrs.size(), s_LastWarningSoundDropState);
+	if(NewLastSound != CurLastSound && NewLastSound >= 0 && NewLastSound < (int)s_vLastWarningSoundLabels.size())
+	{
+		UnloadAetherPreviewSound(Sound(), s_LastWarningPreviewSample, s_aLastWarningPreviewFile, sizeof(s_aLastWarningPreviewFile));
+		if(NewLastSound == 0)
+			g_Config.m_AeFreezeFailSoundTeamLastFile[0] = '\0';
+		else
+			str_copy(g_Config.m_AeFreezeFailSoundTeamLastFile, s_vLastWarningSoundLabels[NewLastSound].c_str(), sizeof(g_Config.m_AeFreezeFailSoundTeamLastFile));
+	}
+	if(DoButton_Menu(&s_LastWarningSoundTestButton, "Test", 0, &Test))
+		PreviewAetherUserSound(Storage(), Sound(), "failsound", g_Config.m_AeFreezeFailSoundTeamLastFile, g_Config.m_AeFreezeFailSoundTeamLastVol, s_LastWarningPreviewSample, s_aLastWarningPreviewFile, sizeof(s_aLastWarningPreviewFile), CSounds::CHN_GLOBAL);
+
+	Body.HSplitTop(22.0f * S, &Row, &Body);
+	Ui()->DoScrollbarOption(&g_Config.m_AeFreezeFailSoundTeamLastVol, &g_Config.m_AeFreezeFailSoundTeamLastVol, &Row, "Last volume", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeFreezeFailSoundTeamLastVol, Row, "Last volume");
+
+	Body.HSplitTop(24.0f * S, &Row, &Body);
+	AetherOptionRow(Row, S, &Label, &Control);
+	Ui()->DoLabel(&Label, AetherLocalize("Sound folder"), 12.0f * S, TEXTALIGN_ML);
+	CUIRect RefreshSounds, OpenSounds;
+	Control.VSplitLeft(82.0f * S, &RefreshSounds, &Control);
+	Control.VSplitLeft(6.0f * S, nullptr, &Control);
+	Control.VSplitLeft(82.0f * S, &OpenSounds, nullptr);
+	if(DoButton_Menu(&s_LastWarningSoundRefreshButton, "Reload", 0, &RefreshSounds))
+	{
+		s_LastWarningSoundListDirty = true;
+		s_LastWarningSoundDropState.m_Init = false;
+		UnloadAetherPreviewSound(Sound(), s_LastWarningPreviewSample, s_aLastWarningPreviewFile, sizeof(s_aLastWarningPreviewFile));
+	}
+	if(DoButton_Menu(&s_LastWarningSoundOpenFolderButton, "Folder", 0, &OpenSounds))
+	{
+		char aDir[IO_MAX_PATH_LENGTH];
+		Storage()->GetCompletePath(IStorage::TYPE_SAVE, "assets/failsound", aDir, sizeof(aDir));
+		Client()->ViewFile(aDir);
+	}
+
+	Body.HSplitTop(8.0f * S, nullptr, &Body);
+	Body.HSplitTop(22.0f * S, &Row, &Body);
+	if(DoButton_CheckBox(&g_Config.m_AeTeamInvitePopup, "Team invite popup", g_Config.m_AeTeamInvitePopup, &Row))
+		g_Config.m_AeTeamInvitePopup ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeTeamInvitePopup, Row, "Team invite popup");
+	Body.HSplitTop(3.0f * S, nullptr, &Body);
+	DoLine_KeyReader(Body, s_InviteJoinReaderButton, s_InviteJoinClearButton, "Invite join key", "ae_team_invite_join");
 
 	Body.HSplitTop(8.0f * S, nullptr, &Body);
 	Body.HSplitTop(24.0f * S, &Row, &Body);
@@ -5070,18 +5406,141 @@ void CMenus::RenderSettingsAetherGradientTeamColors(CUIRect Body)
 void CMenus::RenderSettingsAetherMapBackgroundBuilder(CUIRect Body)
 {
 	const float S = AetherSettingsScale();
+	static CButtonContainer s_OpenBuilderButton;
 	Body.Draw(AetherPanelColor(0.34f), IGraphics::CORNER_ALL, 6.0f);
 	Body.Margin(12.0f * S, &Body);
 
-	static CButtonContainer s_OpenBuilderButton;
 	CUIRect Text, Button;
 	Body.VSplitRight(170.0f * S, &Text, &Button);
 	Text.VSplitRight(10.0f * S, &Text, nullptr);
-	TextRender()->TextColor(0.74f, 0.82f, 0.92f, 1.0f);
+	TextRender()->TextColor(0.72f, 0.80f, 0.90f, 1.0f);
 	Ui()->DoLabel(&Text, "Create a local .map background for cl_background_entities.", 12.0f * S, TEXTALIGN_ML);
 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 	if(DoButton_Menu(&s_OpenBuilderButton, "Open builder", 0, &Button))
 		s_AetherMapBackgroundBuilderOpen = true;
+}
+
+void CMenus::RenderSettingsAetherMediaBackground(CUIRect Body)
+{
+	const float S = AetherSettingsScale();
+	static CButtonContainer s_OpenImagesButton;
+	static CButtonContainer s_RefreshImagesButton;
+	static CUi::SDropDownState s_ImageDropState;
+	static CScrollRegion s_ImageDropScroll;
+	static std::vector<std::string> s_vImages;
+	static std::vector<std::string> s_vImageLabels;
+	static std::vector<const char *> s_vpImageLabels;
+	static int s_ImageIndex = 0;
+	static bool s_ImagesScanned = false;
+	static char s_aStatus[192] = "Select a PNG from assets/backgrounds.";
+	static char s_aLastAppliedImage[128] = "";
+
+	auto RefreshImages = [&]() {
+		Storage()->CreateFolder("assets", IStorage::TYPE_SAVE);
+		Storage()->CreateFolder("assets/backgrounds", IStorage::TYPE_SAVE);
+		std::vector<std::string> vScanned;
+		AetherScanPngNames(Storage(), "assets/backgrounds", vScanned, false);
+		s_vImages.clear();
+		s_vImageLabels.clear();
+		s_vImages.emplace_back("");
+		s_vImageLabels.emplace_back("None");
+		for(const std::string &Name : vScanned)
+		{
+			s_vImages.push_back(Name);
+			s_vImageLabels.push_back(Name);
+		}
+		s_vpImageLabels.resize(s_vImageLabels.size());
+		for(size_t i = 0; i < s_vImageLabels.size(); ++i)
+			s_vpImageLabels[i] = s_vImageLabels[i].c_str();
+		s_ImageIndex = 0;
+		for(size_t i = 0; i < s_vImages.size(); ++i)
+		{
+			if(str_comp_nocase(s_vImages[i].c_str(), g_Config.m_AeMediaBackgroundImage) == 0)
+			{
+				s_ImageIndex = (int)i;
+				break;
+			}
+		}
+		s_ImagesScanned = true;
+	};
+	if(!s_ImagesScanned)
+		RefreshImages();
+
+	Body.Draw(AetherPanelColor(0.34f), IGraphics::CORNER_ALL, 6.0f);
+	Body.Margin(12.0f * S, &Body);
+
+	bool ReapplyGameBackground = false;
+	CUIRect Row, Label, Control;
+	if(g_Config.m_AeMediaBackgroundGame && g_Config.m_AeMediaBackgroundImage[0] == '\0')
+		str_copy(s_aStatus, "Select an image first.", sizeof(s_aStatus));
+	else if(!g_Config.m_AeMediaBackgroundGame)
+		str_copy(s_aStatus, "Media background disabled.", sizeof(s_aStatus));
+
+	auto SelectImage = [&](int Index) {
+		if(s_vImages.empty())
+			return;
+		Index = std::clamp(Index, 0, (int)s_vImages.size() - 1);
+		if(Index == s_ImageIndex && str_comp(g_Config.m_AeMediaBackgroundImage, s_vImages[Index].c_str()) == 0)
+			return;
+		s_ImageIndex = Index;
+		str_copy(g_Config.m_AeMediaBackgroundImage, s_vImages[s_ImageIndex].c_str(), sizeof(g_Config.m_AeMediaBackgroundImage));
+		ReapplyGameBackground = g_Config.m_AeMediaBackgroundGame != 0;
+		str_copy(s_aStatus, g_Config.m_AeMediaBackgroundImage[0] ? "Loaded image." : "No image selected.", sizeof(s_aStatus));
+	};
+
+	Body.HSplitTop(28.0f * S, &Row, &Body);
+	AetherOptionRow(Row, S, &Label, &Control);
+	Ui()->DoLabel(&Label, Localize("Media image"), 13.0f * S, TEXTALIGN_ML);
+	CUIRect Drop, Refresh, Folder;
+	const float IconSize = 28.0f * S;
+	const float Gap = 6.0f * S;
+	Control.VSplitRight(IconSize, &Drop, &Folder);
+	Drop.VSplitRight(Gap, &Drop, nullptr);
+	Drop.VSplitRight(IconSize, &Drop, &Refresh);
+	Drop.VSplitRight(Gap, &Drop, nullptr);
+	s_ImageDropState.m_SelectionPopupContext.m_pScrollRegion = &s_ImageDropScroll;
+	const int NewImage = Ui()->DoDropDown(&Drop, s_ImageIndex, s_vpImageLabels.data(), (int)s_vpImageLabels.size(), s_ImageDropState);
+	if(NewImage != s_ImageIndex && NewImage >= 0 && NewImage < (int)s_vImages.size())
+		SelectImage(NewImage);
+	if(Ui()->DoButton_FontIcon(&s_RefreshImagesButton, FontIcon::ARROWS_ROTATE, 0, &Refresh, BUTTONFLAG_LEFT, IGraphics::CORNER_ALL))
+	{
+		RefreshImages();
+		s_ImageDropState.m_Init = false;
+		str_copy(s_aStatus, "Image list refreshed.", sizeof(s_aStatus));
+	}
+	if(Ui()->DoButton_FontIcon(&s_OpenImagesButton, FontIcon::FOLDER_OPEN, 0, &Folder, BUTTONFLAG_LEFT, IGraphics::CORNER_ALL))
+	{
+		Storage()->CreateFolder("assets", IStorage::TYPE_SAVE);
+		Storage()->CreateFolder("assets/backgrounds", IStorage::TYPE_SAVE);
+		char aDir[IO_MAX_PATH_LENGTH];
+		Storage()->GetCompletePath(IStorage::TYPE_SAVE, "assets/backgrounds", aDir, sizeof(aDir));
+		Client()->ViewFile(aDir);
+		RefreshImages();
+		s_ImageDropState.m_Init = false;
+		str_copy(s_aStatus, "Images folder opened. Refreshed list.", sizeof(s_aStatus));
+	}
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeMediaBackgroundImage, Label, "Media image");
+
+	if(g_Config.m_AeMediaBackgroundGame && g_Config.m_AeMediaBackgroundImage[0] != '\0' &&
+		str_comp(s_aLastAppliedImage, g_Config.m_AeMediaBackgroundImage) != 0)
+		ReapplyGameBackground = true;
+	if(g_Config.m_AeMediaBackgroundGame && g_Config.m_AeMediaBackgroundImage[0] != '\0' &&
+		str_comp_nocase(g_Config.m_ClBackgroundEntities, "/aether_media_bg.map") != 0)
+		ReapplyGameBackground = true;
+	if(ReapplyGameBackground)
+	{
+		if(AetherApplyMediaBackground(Storage(), Graphics(), GameClient(), s_aStatus, sizeof(s_aStatus)))
+		{
+			str_copy(s_aLastAppliedImage, g_Config.m_AeMediaBackgroundImage, sizeof(s_aLastAppliedImage));
+		}
+	}
+
+	Body.HSplitTop(7.0f * S, nullptr, &Body);
+	Body.HSplitTop(20.0f * S, &Row, &Body);
+	const bool SuccessStatus = str_find_nocase(s_aStatus, "loaded") || str_find_nocase(s_aStatus, "applied");
+	TextRender()->TextColor(SuccessStatus ? ColorRGBA(0.45f, 1.0f, 0.48f, 1.0f) : ColorRGBA(0.72f, 0.80f, 0.90f, 1.0f));
+	Ui()->DoLabel(&Row, s_aStatus, 12.0f * S, TEXTALIGN_ML);
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
 void CMenus::RenderSettingsAetherMapBackgroundBuilderPopup(CUIRect Screen)
@@ -5159,7 +5618,7 @@ void CMenus::RenderSettingsAetherMapBackgroundBuilderPopup(CUIRect Screen)
 		RefreshImportMaps();
 
 	CUIRect Top, Bottom;
-	const float TopHeight = std::min(520.0f * S, std::max(160.0f * S, Body.h - 190.0f * S));
+	const float TopHeight = std::min(520.0f * S, std::max(140.0f * S, Body.h - 198.0f * S));
 	Body.HSplitTop(TopHeight, &Top, &Bottom);
 	CUIRect Preview, Controls;
 	Top.VSplitMid(&Preview, &Controls, 14.0f * S);
@@ -5336,7 +5795,7 @@ void CMenus::RenderSettingsAetherMapBackgroundBuilderPopup(CUIRect Screen)
 	{
 		char aStatus[192];
 		const SAetherMapBgImportedLayer *pImportedLayer = s_vImportedLayers.empty() ? nullptr : &s_vImportedLayers[std::clamp(s_ImportedLayerIndex, 0, (int)s_vImportedLayers.size() - 1)];
-		if(AetherWriteBackgroundTemplateMap(Storage(), g_Config.m_AeMapBgExportName, aStatus, sizeof(aStatus), pImportedLayer))
+		if(AetherWriteBackgroundTemplateMap(Storage(), Graphics(), g_Config.m_AeMapBgExportName, aStatus, sizeof(aStatus), pImportedLayer))
 			str_copy(s_aStatus, aStatus);
 		else
 			str_copy(s_aStatus, aStatus);
@@ -5349,7 +5808,7 @@ void CMenus::RenderSettingsAetherMapBackgroundBuilderPopup(CUIRect Screen)
 			str_copy(aCleanName, "aether_bg");
 		char aStatus[192];
 		const SAetherMapBgImportedLayer *pImportedLayer = s_vImportedLayers.empty() ? nullptr : &s_vImportedLayers[std::clamp(s_ImportedLayerIndex, 0, (int)s_vImportedLayers.size() - 1)];
-		if(AetherWriteBackgroundTemplateMap(Storage(), aCleanName, aStatus, sizeof(aStatus), pImportedLayer))
+		if(AetherWriteBackgroundTemplateMap(Storage(), Graphics(), aCleanName, aStatus, sizeof(aStatus), pImportedLayer))
 		{
 			str_format(g_Config.m_ClBackgroundEntities, sizeof(g_Config.m_ClBackgroundEntities), "/%s.map", aCleanName);
 			g_Config.m_ClBackgroundShowTilesLayers = 0;
@@ -5947,10 +6406,11 @@ void CMenus::RenderSettingsAetherAssetsCloud(CUIRect Body)
 {
 	const float S = AetherSettingsScale();
 	static CButtonContainer s_aCategoryButtons[5];
-	static CButtonContainer s_RefreshLocalButton, s_RefreshCloudButton, s_UploadButton, s_DownloadButton, s_ApplyCloudButton, s_OpenFolderButton;
+	static CButtonContainer s_RefreshLocalButton, s_RefreshCloudButton, s_UploadButton, s_DownloadButton, s_OpenFolderButton;
 	static CButtonContainer s_LocalSizeButton;
 	static std::array<CButtonContainer, AETHER_CLOUD_LOCAL_MAX> s_aLocalButtons;
 	static std::array<CButtonContainer, AETHER_CLOUD_REMOTE_MAX> s_aCloudButtons;
+	static std::array<CButtonContainer, AETHER_CLOUD_REMOTE_MAX> s_aCloudDeleteButtons;
 	static CScrollRegion s_LocalScroll;
 	static CScrollRegion s_CloudScroll;
 	static CLineInput s_SearchInput(s_aAetherAssetsCloudSearch, sizeof(s_aAetherAssetsCloudSearch));
@@ -5961,6 +6421,7 @@ void CMenus::RenderSettingsAetherAssetsCloud(CUIRect Body)
 		str_format(aPath, sizeof(aPath), "/v1/assets?category=%s&limit=100", AetherCloudCategory().m_pKey);
 		AetherBuildApiUrl(aUrl, sizeof(aUrl), aPath);
 		s_pAetherAssetsCloudRequest = std::make_shared<CHttpRequest>(aUrl);
+		s_pAetherAssetsCloudRequest->FailOnErrorStatus(false);
 		Http()->Run(s_pAetherAssetsCloudRequest);
 		s_AetherAssetsCloudAction = EAetherAssetsCloudAction::LIST;
 		str_format(s_aAetherAssetsCloudStatus, sizeof(s_aAetherAssetsCloudStatus), "Refreshing %s assets...", AetherCloudCategory().m_pLabel);
@@ -6000,6 +6461,7 @@ void CMenus::RenderSettingsAetherAssetsCloud(CUIRect Body)
 		char aUrl[512];
 		AetherBuildApiUrl(aUrl, sizeof(aUrl), "/v1/assets/upload");
 		s_pAetherAssetsCloudRequest = std::make_shared<CHttpRequest>(aUrl);
+		s_pAetherAssetsCloudRequest->FailOnErrorStatus(false);
 		s_pAetherAssetsCloudRequest->PostJson(Json.GetOutputString().c_str());
 		Http()->Run(s_pAetherAssetsCloudRequest);
 		s_AetherAssetsCloudAction = EAetherAssetsCloudAction::UPLOAD;
@@ -6019,10 +6481,53 @@ void CMenus::RenderSettingsAetherAssetsCloud(CUIRect Body)
 		AetherBuildApiUrl(aUrl, sizeof(aUrl), aPath);
 		str_copy(s_aAetherAssetsCloudDownloadPath, Asset.m_aPath, sizeof(s_aAetherAssetsCloudDownloadPath));
 		s_pAetherAssetsCloudRequest = std::make_shared<CHttpRequest>(aUrl);
+		s_pAetherAssetsCloudRequest->FailOnErrorStatus(false);
 		Http()->Run(s_pAetherAssetsCloudRequest);
 		s_AetherAssetsCloudAction = EAetherAssetsCloudAction::DOWNLOAD;
 		s_AetherAssetsCloudApplyAfterDownload = ApplyAfterDownload;
 		str_format(s_aAetherAssetsCloudStatus, sizeof(s_aAetherAssetsCloudStatus), "Downloading %s...", Asset.m_aName);
+	};
+
+	auto CanDeleteCloudIndex = [&](int Index) {
+		if(Index < 0 || Index >= s_AetherAssetsCloudRemoteCount)
+			return false;
+		const SAetherCloudAsset &Asset = s_aAetherAssetsCloudRemote[Index];
+		return Asset.m_aUploader[0] != '\0' && g_Config.m_PlayerName[0] != '\0' && str_comp_nocase(Asset.m_aUploader, g_Config.m_PlayerName) == 0;
+	};
+
+	auto StartDeleteRequest = [&](int AssetIndex) {
+		if(s_AetherAssetsCloudRemoteCount <= 0)
+		{
+			str_copy(s_aAetherAssetsCloudStatus, "No cloud asset selected.");
+			return;
+		}
+		AssetIndex = std::clamp(AssetIndex, 0, s_AetherAssetsCloudRemoteCount - 1);
+		if(!CanDeleteCloudIndex(AssetIndex))
+		{
+			str_copy(s_aAetherAssetsCloudStatus, "Only the uploader can delete this cloud asset.");
+			return;
+		}
+		const SAetherCloudAsset &Asset = s_aAetherAssetsCloudRemote[AssetIndex];
+		if(Asset.m_aId[0] == '\0')
+		{
+			str_copy(s_aAetherAssetsCloudStatus, "Delete failed: cloud asset has no id.");
+			return;
+		}
+		CJsonStringWriter Json;
+		Json.BeginObject();
+		Json.WriteAttribute("id");
+		Json.WriteStrValue(Asset.m_aId);
+		Json.WriteAttribute("uploader");
+		Json.WriteStrValue(g_Config.m_PlayerName);
+		Json.EndObject();
+		char aUrl[512];
+		AetherBuildApiUrl(aUrl, sizeof(aUrl), "/v1/assets/delete");
+		s_pAetherAssetsCloudRequest = std::make_shared<CHttpRequest>(aUrl);
+		s_pAetherAssetsCloudRequest->FailOnErrorStatus(false);
+		s_pAetherAssetsCloudRequest->PostJson(Json.GetOutputString().c_str());
+		Http()->Run(s_pAetherAssetsCloudRequest);
+		s_AetherAssetsCloudAction = EAetherAssetsCloudAction::DELETE_ASSET;
+		str_format(s_aAetherAssetsCloudStatus, sizeof(s_aAetherAssetsCloudStatus), "Deleting %s...", Asset.m_aName);
 	};
 
 	auto ApplyAsset = [&](const char *pName) {
@@ -6035,6 +6540,8 @@ void CMenus::RenderSettingsAetherAssetsCloud(CUIRect Body)
 			GameClient()->m_Skins.Refresh([this]() {
 				GameClient()->RefreshSkins(CSkinDescriptor::FLAG_SIX);
 			});
+			AetherCloudScanLocal(Storage());
+			AetherCloudClearLocalTextures(Graphics());
 		}
 		else if(str_comp(pCategory, "entities") == 0)
 		{
@@ -6065,7 +6572,8 @@ void CMenus::RenderSettingsAetherAssetsCloud(CUIRect Body)
 		const EHttpState State = s_pAetherAssetsCloudRequest->State();
 		if(State != EHttpState::DONE && State != EHttpState::ERROR && State != EHttpState::ABORTED)
 			return;
-		if(State == EHttpState::DONE && s_pAetherAssetsCloudRequest->StatusCode() >= 200 && s_pAetherAssetsCloudRequest->StatusCode() < 400)
+		const int Status = State == EHttpState::DONE ? s_pAetherAssetsCloudRequest->StatusCode() : 0;
+		if(State == EHttpState::DONE && Status >= 200 && Status < 400)
 		{
 			json_value *pJson = s_pAetherAssetsCloudRequest->ResultJson();
 			if(s_AetherAssetsCloudAction == EAetherAssetsCloudAction::LIST)
@@ -6117,6 +6625,13 @@ void CMenus::RenderSettingsAetherAssetsCloud(CUIRect Body)
 					{
 						str_format(s_aAetherAssetsCloudStatus, sizeof(s_aAetherAssetsCloudStatus), "Downloaded %s.", pName);
 						AetherCloudScanLocal(Storage());
+						AetherCloudClearLocalTextures(Graphics());
+						if(str_comp(AetherCloudCategory().m_pKey, "skins") == 0)
+						{
+							GameClient()->m_Skins.Refresh([this]() {
+								GameClient()->RefreshSkins(CSkinDescriptor::FLAG_SIX);
+							});
+						}
 						if(s_AetherAssetsCloudApplyAfterDownload)
 							ApplyAsset(pName);
 					}
@@ -6126,28 +6641,37 @@ void CMenus::RenderSettingsAetherAssetsCloud(CUIRect Body)
 				else
 					str_copy(s_aAetherAssetsCloudStatus, "Download failed: bad response.");
 			}
+			else if(s_AetherAssetsCloudAction == EAetherAssetsCloudAction::DELETE_ASSET)
+			{
+				str_copy(s_aAetherAssetsCloudStatus, "Cloud asset deleted. Refreshing cloud...");
+				s_AetherAssetsCloudRefreshAfterRequest = true;
+			}
 			if(pJson)
 				json_value_free(pJson);
 		}
 		else
 		{
-			int Status = State == EHttpState::DONE ? s_pAetherAssetsCloudRequest->StatusCode() : 0;
-			if(Status == 404)
-				str_copy(s_aAetherAssetsCloudStatus, "Aether API is not updated. Deploy latest API.");
+			json_value *pJson = State == EHttpState::DONE ? s_pAetherAssetsCloudRequest->ResultJson() : nullptr;
+			const char *pError = "request failed";
+			if(pJson && pJson->type == json_object)
+			{
+				pError = json_string_get(json_object_get(pJson, "error")) ? json_string_get(json_object_get(pJson, "error")) : pError;
+				pError = json_string_get(json_object_get(pJson, "message")) ? json_string_get(json_object_get(pJson, "message")) : pError;
+			}
+			const bool DeleteEndpointMissing = s_AetherAssetsCloudAction == EAetherAssetsCloudAction::DELETE_ASSET &&
+				(Status == 405 || (Status == 404 && (str_find_nocase(pError, "route") || str_find_nocase(pError, "not found")) && !str_find_nocase(pError, "asset")));
+			if(DeleteEndpointMissing)
+				str_copy(s_aAetherAssetsCloudStatus, "Cloud delete endpoint missing on live API. Deploy AetherClient-api.");
 			else if(State == EHttpState::ABORTED)
 				str_copy(s_aAetherAssetsCloudStatus, "Assets cloud request aborted.");
 			else if(Status > 0)
-			{
-				const char *pError = "request failed";
-				json_value *pJson = s_pAetherAssetsCloudRequest->ResultJson();
-				if(pJson && pJson->type == json_object)
-					pError = json_string_get(json_object_get(pJson, "error")) ? json_string_get(json_object_get(pJson, "error")) : pError;
 				str_format(s_aAetherAssetsCloudStatus, sizeof(s_aAetherAssetsCloudStatus), "Assets cloud HTTP %d: %s.", Status, pError);
-				if(pJson)
-					json_value_free(pJson);
-			}
+			else if(s_AetherAssetsCloudAction == EAetherAssetsCloudAction::DELETE_ASSET)
+				str_copy(s_aAetherAssetsCloudStatus, "Cloud delete failed: API did not respond.");
 			else
 				str_copy(s_aAetherAssetsCloudStatus, "Assets cloud network error. Check API URL/deploy.");
+			if(pJson)
+				json_value_free(pJson);
 			if(s_AetherAssetsCloudAction == EAetherAssetsCloudAction::DOWNLOAD)
 				s_AetherAssetsCloudApplyAfterDownload = false;
 		}
@@ -6292,8 +6816,13 @@ void CMenus::RenderSettingsAetherAssetsCloud(CUIRect Body)
 			if(Scroll.AddRect(Row))
 			{
 				const bool Selected = Cloud ? s_AetherAssetsCloudRemoteSelected == i : s_AetherAssetsCloudLocalSelected == i;
+				const CUIRect FullRow = Row;
+				const bool RowHovered = Ui()->MouseHovered(&FullRow);
+				CUIRect RowClick = Row;
+				if(Cloud && RowHovered && CanDeleteCloudIndex(i))
+					RowClick.w = std::max(0.0f, RowClick.w - 26.0f * S);
 				Row.Draw(ColorRGBA(1.0f, 1.0f, 1.0f, Selected ? 0.10f : 0.035f), IGraphics::CORNER_ALL, 4.0f * S);
-				if(Ui()->DoButtonLogic(Cloud ? (void *)&s_aCloudButtons[i] : (void *)&s_aLocalButtons[i], Selected ? 1 : 0, &Row, BUTTONFLAG_LEFT))
+				if(Ui()->DoButtonLogic(Cloud ? (void *)&s_aCloudButtons[i] : (void *)&s_aLocalButtons[i], Selected ? 1 : 0, &RowClick, BUTTONFLAG_LEFT))
 				{
 					if(Cloud)
 						s_AetherAssetsCloudRemoteSelected = i;
@@ -6335,6 +6864,16 @@ void CMenus::RenderSettingsAetherAssetsCloud(CUIRect Body)
 					TextRender()->TextColor(0.50f, 0.58f, 0.68f, 1.0f);
 					Ui()->DoLabel(&StatsLine, aStats, 9.0f * S, TEXTALIGN_ML);
 					TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+					if(RowHovered && CanDeleteCloudIndex(i))
+					{
+						const float IconSize = 18.0f * S;
+						CUIRect DeleteIcon(FullRow.x + FullRow.w - IconSize - 7.0f * S, FullRow.y + 7.0f * S, IconSize, IconSize);
+						if(Ui()->DoButton_FontIcon(&s_aCloudDeleteButtons[i], FontIcon::XMARK, 0, &DeleteIcon, BUTTONFLAG_LEFT, IGraphics::CORNER_ALL, true, ColorRGBA(0.72f, 0.18f, 0.24f, 0.88f)))
+						{
+							s_AetherAssetsCloudRemoteSelected = i;
+							StartDeleteRequest(i);
+						}
+					}
 				}
 				else
 				{
@@ -6367,17 +6906,17 @@ void CMenus::RenderSettingsAetherAssetsCloud(CUIRect Body)
 
 	Actions.HMargin(2.0f * S, &Actions);
 	const float Gap = 7.0f * S;
-	const float ButtonW = (Actions.w - Gap * 5.0f) / 6.0f;
+	const float ButtonW = (Actions.w - Gap * 4.0f) / 5.0f;
 	CUIRect Button;
 	Actions.VSplitLeft(ButtonW, &Button, &Actions);
-	if(DoButton_Menu(&s_RefreshLocalButton, "Refresh local", 0, &Button))
+	if(DoButton_Menu(&s_RefreshLocalButton, "Local", 0, &Button))
 	{
 		s_AetherAssetsCloudLocalScannedCategory = -1;
 		AetherCloudScanLocal(Storage());
 	}
 	Actions.VSplitLeft(Gap, nullptr, &Actions);
 	Actions.VSplitLeft(ButtonW, &Button, &Actions);
-	if(DoButton_Menu(&s_RefreshCloudButton, "Refresh cloud", 0, &Button))
+	if(DoButton_Menu(&s_RefreshCloudButton, "Cloud", 0, &Button))
 		StartListRequest();
 	Actions.VSplitLeft(Gap, nullptr, &Actions);
 	Actions.VSplitLeft(ButtonW, &Button, &Actions);
@@ -6386,14 +6925,10 @@ void CMenus::RenderSettingsAetherAssetsCloud(CUIRect Body)
 	Actions.VSplitLeft(Gap, nullptr, &Actions);
 	Actions.VSplitLeft(ButtonW, &Button, &Actions);
 	if(DoButton_Menu(&s_DownloadButton, "Download", s_AetherAssetsCloudRemoteCount <= 0 ? 1 : 0, &Button) && s_AetherAssetsCloudRemoteCount > 0)
-		StartDownloadRequest(false);
-	Actions.VSplitLeft(Gap, nullptr, &Actions);
-	Actions.VSplitLeft(ButtonW, &Button, &Actions);
-	if(DoButton_Menu(&s_ApplyCloudButton, "Apply cloud", s_AetherAssetsCloudRemoteCount <= 0 ? 1 : 0, &Button) && s_AetherAssetsCloudRemoteCount > 0)
 		StartDownloadRequest(true);
 	Actions.VSplitLeft(Gap, nullptr, &Actions);
 	Actions.VSplitLeft(ButtonW, &Button, nullptr);
-	if(DoButton_Menu(&s_OpenFolderButton, "Open folder", 0, &Button))
+	if(DoButton_Menu(&s_OpenFolderButton, "Folder", 0, &Button))
 	{
 		char aDir[IO_MAX_PATH_LENGTH];
 		if(str_comp(AetherCloudCategory().m_pKey, "skins") == 0)
@@ -6417,6 +6952,8 @@ void CMenus::RenderSettingsAetherAssetsEditorPopup(CUIRect Screen)
 		const float S = std::clamp(AetherSettingsScale(), 0.72f, 0.95f);
 		const int NumCategories = AETHER_ASSET_EDITOR_MAX_CATEGORIES;
 		static CLineInput s_ExportInput(s_aAetherAssetsEditorExportName, sizeof(s_aAetherAssetsEditorExportName));
+		static CLineInput s_MainSearchInput(s_aAetherAssetsEditorMainSearch, sizeof(s_aAetherAssetsEditorMainSearch));
+		static CLineInput s_DonorSearchInput(s_aAetherAssetsEditorDonorSearch, sizeof(s_aAetherAssetsEditorDonorSearch));
 		static CUi::SDropDownState s_ModeDropState;
 		static CUi::SDropDownState s_DonorDropState;
 		static CUi::SDropDownState s_MainDropState;
@@ -6466,6 +7003,8 @@ void CMenus::RenderSettingsAetherAssetsEditorPopup(CUIRect Screen)
 			s_AetherAssetsEditorPartIndex = 0;
 			s_AetherAssetsEditorEditPanelOpen = false;
 			s_AetherAssetsEditorPickColor = false;
+			s_aAetherAssetsEditorBaseName[0] = '\0';
+			s_aAetherAssetsEditorDonorName[0] = '\0';
 			RefreshSources();
 			AetherClearAssetEditorImageCache();
 			s_AetherAssetsEditorMixedDirty = true;
@@ -6477,16 +7016,52 @@ void CMenus::RenderSettingsAetherAssetsEditorPopup(CUIRect Screen)
 		std::vector<std::string> &vNames = s_AetherAssetsEditorCategory == AETHER_ASSET_EDITOR_SKINS_CATEGORY ? s_vAetherAssetsEditorSkinSources : s_vAetherAssetsEditorAssetSources;
 		if(vNames.empty())
 			vNames.emplace_back("default");
-		std::vector<const char *> vpNamePtrs;
-		vpNamePtrs.reserve(vNames.size());
-		for(const std::string &Name : vNames)
-			vpNamePtrs.push_back(Name.c_str());
+		if(s_aAetherAssetsEditorBaseName[0] != '\0')
+			s_AetherAssetsEditorBaseIndex = AetherAssetEditorFindNameIndex(vNames, s_aAetherAssetsEditorBaseName, s_AetherAssetsEditorBaseIndex);
+		if(s_aAetherAssetsEditorDonorName[0] != '\0')
+			s_AetherAssetsEditorDonorIndex = AetherAssetEditorFindNameIndex(vNames, s_aAetherAssetsEditorDonorName, s_AetherAssetsEditorDonorIndex);
 
 		const std::span<const SAetherAssetPart> Parts = AetherAssetEditorParts(s_AetherAssetsEditorCategory);
 		const int NumParts = (int)Parts.size();
 		s_AetherAssetsEditorBaseIndex = std::clamp(s_AetherAssetsEditorBaseIndex, 0, maximum(0, (int)vNames.size() - 1));
 		s_AetherAssetsEditorDonorIndex = std::clamp(s_AetherAssetsEditorDonorIndex, 0, maximum(0, (int)vNames.size() - 1));
 		s_AetherAssetsEditorPartIndex = std::clamp(s_AetherAssetsEditorPartIndex, 0, maximum(0, NumParts - 1));
+		AetherAssetEditorStoreSelectionNames(vNames);
+
+		std::vector<int> vDonorDisplayIndices;
+		std::vector<int> vMainDisplayIndices;
+		std::vector<const char *> vpDonorNamePtrs;
+		std::vector<const char *> vpMainNamePtrs;
+		vDonorDisplayIndices.reserve(vNames.size());
+		vMainDisplayIndices.reserve(vNames.size());
+		vpDonorNamePtrs.reserve(vNames.size());
+		vpMainNamePtrs.reserve(vNames.size());
+		auto AddDisplayName = [&](std::vector<int> &vIndices, std::vector<const char *> &vpPtrs, int SourceIndex) {
+			if(SourceIndex < 0 || SourceIndex >= (int)vNames.size())
+				return;
+			if(std::find(vIndices.begin(), vIndices.end(), SourceIndex) != vIndices.end())
+				return;
+			vIndices.push_back(SourceIndex);
+			vpPtrs.push_back(vNames[SourceIndex].c_str());
+		};
+		const bool SkinSearchMode = s_AetherAssetsEditorCategory == AETHER_ASSET_EDITOR_SKINS_CATEGORY;
+		const bool DonorSearchActive = SkinSearchMode && s_aAetherAssetsEditorDonorSearch[0] != '\0';
+		const bool MainSearchActive = SkinSearchMode && s_aAetherAssetsEditorMainSearch[0] != '\0';
+		if(DonorSearchActive)
+			AddDisplayName(vDonorDisplayIndices, vpDonorNamePtrs, s_AetherAssetsEditorDonorIndex);
+		if(MainSearchActive)
+			AddDisplayName(vMainDisplayIndices, vpMainNamePtrs, s_AetherAssetsEditorBaseIndex);
+		for(int i = 0; i < (int)vNames.size(); ++i)
+		{
+			if(!DonorSearchActive || AetherAssetEditorNameMatchesSearch(vNames[i].c_str(), s_aAetherAssetsEditorDonorSearch))
+				AddDisplayName(vDonorDisplayIndices, vpDonorNamePtrs, i);
+			if(!MainSearchActive || AetherAssetEditorNameMatchesSearch(vNames[i].c_str(), s_aAetherAssetsEditorMainSearch))
+				AddDisplayName(vMainDisplayIndices, vpMainNamePtrs, i);
+		}
+		if(vDonorDisplayIndices.empty())
+			AddDisplayName(vDonorDisplayIndices, vpDonorNamePtrs, s_AetherAssetsEditorDonorIndex);
+		if(vMainDisplayIndices.empty())
+			AddDisplayName(vMainDisplayIndices, vpMainNamePtrs, s_AetherAssetsEditorBaseIndex);
 		auto IsEntityLiveColorOpacityEdit = [&]() {
 			if(s_AetherAssetsEditorCategory != AETHER_ASSET_EDITOR_ENTITIES_CATEGORY || NumParts <= 0 || !s_AetherAssetsEditorEditPanelOpen)
 				return false;
@@ -6649,6 +7224,7 @@ void CMenus::RenderSettingsAetherAssetsEditorPopup(CUIRect Screen)
 					char aUrl[512];
 					AetherBuildApiUrl(aUrl, sizeof(aUrl), "/v1/assets/upload");
 					s_pAetherAssetsCloudRequest = std::make_shared<CHttpRequest>(aUrl);
+					s_pAetherAssetsCloudRequest->FailOnErrorStatus(false);
 					s_pAetherAssetsCloudRequest->PostJson(Json.GetOutputString().c_str());
 					Http()->Run(s_pAetherAssetsCloudRequest);
 					s_AetherAssetsCloudAction = EAetherAssetsCloudAction::UPLOAD;
@@ -6695,8 +7271,6 @@ void CMenus::RenderSettingsAetherAssetsEditorPopup(CUIRect Screen)
 			}
 		};
 
-		if(!GameClient()->m_MenuBackground.Render())
-			RenderBackground();
 		Screen.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.58f), IGraphics::CORNER_NONE, 0.0f);
 		CUIRect Window = s_AetherAssetsEditorWindow;
 		Window.Draw(AetherPanelColor(0.74f), IGraphics::CORNER_ALL, 8.0f * S);
@@ -6704,10 +7278,18 @@ void CMenus::RenderSettingsAetherAssetsEditorPopup(CUIRect Screen)
 
 		CUIRect Inner;
 		Window.Margin(8.0f * S, &Inner);
-		CUIRect Toolbar, Body, Footer, AssetRow;
+		CUIRect Toolbar, Body, Footer, AssetArea, AssetRow, SkinSearchRow;
 		Inner.HSplitTop(34.0f * S, &Toolbar, &Body);
 		Body.HSplitBottom(24.0f * S, &Body, &Footer);
-		Body.HSplitBottom(38.0f * S, &Body, &AssetRow);
+		const bool SkinModeForLayout = s_AetherAssetsEditorCategory == AETHER_ASSET_EDITOR_SKINS_CATEGORY;
+		Body.HSplitBottom((SkinModeForLayout ? 70.0f : 38.0f) * S, &Body, &AssetArea);
+		if(SkinModeForLayout)
+		{
+			AssetArea.HSplitTop(28.0f * S, &SkinSearchRow, &AssetArea);
+			AssetArea.HSplitTop(4.0f * S, nullptr, &AssetRow);
+		}
+		else
+			AssetRow = AssetArea;
 		Body.HSplitBottom(10.0f * S, &Body, nullptr);
 
 		CUIRect Close, ModeLabel, ModeDrop, ExportInputRect, Reload, Export, Grid;
@@ -6765,15 +7347,22 @@ void CMenus::RenderSettingsAetherAssetsEditorPopup(CUIRect Screen)
 		if(DoButton_Menu(&s_ReloadButton, "Reload", 0, &Reload))
 		{
 			RefreshSources();
+			s_AetherAssetsEditorBaseIndex = AetherAssetEditorFindNameIndex(vNames, s_aAetherAssetsEditorBaseName, s_AetherAssetsEditorBaseIndex);
+			s_AetherAssetsEditorDonorIndex = AetherAssetEditorFindNameIndex(vNames, s_aAetherAssetsEditorDonorName, s_AetherAssetsEditorDonorIndex);
+			AetherAssetEditorStoreSelectionNames(vNames);
 			AetherClearAssetEditorImageCache();
 			s_AetherAssetsEditorMixedDirty = true;
 			s_aAetherAssetsEditorSourcePath[0] = '\0';
 			s_aAetherAssetsEditorLiveSourcePath[0] = '\0';
 			AetherResetAssetsEditorLivePartTexture(Graphics());
 			str_copy(s_aAetherAssetsEditorStatus, "Source lists refreshed.");
+			return;
 		}
 		if(DoButton_Menu(&s_ExportButton, "Export", 0, &Export))
+		{
 			ExportCurrent();
+			return;
+		}
 		if(DoButton_CheckBox(&s_ShowGridButton, "Show Grid", s_AetherAssetsEditorShowGrid, &Grid))
 			s_AetherAssetsEditorShowGrid = !s_AetherAssetsEditorShowGrid;
 		AetherDoLabelTooltip(Ui(), GameClient(), &s_ShowGridButton, Grid, "Show Grid");
@@ -7237,6 +7826,24 @@ void CMenus::RenderSettingsAetherAssetsEditorPopup(CUIRect Screen)
 			}
 		}
 
+		if(s_AetherAssetsEditorCategory == AETHER_ASSET_EDITOR_SKINS_CATEGORY)
+		{
+			CUIRect SearchDonor, SearchMain;
+			SkinSearchRow.VSplitLeft((SkinSearchRow.w - Gap) * 0.5f, &SearchDonor, &SearchMain);
+			SearchMain.VSplitLeft(Gap, nullptr, &SearchMain);
+			CUIRect DonorSearchLabel, DonorSearchBox, MainSearchLabel, MainSearchArea, MainSearchBox, ResetSpace;
+			SearchDonor.VSplitLeft(108.0f * S, &DonorSearchLabel, &DonorSearchBox);
+			SearchMain.VSplitLeft(96.0f * S, &MainSearchLabel, &MainSearchArea);
+			MainSearchArea.VSplitRight(132.0f * S, &MainSearchBox, &ResetSpace);
+			MainSearchBox.VSplitRight(8.0f * S, &MainSearchBox, nullptr);
+			Ui()->DoLabel(&DonorSearchLabel, AetherLocalize("Donor Search"), 14.0f * S, TEXTALIGN_ML);
+			Ui()->DoLabel(&MainSearchLabel, AetherLocalize("Main Search"), 14.0f * S, TEXTALIGN_ML);
+			s_DonorSearchInput.SetEmptyText("Search");
+			s_MainSearchInput.SetEmptyText("Search");
+			Ui()->DoEditBox(&s_DonorSearchInput, &DonorSearchBox, 13.0f * S, IGraphics::CORNER_ALL, {}, 7.0f * S);
+			Ui()->DoEditBox(&s_MainSearchInput, &MainSearchBox, 13.0f * S, IGraphics::CORNER_ALL, {}, 7.0f * S);
+		}
+
 		CUIRect DonorAssetRow, MainAssetRow;
 		AssetRow.VSplitLeft((AssetRow.w - Gap) * 0.5f, &DonorAssetRow, &MainAssetRow);
 		MainAssetRow.VSplitLeft(Gap, nullptr, &MainAssetRow);
@@ -7247,18 +7854,22 @@ void CMenus::RenderSettingsAetherAssetsEditorPopup(CUIRect Screen)
 		MainDrop.VSplitRight(8.0f * S, &MainDrop, nullptr);
 		Ui()->DoLabel(&DonorLabel, "Donor Asset", 14.0f * S, TEXTALIGN_ML);
 		s_DonorDropState.m_SelectionPopupContext.m_pScrollRegion = &s_DonorDropScroll;
-		const int NewDonor = Ui()->DoDropDown(&DonorDrop, s_AetherAssetsEditorDonorIndex, vpNamePtrs.data(), (int)vpNamePtrs.size(), s_DonorDropState);
-		if(NewDonor != s_AetherAssetsEditorDonorIndex)
+		const int DonorDisplaySelection = AetherAssetEditorDisplaySelection(vDonorDisplayIndices, s_AetherAssetsEditorDonorIndex);
+		const int NewDonorDisplay = Ui()->DoDropDown(&DonorDrop, DonorDisplaySelection, vpDonorNamePtrs.data(), (int)vpDonorNamePtrs.size(), s_DonorDropState);
+		if(NewDonorDisplay >= 0 && NewDonorDisplay < (int)vDonorDisplayIndices.size() && vDonorDisplayIndices[NewDonorDisplay] != s_AetherAssetsEditorDonorIndex)
 		{
-			s_AetherAssetsEditorDonorIndex = NewDonor;
+			s_AetherAssetsEditorDonorIndex = vDonorDisplayIndices[NewDonorDisplay];
+			AetherAssetEditorStoreSelectionNames(vNames);
 			s_aAetherAssetsEditorSourcePath[0] = '\0';
 		}
 		Ui()->DoLabel(&MainLabel, "Main Asset", 14.0f * S, TEXTALIGN_ML);
 		s_MainDropState.m_SelectionPopupContext.m_pScrollRegion = &s_MainDropScroll;
-		const int NewBase = Ui()->DoDropDown(&MainDrop, s_AetherAssetsEditorBaseIndex, vpNamePtrs.data(), (int)vpNamePtrs.size(), s_MainDropState);
-		if(NewBase != s_AetherAssetsEditorBaseIndex)
+		const int BaseDisplaySelection = AetherAssetEditorDisplaySelection(vMainDisplayIndices, s_AetherAssetsEditorBaseIndex);
+		const int NewBaseDisplay = Ui()->DoDropDown(&MainDrop, BaseDisplaySelection, vpMainNamePtrs.data(), (int)vpMainNamePtrs.size(), s_MainDropState);
+		if(NewBaseDisplay >= 0 && NewBaseDisplay < (int)vMainDisplayIndices.size() && vMainDisplayIndices[NewBaseDisplay] != s_AetherAssetsEditorBaseIndex)
 		{
-			s_AetherAssetsEditorBaseIndex = NewBase;
+			s_AetherAssetsEditorBaseIndex = vMainDisplayIndices[NewBaseDisplay];
+			AetherAssetEditorStoreSelectionNames(vNames);
 			AetherClearAssetEditorImageCache();
 			s_AetherAssetsEditorMixedDirty = true;
 		}
@@ -7443,6 +8054,10 @@ void CMenus::RenderSettingsAetherMusicPlayer(CUIRect Body)
 		g_Config.m_AeMusicMediaTitle ^= 1;
 	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeMusicMediaTitle, Control, "Media title");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
+	if(DoButton_CheckBox(&g_Config.m_AeMusicTimeline, Localize("Timeline"), g_Config.m_AeMusicTimeline, &Control))
+		g_Config.m_AeMusicTimeline ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeMusicTimeline, Control, "Timeline");
+	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeMusicVisualizer, Localize("Visualizer"), g_Config.m_AeMusicVisualizer, &Control))
 		g_Config.m_AeMusicVisualizer ^= 1;
 	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeMusicVisualizer, Control, "Visualizer");
@@ -7482,12 +8097,13 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		RenderSettingsAetherMapBackgroundBuilderPopup(MainView);
 		return;
 	}
-	static const std::array<const char *, 9> s_apMusicChildren = {
+	static const std::array<const char *, 10> s_apMusicChildren = {
 		"Dynamic cover color",
 		"Background color",
 		"Panel opacity",
 		"Freeze counter",
 		"Media title",
+		"Timeline",
 		"Visualizer",
 		"Visualizer style",
 		"Visualizer sensitivity",
@@ -7538,11 +8154,17 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 	static const std::array<const char *, 2> s_apNinjaTimerChildren = {
 		"Timer",
 		"HUD editor"};
-	static const std::array<const char *, 9> s_apTeamOverlaysChildren = {
+	static const std::array<const char *, 15> s_apTeamOverlaysChildren = {
 		"Last alive display",
 		"Last text",
 		"Last color",
 		"Last background",
+		"Last warning sound",
+		"Last sound",
+		"Last volume",
+		"Sound folder",
+		"Team invite popup",
+		"Invite join key",
 		"Frozen tee counter",
 		"Alive",
 		"Frozen",
@@ -7728,12 +8350,13 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		"Last unfrozen",
 		"Volume",
 		"Sound file"};
-	static const std::array<const char *, 7> s_apSoundChildren = {
+	static const std::array<const char *, 8> s_apSoundChildren = {
 		"Local hook sounds",
 		"Hook sounds",
 		"Hammer sounds",
 		"Weapon switch sounds",
-		"Double jump sounds",
+		"Local double jump sounds",
+		"Others double jump",
 		"Local kill/respawn",
 		"Others kill/respawn"};
 	static const std::array<const char *, 4> s_apKeyboardSoundChildren = {
@@ -7824,6 +8447,10 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		"Vignette",
 		"Export map",
 		"Apply background"};
+	static const std::array<const char *, 3> s_apMediaBackgroundChildren = {
+		"Media image",
+		"Refresh images",
+		"Open folder"};
 	static const std::array<const char *, 9> s_apOptimizerChildren = {
 		"High process priority",
 		"Discord priority",
@@ -7839,7 +8466,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		"Coded background",
 		"Parallax",
 		"Override"};
-	const std::array<SFeature, 47> aFeatures = {{
+	const std::array<SFeature, 48> aFeatures = {{
 		{AetherMusic::EAetherFeatureId::TEAM_OVERLAYS, EAetherPage::VISUALS, ESection::VISUALS, "Last & Frozen Display", nullptr, s_apTeamOverlaysChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::GRADIENT_TEAM_COLORS, EAetherPage::VISUALS, ESection::VISUALS, "Gradient Effects", nullptr, s_apGradientTeamColorChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::AETHER_MENU_THEME, EAetherPage::VISUALS, ESection::VISUALS, "Aether Menu Theme", &g_Config.m_AeMenuThemeOverride, s_apAetherMenuThemeChildren, EEditorAction::NONE},
@@ -7886,6 +8513,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		{AetherMusic::EAetherFeatureId::AIM_TRAINING, EAetherPage::TOOLS, ESection::TOOLS, "Aim Training", &g_Config.m_AeAimTraining, s_apAimTrainingChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::PSA, EAetherPage::TOOLS, ESection::TOOLS, "PSA", &g_Config.m_AePsa, s_apPsaChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::CUSTOM_MENU_THEME, EAetherPage::TOOLS, ESection::TOOLS, "Custom Menu Theme", &g_Config.m_AeCustomMenuTheme, s_apCustomMenuThemeChildren, EEditorAction::NONE},
+		{AetherMusic::EAetherFeatureId::MEDIA_BACKGROUND, EAetherPage::TOOLS, ESection::TOOLS, "Media Background", &g_Config.m_AeMediaBackgroundGame, s_apMediaBackgroundChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::CLOUD_CLAN, EAetherPage::CLAN, ESection::TOOLS, "Cloud Clan", nullptr, s_apClanChildren, EEditorAction::NONE},
 	}};
 
@@ -8019,7 +8647,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 	auto BodyHeight = [&](AetherMusic::EAetherFeatureId Id) {
 		switch(Id)
 		{
-		case AetherMusic::EAetherFeatureId::MUSIC_PLAYER: return 212.0f * S;
+		case AetherMusic::EAetherFeatureId::MUSIC_PLAYER: return 234.0f * S;
 		case AetherMusic::EAetherFeatureId::KEYSTROKES: return 84.0f * S;
 		case AetherMusic::EAetherFeatureId::INPUT_VISUALIZER:
 		{
@@ -8039,7 +8667,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		case AetherMusic::EAetherFeatureId::REAL_HITBOX: return 74.0f * S;
 		case AetherMusic::EAetherFeatureId::NINJA_TEE_PREVIEW: return 116.0f * S;
 		case AetherMusic::EAetherFeatureId::NINJA_TIMER: return 54.0f * S;
-		case AetherMusic::EAetherFeatureId::TEAM_OVERLAYS: return 248.0f * S;
+		case AetherMusic::EAetherFeatureId::TEAM_OVERLAYS: return 402.0f * S;
 		case AetherMusic::EAetherFeatureId::SWEAT_WEAPON:
 			return (430.0f +
 				(g_Config.m_AeSweatWeaponShine ? 24.0f : 0.0f) +
@@ -8057,7 +8685,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		case AetherMusic::EAetherFeatureId::CHAT_BUBBLES: return 238.0f * S;
 		case AetherMusic::EAetherFeatureId::BLOCK_AWARENESS:
 			return (s_AetherBlockAwarenessTab == 0 ? 344.0f : s_AetherBlockAwarenessTab == 1 ? 160.0f : s_AetherBlockAwarenessTab == 2 ? 150.0f : s_AetherBlockAwarenessTab == 3 ? 150.0f : 188.0f) * S;
-		case AetherMusic::EAetherFeatureId::FAIL_SOUND: return 292.0f * S;
+		case AetherMusic::EAetherFeatureId::FAIL_SOUND: return 224.0f * S;
 		case AetherMusic::EAetherFeatureId::SOUND: return 232.0f * S;
 		case AetherMusic::EAetherFeatureId::KEYBOARD_SOUND: return 136.0f * S;
 		case AetherMusic::EAetherFeatureId::AUTO_TEAM_LOCK: return 70.0f * S;
@@ -8074,6 +8702,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		case AetherMusic::EAetherFeatureId::GORES_MAPS: return 430.0f * S;
 		case AetherMusic::EAetherFeatureId::ASSETS_EDITOR: return 0.0f;
 		case AetherMusic::EAetherFeatureId::MAP_BACKGROUND_BUILDER: return 58.0f * S;
+		case AetherMusic::EAetherFeatureId::MEDIA_BACKGROUND: return 106.0f * S;
 		case AetherMusic::EAetherFeatureId::FOCUS_MODE: return 126.0f * S;
 		case AetherMusic::EAetherFeatureId::SNAP_TAP: return 46.0f * S;
 		case AetherMusic::EAetherFeatureId::GORES_MODE: return 86.0f * S;
@@ -8199,6 +8828,9 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		case AetherMusic::EAetherFeatureId::MAP_BACKGROUND_BUILDER:
 			RenderSettingsAetherMapBackgroundBuilder(Body);
 			break;
+		case AetherMusic::EAetherFeatureId::MEDIA_BACKGROUND:
+			RenderSettingsAetherMediaBackground(Body);
+			break;
 		case AetherMusic::EAetherFeatureId::FOCUS_MODE:
 			RenderSettingsAetherFocusMode(Body);
 			break;
@@ -8258,11 +8890,13 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 			Card.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.28f), IGraphics::CORNER_ALL, 8.0f * S);
 			Card.Margin(12.0f * S, &Card);
 			CUIRect Title, Text;
-			Card.HSplitTop(24.0f * S, &Title, &Text);
+			Card.HSplitTop(28.0f * S, &Title, &Text);
 			TextRender()->TextColor(Accent);
-			Ui()->DoLabel(&Title, pTitle, 17.0f * S, TEXTALIGN_ML);
+			Ui()->DoLabel(&Title, AetherLocalize(pTitle), 19.0f * S, TEXTALIGN_ML);
 			TextRender()->TextColor(0.76f, 0.82f, 0.90f, 1.0f);
-			Ui()->DoLabel(&Text, pText, 12.0f * S, TEXTALIGN_ML);
+			SLabelProperties BodyLabelProps;
+			BodyLabelProps.m_MaxWidth = Text.w;
+			Ui()->DoLabel(&Text, AetherLocalize(pText), 14.0f * S, TEXTALIGN_TL, BodyLabelProps);
 			TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 		};
 
@@ -8304,7 +8938,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 			Ui()->DoLabel(&Heart, FontIcon::HEART, 44.0f * S, TEXTALIGN_MC);
 			TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 			TextRender()->SetFontPreset(EFontPreset::DEFAULT_FONT);
-			CUIRect MiniTeeBox = RenderMascot(Mini, "Mini silver", "G_Samoye", false);
+			CUIRect MiniTeeBox = RenderMascot(Mini, "Mini silver", "G_Samoye");
 			static CButtonContainer s_MiniSilverLoveButton;
 			static int s_MiniSilverLoveClicks = 0;
 			static int s_MiniSilverLoveCount = 0;
@@ -8335,18 +8969,66 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 
 		MainView.HSplitTop(10.0f * S, nullptr, &MainView);
 		CUIRect Left, Right;
-		MainView.HSplitTop(92.0f * S, &Hero, &MainView);
+		MainView.HSplitTop(112.0f * S, &Hero, &MainView);
 		Hero.VSplitMid(&Left, &Right, 10.0f * S);
 		if(s_ScrollRegion.AddRect(Hero))
 		{
-			RenderInfoCard(Left, "Aether Client", "A custom DDNet client built around clean visuals, QoL tools, games and Aether-only systems.", ColorRGBA(0.94f, 0.64f, 1.0f, 1.0f));
-			RenderInfoCard(Right, "Config", "Aether settings use the ae_* namespace in this clean build. Vault CFG can export a combined preset.", ColorRGBA(1.0f, 0.72f, 0.38f, 1.0f));
+			RenderInfoCard(Left, "Aether Client", "Aether is a clean DDNet-based client focused on smooth gameplay, modern visuals, QoL tools, and Gores-friendly systems.", ColorRGBA(0.94f, 0.64f, 1.0f, 1.0f));
+			RenderInfoCard(Right, "Features", "Fast input modes, Music Player HUD, Assets Editor, custom visuals, cloud assets, team overlays and gameplay utilities live in one client.", ColorRGBA(1.0f, 0.72f, 0.38f, 1.0f));
 		}
 
 		MainView.HSplitTop(10.0f * S, nullptr, &MainView);
-		MainView.HSplitTop(82.0f * S, &Hero, &MainView);
+		MainView.HSplitTop(112.0f * S, &Hero, &MainView);
+		Hero.VSplitMid(&Left, &Right, 10.0f * S);
 		if(s_ScrollRegion.AddRect(Hero))
-			RenderInfoCard(Hero, "Credits", "Original AetherClient info page, mascot names and presentation are preserved from the previous client branch.", ColorRGBA(0.95f, 0.56f, 0.82f, 1.0f));
+		{
+			RenderInfoCard(Left, "Settings & Backup", "Aether settings are stored separately with ae_* configs. Vault CFG can export your setup so you can move or restore it safely.", ColorRGBA(0.62f, 0.88f, 1.0f, 1.0f));
+			RenderInfoCard(Right, "Credits", "Built on DDNet with inspiration from TClient and the original AetherClient branch. Mascots, names and legacy ideas are preserved with care.", ColorRGBA(0.95f, 0.56f, 0.82f, 1.0f));
+		}
+
+		MainView.HSplitTop(10.0f * S, nullptr, &MainView);
+		MainView.HSplitTop(104.0f * S, &Hero, &MainView);
+		if(s_ScrollRegion.AddRect(Hero))
+		{
+			Hero.Draw(ColorRGBA(0.0f, 0.0f, 0.0f, 0.28f), IGraphics::CORNER_ALL, 8.0f * S);
+			Hero.Margin(12.0f * S, &Hero);
+			CUIRect Title, Body, Buttons;
+			Hero.HSplitTop(24.0f * S, &Title, &Hero);
+			Hero.HSplitTop(20.0f * S, &Body, &Buttons);
+
+			TextRender()->TextColor(0.94f, 0.64f, 1.0f, 1.0f);
+			Ui()->DoLabel(&Title, AetherLocalize("Version & Support"), 19.0f * S, TEXTALIGN_ML);
+			TextRender()->TextColor(0.76f, 0.82f, 0.90f, 1.0f);
+			char aSupportText[256];
+			str_format(aSupportText, sizeof(aSupportText), "%s %s. %s", AetherLocalize("Version:"), CLIENT_RELEASE_VERSION, AetherLocalize("Report bugs or feedback through Discord, or follow development on GitHub."));
+			SLabelProperties SupportLabelProps;
+			SupportLabelProps.m_MaxWidth = Body.w;
+			Ui()->DoLabel(&Body, aSupportText, 14.0f * S, TEXTALIGN_TL, SupportLabelProps);
+			TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+
+			CUIRect DiscordButton, GithubButton, ConfigButton;
+			Buttons.HSplitTop(6.0f * S, nullptr, &Buttons);
+			const float ButtonW = std::min(150.0f * S, (Buttons.w - 16.0f * S) / 3.0f);
+			Buttons.VSplitLeft(ButtonW, &DiscordButton, &Buttons);
+			Buttons.VSplitLeft(8.0f * S, nullptr, &Buttons);
+			Buttons.VSplitLeft(ButtonW, &GithubButton, &Buttons);
+			Buttons.VSplitLeft(8.0f * S, nullptr, &Buttons);
+			Buttons.VSplitLeft(ButtonW, &ConfigButton, &Buttons);
+
+			static CButtonContainer s_InfoDiscordButton;
+			static CButtonContainer s_InfoGithubButton;
+			static CButtonContainer s_InfoOpenConfigButton;
+			if(DoButton_Menu(&s_InfoDiscordButton, "Discord", 0, &DiscordButton, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 6.0f * S))
+				Client()->ViewLink("https://discord.gg/4nCmzwyfwH");
+			if(DoButton_Menu(&s_InfoGithubButton, "GitHub", 0, &GithubButton, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 6.0f * S))
+				Client()->ViewLink("https://github.com/AetherClientTeam/AetherClient");
+			if(DoButton_Menu(&s_InfoOpenConfigButton, "Open Config", 0, &ConfigButton, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_ALL, 6.0f * S))
+			{
+				char aConfigPath[IO_MAX_PATH_LENGTH];
+				Storage()->GetCompletePath(IStorage::TYPE_SAVE, s_aConfigDomains[ConfigDomain::AETHER].m_aConfigPath, aConfigPath, sizeof(aConfigPath));
+				Client()->ViewFile(aConfigPath);
+			}
+		}
 		s_ScrollRegion.End();
 		return;
 	}
@@ -10339,8 +11021,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 							EditorOpened |= GameClient()->m_AetherFinishPrediction.OpenEditor();
 						if(g_Config.m_AeStabilityTrainer)
 							EditorOpened |= GameClient()->m_AetherStabilityTrainer.OpenEditor();
-						if(g_Config.m_AeNinjaTimer || g_Config.m_AeTeamLastOverlay || g_Config.m_AeTeamFreezeCounter > 0 || (g_Config.m_AeTimerPanel && g_Config.m_ClShowhudTimer && !g_Config.m_AeMusicPlayer))
-							EditorOpened |= GameClient()->m_Hud.OpenTClientFrozenTextEditor();
+						EditorOpened |= GameClient()->m_Hud.OpenTClientFrozenTextEditor();
 						if(EditorOpened)
 						{
 							SetActive(false);
@@ -10375,6 +11056,16 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 					if(Feature.m_pEnabled && DoButton_CheckBox(Feature.m_pEnabled, "", *Feature.m_pEnabled, &CheckBox))
 					{
 						*Feature.m_pEnabled ^= 1;
+						if(Feature.m_Id == AetherMusic::EAetherFeatureId::MEDIA_BACKGROUND)
+						{
+							char aMediaBackgroundStatus[192];
+							if(*Feature.m_pEnabled && g_Config.m_AeMediaBackgroundImage[0] != '\0')
+							{
+								AetherApplyMediaBackground(Storage(), Graphics(), GameClient(), aMediaBackgroundStatus, sizeof(aMediaBackgroundStatus));
+							}
+							else if(!*Feature.m_pEnabled)
+								AetherDisableMediaBackground(GameClient(), aMediaBackgroundStatus, sizeof(aMediaBackgroundStatus));
+						}
 						if(*Feature.m_pEnabled)
 							m_AetherExpandedFeature = Feature.m_Id;
 						else if(m_AetherExpandedFeature == Feature.m_Id)

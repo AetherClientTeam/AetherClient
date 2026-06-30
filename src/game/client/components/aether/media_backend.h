@@ -43,6 +43,10 @@ public:
 		uint32_t m_ArtworkHeight = 0;
 		int64_t m_LastPlayingMs = 0;
 		int64_t m_ArtworkReceivedMs = 0;
+		bool m_TimelineValid = false;
+		int64_t m_PositionMs = 0;
+		int64_t m_DurationMs = 0;
+		int64_t m_TimelineUpdatedMs = 0;
 	};
 
 	CAetherMediaBackend();

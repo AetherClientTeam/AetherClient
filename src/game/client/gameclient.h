@@ -356,6 +356,7 @@ private:
 	static void ConTeam(IConsole::IResult *pResult, void *pUserData);
 	static void ConKill(IConsole::IResult *pResult, void *pUserData);
 	static void ConReadyChange7(IConsole::IResult *pResult, void *pUserData);
+	static void ConAetherTeamInviteJoin(IConsole::IResult *pResult, void *pUserData);
 	static void ConAetherPerfSpikes(IConsole::IResult *pResult, void *pUserData);
 	static void ConAetherPerfRecord(IConsole::IResult *pResult, void *pUserData);
 	static void ConAetherPerfDump(IConsole::IResult *pResult, void *pUserData);
@@ -442,6 +443,21 @@ public:
 	CGameInfo m_GameInfo;
 
 	int m_DemoSpecId;
+
+	bool AetherTeamFreezeCounts(int TeamClientId, int &NumInTeam, int &NumFrozen) const;
+	bool AetherMaybeHandleTeamInviteMessage(const char *pLine);
+	bool AetherTeamInvitePopupActive() const;
+	bool AetherTeamInvitePopupVisible() const;
+	float AetherTeamInvitePopupProgress() const;
+	float AetherTeamInvitePopupAnimation() const;
+	const char *AetherTeamInvitePlayer() const { return m_aAetherTeamInvitePlayer; }
+	int AetherTeamInviteTeam() const { return m_AetherTeamInviteTeam; }
+	void AetherAcceptTeamInvite();
+	void AetherIgnoreTeamInvite();
+	char m_aAetherTeamInvitePlayer[MAX_NAME_LENGTH] = "";
+	int m_AetherTeamInviteTeam = 0;
+	int64_t m_AetherTeamInviteStart = 0;
+	int64_t m_AetherTeamInviteEnd = 0;
 
 	vec2 m_LocalCharacterPos;
 

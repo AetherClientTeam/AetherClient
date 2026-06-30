@@ -183,32 +183,34 @@ void CMenusStart::RenderStartMenu(CUIRect MainView)
 #if defined(CONF_AUTOUPDATE)
 	{
 		CUIRect UpdateStatus, UpdateButton;
-		UpdateArea.VSplitRight(126.0f, &UpdateStatus, &UpdateButton);
-		UpdateStatus.VSplitRight(8.0f, &UpdateStatus, nullptr);
 
 		const IUpdater::EUpdaterState UpdateState = Updater()->GetCurrentState();
 		char aStatus[128];
 		Updater()->GetCurrentFile(aStatus, sizeof(aStatus));
 		const int Percent = Updater()->GetCurrentPercent();
+		const bool ShowUpdateButton = UpdateState == IUpdater::UPDATE_AVAILABLE || UpdateState == IUpdater::NEED_RESTART || UpdateState == IUpdater::FAIL;
 
 		const char *pButtonLabel = "Update";
-		if(UpdateState == IUpdater::GETTING_MANIFEST)
-			pButtonLabel = "Checking";
-		else if(UpdateState == IUpdater::DOWNLOADING)
-			pButtonLabel = "Updating";
-		else if(UpdateState == IUpdater::NEED_RESTART)
+		if(UpdateState == IUpdater::NEED_RESTART)
 			pButtonLabel = "Restart";
 		else if(UpdateState == IUpdater::FAIL)
 			pButtonLabel = "Retry";
 
 		static CButtonContainer s_AetherHeaderUpdateButton;
-		if(GameClient()->m_Menus.DoButton_Menu(&s_AetherHeaderUpdateButton, pButtonLabel, 0, &UpdateButton, BUTTONFLAG_LEFT, 0, IGraphics::CORNER_ALL, 8.0f, 0.0f, ColorRGBA(0.0f, 0.0f, 0.0f, 0.18f)))
+		if(ShowUpdateButton)
 		{
-			if(UpdateState == IUpdater::NEED_RESTART)
-				Updater()->ApplyUpdateAndRestart();
-			else if(UpdateState != IUpdater::GETTING_MANIFEST && UpdateState != IUpdater::DOWNLOADING)
-				Updater()->InitiateUpdate();
+			UpdateArea.VSplitRight(126.0f, &UpdateStatus, &UpdateButton);
+			UpdateStatus.VSplitRight(8.0f, &UpdateStatus, nullptr);
+			if(GameClient()->m_Menus.DoButton_Menu(&s_AetherHeaderUpdateButton, pButtonLabel, 0, &UpdateButton, BUTTONFLAG_LEFT, 0, IGraphics::CORNER_ALL, 8.0f, 0.0f, ColorRGBA(0.0f, 0.0f, 0.0f, 0.18f)))
+			{
+				if(UpdateState == IUpdater::NEED_RESTART)
+					Updater()->ApplyUpdateAndRestart();
+				else
+					Updater()->InitiateUpdate();
+			}
 		}
+		else
+			UpdateStatus = UpdateArea;
 
 		char aBuf[96];
 		if(UpdateState == IUpdater::DOWNLOADING)

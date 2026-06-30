@@ -93,6 +93,12 @@ CUIRect CHud::AetherTimerPanelResizeHandleRect() const
 	return CUIRect(m_AetherTimerPanelRect.x + m_AetherTimerPanelRect.w - 2.0f * Scale, m_AetherTimerPanelRect.y + m_AetherTimerPanelRect.h - 2.0f * Scale, 5.0f * Scale, 5.0f * Scale);
 }
 
+CUIRect CHud::AetherTeamInviteResizeHandleRect() const
+{
+	const float Scale = std::clamp(g_Config.m_AeTeamInvitePopupScale / 100.0f, 0.5f, 2.0f);
+	return CUIRect(m_AetherTeamInviteRect.x + m_AetherTeamInviteRect.w - 2.0f * Scale, m_AetherTeamInviteRect.y + m_AetherTeamInviteRect.h - 2.0f * Scale, 5.0f * Scale, 5.0f * Scale);
+}
+
 void CHud::InitializeTClientEditorRects()
 {
 	m_Width = 300.0f * Graphics()->ScreenAspect();
@@ -149,6 +155,10 @@ void CHud::InitializeTClientEditorRects()
 	const float CounterHeight = CounterFontSize + (g_Config.m_AeTeamFreezeCounterBackground ? 7.0f : 3.4f) * CounterScale;
 	m_AetherTeamCounterRect = CUIRect(m_Width * 0.5f - CounterWidth * 0.5f + g_Config.m_AeTeamFreezeCounterOffsetX, (float)g_Config.m_AeTeamFreezeCounterOffsetY, CounterWidth, CounterHeight);
 	ClampAetherTeamCounter();
+
+	const float InviteScale = std::clamp(g_Config.m_AeTeamInvitePopupScale / 100.0f, 0.5f, 2.0f);
+	m_AetherTeamInviteRect = CUIRect((float)g_Config.m_AeTeamInvitePopupOffsetX, (float)g_Config.m_AeTeamInvitePopupOffsetY, 128.0f * InviteScale, 26.0f * InviteScale);
+	ClampAetherTeamInvite();
 }
 
 void CHud::ClampTClientFrozenText()
@@ -208,6 +218,14 @@ void CHud::ClampAetherTimerPanel()
 	m_AetherTimerPanelRect.y = std::clamp(m_AetherTimerPanelRect.y, 0.0f, std::max(0.0f, m_Height - m_AetherTimerPanelRect.h));
 	g_Config.m_AeTimerPanelOffsetX = round_to_int((m_AetherTimerPanelRect.x + m_AetherTimerPanelRect.w * 0.5f) - m_Width * 0.5f);
 	g_Config.m_AeTimerPanelOffsetY = round_to_int(m_AetherTimerPanelRect.y);
+}
+
+void CHud::ClampAetherTeamInvite()
+{
+	m_AetherTeamInviteRect.x = std::clamp(m_AetherTeamInviteRect.x, 0.0f, std::max(0.0f, m_Width - m_AetherTeamInviteRect.w));
+	m_AetherTeamInviteRect.y = std::clamp(m_AetherTeamInviteRect.y, 0.0f, std::max(0.0f, m_Height - m_AetherTeamInviteRect.h));
+	g_Config.m_AeTeamInvitePopupOffsetX = round_to_int(m_AetherTeamInviteRect.x);
+	g_Config.m_AeTeamInvitePopupOffsetY = round_to_int(m_AetherTeamInviteRect.y);
 }
 
 void CHud::SetTClientFrozenTextScaleKeepingCenter(int NewScale, vec2 Center)
@@ -298,6 +316,17 @@ void CHud::SetAetherTimerPanelScaleKeepingCenter(int NewScale, vec2 Center)
 	ClampAetherTimerPanel();
 }
 
+void CHud::SetAetherTeamInviteScaleKeepingCenter(int NewScale, vec2 Center)
+{
+	g_Config.m_AeTeamInvitePopupScale = std::clamp(NewScale, 50, 200);
+	const float Scale = std::clamp(g_Config.m_AeTeamInvitePopupScale / 100.0f, 0.5f, 2.0f);
+	m_AetherTeamInviteRect.w = 128.0f * Scale;
+	m_AetherTeamInviteRect.h = 26.0f * Scale;
+	m_AetherTeamInviteRect.x = Center.x - m_AetherTeamInviteRect.w * 0.5f;
+	m_AetherTeamInviteRect.y = Center.y - m_AetherTeamInviteRect.h * 0.5f;
+	ClampAetherTeamInvite();
+}
+
 void CHud::RenderTClientHudEditorOverlay(const CUIRect &Rect, const CUIRect &Handle)
 {
 	const ColorRGBA Theme = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_UiColor, true));
@@ -348,6 +377,7 @@ bool CHud::OnInput(const IInput::CEvent &Event)
 	const bool EditAetherTeamLast = g_Config.m_AeTeamLastOverlay;
 	const bool EditAetherTeamCounter = g_Config.m_AeTeamFreezeCounter > 0;
 	const bool EditAetherTimerPanel = g_Config.m_AeTimerPanel && g_Config.m_ClShowhudTimer && !g_Config.m_AeMusicPlayer;
+	const bool EditAetherTeamInvite = g_Config.m_AeTeamInvitePopup != 0;
 	const bool EditFrozenText = false;
 	const bool EditLastNotify = false;
 	const bool EditFrozenHud = false;
@@ -379,6 +409,9 @@ bool CHud::OnInput(const IInput::CEvent &Event)
 		g_Config.m_AeTimerPanelOffsetX = 0;
 		g_Config.m_AeTimerPanelOffsetY = 2;
 		g_Config.m_AeTimerPanelScale = 100;
+		g_Config.m_AeTeamInvitePopupOffsetX = 8;
+		g_Config.m_AeTeamInvitePopupOffsetY = 8;
+		g_Config.m_AeTeamInvitePopupScale = 100;
 		return true;
 	}
 	if((Event.m_Flags & IInput::FLAG_PRESS) && (Event.m_Key == KEY_MOUSE_WHEEL_UP || Event.m_Key == KEY_MOUSE_WHEEL_DOWN))
@@ -400,6 +433,12 @@ bool CHud::OnInput(const IInput::CEvent &Event)
 		{
 			const vec2 Center(m_AetherTimerPanelRect.x + m_AetherTimerPanelRect.w * 0.5f, m_AetherTimerPanelRect.y + m_AetherTimerPanelRect.h * 0.5f);
 			SetAetherTimerPanelScaleKeepingCenter(g_Config.m_AeTimerPanelScale + (Event.m_Key == KEY_MOUSE_WHEEL_UP ? 5 : -5), Center);
+			return true;
+		}
+		if(EditAetherTeamInvite && m_AetherTeamInviteRect.Inside(Mouse))
+		{
+			const vec2 Center(m_AetherTeamInviteRect.x + m_AetherTeamInviteRect.w * 0.5f, m_AetherTeamInviteRect.y + m_AetherTeamInviteRect.h * 0.5f);
+			SetAetherTeamInviteScaleKeepingCenter(g_Config.m_AeTeamInvitePopupScale + (Event.m_Key == KEY_MOUSE_WHEEL_UP ? 5 : -5), Center);
 			return true;
 		}
 		if(EditFrozenText && m_TClientFrozenTextRect.Inside(Mouse))
@@ -451,6 +490,12 @@ bool CHud::OnInput(const IInput::CEvent &Event)
 				m_AetherTimerPanelResizeCenter = vec2(m_AetherTimerPanelRect.x + m_AetherTimerPanelRect.w * 0.5f, m_AetherTimerPanelRect.y + m_AetherTimerPanelRect.h * 0.5f);
 				return true;
 			}
+			if(EditAetherTeamInvite && AetherTeamInviteResizeHandleRect().Inside(Mouse))
+			{
+				m_TClientFrozenTextEditorInteraction = ETClientFrozenTextEditorInteraction::RESIZING_AETHER_TEAM_INVITE;
+				m_AetherTeamInviteResizeCenter = vec2(m_AetherTeamInviteRect.x + m_AetherTeamInviteRect.w * 0.5f, m_AetherTeamInviteRect.y + m_AetherTeamInviteRect.h * 0.5f);
+				return true;
+			}
 			if(EditFrozenHud && TClientFrozenHudResizeHandleRect().Inside(Mouse))
 			{
 				m_TClientFrozenTextEditorInteraction = ETClientFrozenTextEditorInteraction::RESIZING_FROZEN_HUD;
@@ -497,6 +542,12 @@ bool CHud::OnInput(const IInput::CEvent &Event)
 			{
 				m_TClientFrozenTextEditorInteraction = ETClientFrozenTextEditorInteraction::DRAGGING_AETHER_TIMER_PANEL;
 				m_AetherTimerPanelDragOffset = Mouse - vec2(m_AetherTimerPanelRect.x, m_AetherTimerPanelRect.y);
+				return true;
+			}
+			if(EditAetherTeamInvite && m_AetherTeamInviteRect.Inside(Mouse))
+			{
+				m_TClientFrozenTextEditorInteraction = ETClientFrozenTextEditorInteraction::DRAGGING_AETHER_TEAM_INVITE;
+				m_AetherTeamInviteDragOffset = Mouse - vec2(m_AetherTeamInviteRect.x, m_AetherTeamInviteRect.y);
 				return true;
 			}
 			if(EditFrozenHud && m_TClientFrozenHudRect.Inside(Mouse))
@@ -616,6 +667,17 @@ bool CHud::OnCursorMove(float x, float y, IInput::ECursorType CursorType)
 		ClampAetherTimerPanel();
 		return true;
 	}
+	if(m_TClientFrozenTextEditorInteraction == ETClientFrozenTextEditorInteraction::DRAGGING_AETHER_TEAM_INVITE)
+	{
+		m_AetherTeamInviteRect.x = Mouse.x - m_AetherTeamInviteDragOffset.x;
+		m_AetherTeamInviteRect.y = Mouse.y - m_AetherTeamInviteDragOffset.y;
+		if(std::abs((m_AetherTeamInviteRect.x + m_AetherTeamInviteRect.w * 0.5f) - m_Width * 0.5f) <= 4.0f)
+			m_AetherTeamInviteRect.x = m_Width * 0.5f - m_AetherTeamInviteRect.w * 0.5f;
+		if(std::abs((m_AetherTeamInviteRect.y + m_AetherTeamInviteRect.h * 0.5f) - m_Height * 0.5f) <= 4.0f)
+			m_AetherTeamInviteRect.y = m_Height * 0.5f - m_AetherTeamInviteRect.h * 0.5f;
+		ClampAetherTeamInvite();
+		return true;
+	}
 	if(m_TClientFrozenTextEditorInteraction == ETClientFrozenTextEditorInteraction::RESIZING_FROZEN_TEXT)
 	{
 		const float BaseWidth = std::max(28.0f, m_TClientFrozenTextRect.w / std::max(0.01f, g_Config.m_TcFrozenTextScale / 100.0f));
@@ -682,6 +744,15 @@ bool CHud::OnCursorMove(float x, float y, IInput::ECursorType CursorType)
 		const float HorizontalScale = std::abs(Mouse.x - m_AetherTimerPanelResizeCenter.x) / (BaseWidth * 0.5f);
 		const float VerticalScale = std::abs(Mouse.y - m_AetherTimerPanelResizeCenter.y) / (BaseHeight * 0.5f);
 		SetAetherTimerPanelScaleKeepingCenter((int)std::round(std::max(HorizontalScale, VerticalScale) * 100.0f), m_AetherTimerPanelResizeCenter);
+		return true;
+	}
+	if(m_TClientFrozenTextEditorInteraction == ETClientFrozenTextEditorInteraction::RESIZING_AETHER_TEAM_INVITE)
+	{
+		const float BaseWidth = 128.0f;
+		const float BaseHeight = 26.0f;
+		const float HorizontalScale = std::abs(Mouse.x - m_AetherTeamInviteResizeCenter.x) / (BaseWidth * 0.5f);
+		const float VerticalScale = std::abs(Mouse.y - m_AetherTeamInviteResizeCenter.y) / (BaseHeight * 0.5f);
+		SetAetherTeamInviteScaleKeepingCenter((int)std::round(std::max(HorizontalScale, VerticalScale) * 100.0f), m_AetherTeamInviteResizeCenter);
 		return true;
 	}
 	return true;
@@ -772,6 +843,16 @@ void CHud::OnUpdate()
 			m_AetherTimerPanelRect.y = m_Height * 0.5f - m_AetherTimerPanelRect.h * 0.5f;
 		ClampAetherTimerPanel();
 	}
+	else if(m_TClientFrozenTextEditorInteraction == ETClientFrozenTextEditorInteraction::DRAGGING_AETHER_TEAM_INVITE)
+	{
+		m_AetherTeamInviteRect.x = Mouse.x - m_AetherTeamInviteDragOffset.x;
+		m_AetherTeamInviteRect.y = Mouse.y - m_AetherTeamInviteDragOffset.y;
+		if(std::abs((m_AetherTeamInviteRect.x + m_AetherTeamInviteRect.w * 0.5f) - m_Width * 0.5f) <= 4.0f)
+			m_AetherTeamInviteRect.x = m_Width * 0.5f - m_AetherTeamInviteRect.w * 0.5f;
+		if(std::abs((m_AetherTeamInviteRect.y + m_AetherTeamInviteRect.h * 0.5f) - m_Height * 0.5f) <= 4.0f)
+			m_AetherTeamInviteRect.y = m_Height * 0.5f - m_AetherTeamInviteRect.h * 0.5f;
+		ClampAetherTeamInvite();
+	}
 	else if(m_TClientFrozenTextEditorInteraction == ETClientFrozenTextEditorInteraction::RESIZING_FROZEN_TEXT)
 	{
 		const float BaseWidth = std::max(28.0f, m_TClientFrozenTextRect.w / std::max(0.01f, g_Config.m_TcFrozenTextScale / 100.0f));
@@ -832,6 +913,14 @@ void CHud::OnUpdate()
 		const float HorizontalScale = std::abs(Mouse.x - m_AetherTimerPanelResizeCenter.x) / (BaseWidth * 0.5f);
 		const float VerticalScale = std::abs(Mouse.y - m_AetherTimerPanelResizeCenter.y) / (BaseHeight * 0.5f);
 		SetAetherTimerPanelScaleKeepingCenter((int)std::round(std::max(HorizontalScale, VerticalScale) * 100.0f), m_AetherTimerPanelResizeCenter);
+	}
+	else if(m_TClientFrozenTextEditorInteraction == ETClientFrozenTextEditorInteraction::RESIZING_AETHER_TEAM_INVITE)
+	{
+		const float BaseWidth = 128.0f;
+		const float BaseHeight = 26.0f;
+		const float HorizontalScale = std::abs(Mouse.x - m_AetherTeamInviteResizeCenter.x) / (BaseWidth * 0.5f);
+		const float VerticalScale = std::abs(Mouse.y - m_AetherTeamInviteResizeCenter.y) / (BaseHeight * 0.5f);
+		SetAetherTeamInviteScaleKeepingCenter((int)std::round(std::max(HorizontalScale, VerticalScale) * 100.0f), m_AetherTeamInviteResizeCenter);
 	}
 }
 
@@ -1477,25 +1566,22 @@ void CHud::RenderTextInfo()
 		int NumInTeam = 0;
 		int NumFrozen = 0;
 		int LocalTeamID = 0;
+		int TeamClientId = -1;
 		if(GameClient()->m_Snap.m_LocalClientId >= 0 && GameClient()->m_Snap.m_SpecInfo.m_SpectatorId >= 0)
 		{
 			if(GameClient()->m_Snap.m_SpecInfo.m_Active == 1 && GameClient()->m_Snap.m_SpecInfo.m_SpectatorId != -1)
-				LocalTeamID = GameClient()->m_Teams.Team(GameClient()->m_Snap.m_SpecInfo.m_SpectatorId);
-			else
-				LocalTeamID = GameClient()->m_Teams.Team(GameClient()->m_Snap.m_LocalClientId);
-		}
-		for(int i = 0; i < MAX_CLIENTS; i++)
-		{
-			if(!GameClient()->m_Snap.m_apPlayerInfos[i])
-				continue;
-
-			if(GameClient()->m_Teams.Team(i) == LocalTeamID)
 			{
-				NumInTeam++;
-				if(GameClient()->m_aClients[i].m_FreezeEnd > 0 || GameClient()->m_aClients[i].m_DeepFrozen)
-					NumFrozen++;
+				LocalTeamID = GameClient()->m_Teams.Team(GameClient()->m_Snap.m_SpecInfo.m_SpectatorId);
+				TeamClientId = GameClient()->m_Snap.m_SpecInfo.m_SpectatorId;
+			}
+			else
+			{
+				LocalTeamID = GameClient()->m_Teams.Team(GameClient()->m_Snap.m_LocalClientId);
+				TeamClientId = GameClient()->m_Snap.m_LocalClientId;
 			}
 		}
+		if(TeamClientId >= 0)
+			GameClient()->AetherTeamFreezeCounts(TeamClientId, NumInTeam, NumFrozen);
 
 		// Notify when last
 		if(ShowLegacyLastNotify)
@@ -1569,6 +1655,7 @@ void CHud::RenderTextInfo()
 		auto RenderAetherTeamPill = [&](const char *pText, unsigned ColorValue, bool BackgroundEnabled, int OffsetX, int OffsetY, int ScalePercent, bool Urgent, CUIRect *pEditorRect, bool EditorShow) {
 			const float Scale = std::clamp(ScalePercent / 100.0f, 0.5f, 2.0f);
 			const ColorRGBA TextColorValue = color_cast<ColorRGBA>(ColorHSLA(ColorValue));
+			const ColorRGBA Theme = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_UiColor, true));
 			const float FontSize = (Urgent ? 7.2f : 6.8f) * Scale;
 			const float TextWidth = TextRender()->TextWidth(FontSize, pText);
 			const float PaddingX = (BackgroundEnabled ? 6.0f : 2.0f) * Scale;
@@ -1598,13 +1685,20 @@ void CHud::RenderTextInfo()
 
 			Graphics()->TextureClear();
 			if(BackgroundEnabled)
-				Graphics()->DrawRect(Rect.x, Rect.y, Rect.w, Rect.h, ColorRGBA(0.035f, 0.042f, 0.055f, Urgent ? 0.66f : 0.56f), IGraphics::CORNER_ALL, 4.0f * Scale);
+			{
+				Graphics()->DrawRect(Rect.x, Rect.y, Rect.w, Rect.h, ColorRGBA(0.028f, 0.032f, 0.044f, Urgent ? 0.76f : 0.64f), IGraphics::CORNER_ALL, 4.0f * Scale);
+				const float BarPad = 4.5f * Scale;
+				const float BarH = 1.0f * Scale;
+				Graphics()->DrawRect(Rect.x + BarPad, Rect.y + Rect.h - BarH - 1.4f * Scale, std::max(0.0f, Rect.w - BarPad * 2.0f), BarH, Theme.WithAlpha(Urgent ? 0.70f : 0.48f), IGraphics::CORNER_ALL, 1.0f * Scale);
+			}
 			TextRender()->TextColor(TextColorValue.WithAlpha(Urgent ? 0.96f : 0.90f));
 			TextRender()->Text(Rect.x + Rect.w * 0.5f - TextWidth * 0.5f, Rect.y + (Rect.h - FontSize) * 0.5f - 0.05f * Scale, FontSize, pText, -1.0f);
 			TextRender()->TextColor(TextRender()->DefaultTextColor());
 		};
 
-		if(ShowAetherTeamLast && ((NumInTeam > 1 && NumInTeam - NumFrozen == 1) || EditorShowAetherTeamLast))
+		const bool AetherLastAliveNow = NumInTeam > 1 && NumInTeam - NumFrozen == 1;
+
+		if(ShowAetherTeamLast && (AetherLastAliveNow || EditorShowAetherTeamLast))
 		{
 			const char *pLastText = g_Config.m_AeTeamLastText[0] ? g_Config.m_AeTeamLastText : "LAST";
 			RenderAetherTeamPill(pLastText, g_Config.m_AeTeamLastColor, g_Config.m_AeTeamLastBackground, g_Config.m_AeTeamLastOffsetX, g_Config.m_AeTeamLastOffsetY, g_Config.m_AeTeamLastScale, true, &m_AetherTeamLastRect, EditorShowAetherTeamLast);
@@ -1678,6 +1772,7 @@ void CHud::RenderTextInfo()
 			int NumDisplayed = 0;
 			int NumInRow = 0;
 			int CurrentRow = 0;
+			const int CurrentTick = Client()->GameTick(g_Config.m_ClDummy);
 
 			for(int OverflowIndex = 0; OverflowIndex < 1 + Overflow; OverflowIndex++)
 			{
@@ -1689,7 +1784,7 @@ void CHud::RenderTextInfo()
 					{
 						bool Frozen = false;
 						CTeeRenderInfo TeeInfo = GameClient()->m_aClients[i].m_RenderInfo;
-						if(GameClient()->m_aClients[i].m_FreezeEnd > 0 || GameClient()->m_aClients[i].m_DeepFrozen)
+						if(GameClient()->m_aClients[i].m_FreezeEnd == -1 || GameClient()->m_aClients[i].m_FreezeEnd > CurrentTick || GameClient()->m_aClients[i].m_DeepFrozen)
 						{
 							if(!g_Config.m_TcShowFrozenHudSkins)
 								TeeInfo = FreezeInfo;
@@ -2960,6 +3055,93 @@ void CHud::OnNewSnapshot()
 	}
 }
 
+void CHud::RenderAetherTeamInvitePopup()
+{
+	if(!g_Config.m_AeTeamInvitePopup)
+		return;
+	const bool Active = GameClient()->AetherTeamInvitePopupActive();
+	const bool Visible = GameClient()->AetherTeamInvitePopupVisible();
+	const bool EditorShow = m_TClientFrozenTextEditorOpen && g_Config.m_AeTeamInvitePopup;
+	if(!Visible && !EditorShow)
+		return;
+
+	char aTeam[32];
+	const int InviteTeam = (Active || Visible) ? GameClient()->AetherTeamInviteTeam() : 27;
+	str_format(aTeam, sizeof(aTeam), "Team %d", InviteTeam > 0 ? InviteTeam : 1);
+	const char *pPlayer = (Active || Visible) ? GameClient()->AetherTeamInvitePlayer() : "arox";
+	char aInviteKey[64];
+	GameClient()->m_Binds.GetKey("ae_team_invite_join", aInviteKey, sizeof(aInviteKey));
+	char aJoinText[96];
+	if(aInviteKey[0] != '\0')
+		str_format(aJoinText, sizeof(aJoinText), "%s Join", aInviteKey);
+	else
+		str_copy(aJoinText, "Join");
+	const char *pJoinText = aJoinText;
+
+	const float Scale = std::clamp(g_Config.m_AeTeamInvitePopupScale / 100.0f, 0.5f, 2.0f);
+	const float PlayerSize = 6.5f * Scale;
+	const float TeamSize = 5.6f * Scale;
+	const float JoinSize = 5.8f * Scale;
+	const float PlayerW = TextRender()->TextWidth(PlayerSize, pPlayer);
+	const float TeamTextW = TextRender()->TextWidth(TeamSize, aTeam);
+	const float JoinTextW = TextRender()->TextWidth(JoinSize, pJoinText);
+	const float TeamW = TeamTextW + 14.0f * Scale;
+	const float JoinW = TextRender()->TextWidth(JoinSize, pJoinText) + 15.0f * Scale;
+	const float PanelW = std::clamp(PlayerW + TeamW + JoinW + 34.0f * Scale, 128.0f * Scale, std::max(128.0f * Scale, m_Width - 4.0f * Scale));
+	const float PanelH = 26.0f * Scale;
+	CUIRect Rect(
+		std::clamp((float)g_Config.m_AeTeamInvitePopupOffsetX, 0.0f, std::max(0.0f, m_Width - PanelW)),
+		std::clamp((float)g_Config.m_AeTeamInvitePopupOffsetY, 0.0f, std::max(0.0f, m_Height - PanelH)),
+		PanelW,
+		PanelH);
+	if(EditorShow)
+	{
+		const vec2 Center(m_AetherTeamInviteRect.x + m_AetherTeamInviteRect.w * 0.5f, m_AetherTeamInviteRect.y + m_AetherTeamInviteRect.h * 0.5f);
+		m_AetherTeamInviteRect.w = PanelW;
+		m_AetherTeamInviteRect.h = PanelH;
+		m_AetherTeamInviteRect.x = Center.x - PanelW * 0.5f;
+		m_AetherTeamInviteRect.y = Center.y - PanelH * 0.5f;
+		ClampAetherTeamInvite();
+		Rect = m_AetherTeamInviteRect;
+	}
+	else
+		m_AetherTeamInviteRect = Rect;
+	const float Progress = Active ? GameClient()->AetherTeamInvitePopupProgress() : 0.0f;
+	const float Animation = EditorShow ? 1.0f : GameClient()->AetherTeamInvitePopupAnimation();
+	if(Animation <= 0.01f)
+		return;
+	const float Alpha = Animation;
+	Rect.y -= (1.0f - Animation) * 4.0f * Scale;
+	ColorRGBA Accent = GameClient()->GetDDTeamColor(InviteTeam, 0.75f);
+	if(InviteTeam <= 0)
+		Accent = ColorRGBA(0.95f, 0.55f, 1.0f, 1.0f);
+	const ColorRGBA AccentSoft(Accent.r, Accent.g, Accent.b, Alpha);
+
+	Graphics()->TextureClear();
+	Graphics()->DrawRect(Rect.x + 1.1f * Scale, Rect.y + 1.5f * Scale, Rect.w, Rect.h, ColorRGBA(0.0f, 0.0f, 0.0f, 0.20f * Alpha), IGraphics::CORNER_ALL, 5.0f * Scale);
+	Graphics()->DrawRect(Rect.x, Rect.y, Rect.w, Rect.h, ColorRGBA(0.028f, 0.032f, 0.040f, 0.90f * Alpha), IGraphics::CORNER_ALL, 5.0f * Scale);
+	Graphics()->DrawRect(Rect.x + 6.0f * Scale, Rect.y + Rect.h - 2.0f * Scale, std::max(0.0f, Rect.w - 12.0f * Scale), 1.1f * Scale, AccentSoft.WithAlpha(0.14f * Alpha), IGraphics::CORNER_ALL, 1.0f * Scale);
+	Graphics()->DrawRect(Rect.x + 6.0f * Scale, Rect.y + Rect.h - 2.0f * Scale, std::max(0.0f, Rect.w - 12.0f * Scale) * Progress, 1.1f * Scale, AccentSoft.WithAlpha(0.88f * Alpha), IGraphics::CORNER_ALL, 1.0f * Scale);
+
+	CUIRect JoinPill(Rect.x + Rect.w - JoinW - 7.0f * Scale, Rect.y + 5.0f * Scale, JoinW, Rect.h - 10.0f * Scale);
+	CUIRect TeamPill(JoinPill.x - TeamW - 7.0f * Scale, Rect.y + 5.0f * Scale, TeamW, Rect.h - 10.0f * Scale);
+	Graphics()->DrawRect(TeamPill.x, TeamPill.y, TeamPill.w, TeamPill.h, AccentSoft.WithAlpha(0.18f * Alpha), IGraphics::CORNER_ALL, 5.0f * Scale);
+	Graphics()->DrawRect(JoinPill.x, JoinPill.y, JoinPill.w, JoinPill.h, AccentSoft.WithAlpha(0.20f * Alpha), IGraphics::CORNER_ALL, 5.0f * Scale);
+
+	const float PlayerX = Rect.x + 9.0f * Scale;
+	const float TextY = Rect.y + (Rect.h - PlayerSize) * 0.5f - 0.1f * Scale;
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 0.95f * Alpha);
+	TextRender()->Text(PlayerX, TextY, PlayerSize, pPlayer, std::max(12.0f * Scale, TeamPill.x - PlayerX - 8.0f * Scale));
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 0.96f * Alpha);
+	TextRender()->Text(TeamPill.x + TeamPill.w * 0.5f - TeamTextW * 0.5f, TeamPill.y + (TeamPill.h - TeamSize) * 0.5f - 0.1f * Scale, TeamSize, aTeam, -1.0f);
+	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 0.94f * Alpha);
+	TextRender()->Text(JoinPill.x + JoinPill.w * 0.5f - JoinTextW * 0.5f, JoinPill.y + (JoinPill.h - JoinSize) * 0.5f - 0.1f * Scale, JoinSize, pJoinText, -1.0f);
+	TextRender()->TextColor(TextRender()->DefaultTextColor());
+
+	if(EditorShow)
+		RenderTClientHudEditorOverlay(m_AetherTeamInviteRect, AetherTeamInviteResizeHandleRect());
+}
+
 void CHud::OnRender()
 {
 	if(Client()->State() != IClient::STATE_ONLINE && Client()->State() != IClient::STATE_DEMOPLAYBACK)
@@ -3087,6 +3269,7 @@ void CHud::OnRender()
 		GameClient()->m_Voting.Render();
 		if(g_Config.m_ClShowRecord)
 			RenderRecord();
+		RenderAetherTeamInvitePopup();
 	}
 }
 
@@ -3140,9 +3323,10 @@ void CHud::RenderAetherNinjaTimer()
 
 	char aBuf[32];
 	str_format(aBuf, sizeof(aBuf), "Ninja %.2fs", Active ? RemainingMs / 1000.0f : 0.0f);
+	const ColorRGBA Theme = color_cast<ColorRGBA>(ColorHSLA(g_Config.m_UiColor, true));
 	Graphics()->TextureClear();
 	Graphics()->DrawRect(m_AetherNinjaTimerRect.x, m_AetherNinjaTimerRect.y, m_AetherNinjaTimerRect.w, m_AetherNinjaTimerRect.h, ColorRGBA(0.08f, 0.10f, 0.13f, 0.72f), IGraphics::CORNER_ALL, 4.0f * Scale);
-	Graphics()->DrawRect(m_AetherNinjaTimerRect.x, m_AetherNinjaTimerRect.y + m_AetherNinjaTimerRect.h - 2.0f * Scale, m_AetherNinjaTimerRect.w * std::clamp(Progress, 0.0f, 1.0f), 2.0f * Scale, ColorRGBA(0.42f, 0.78f, 1.0f, 0.72f), IGraphics::CORNER_B, 2.0f * Scale);
+	Graphics()->DrawRect(m_AetherNinjaTimerRect.x, m_AetherNinjaTimerRect.y + m_AetherNinjaTimerRect.h - 2.0f * Scale, m_AetherNinjaTimerRect.w * std::clamp(Progress, 0.0f, 1.0f), 2.0f * Scale, Theme.WithAlpha(0.76f), IGraphics::CORNER_B, 2.0f * Scale);
 
 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 0.95f);
 	const float FontSize = 6.2f * Scale;

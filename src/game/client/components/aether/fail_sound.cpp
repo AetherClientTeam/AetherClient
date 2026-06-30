@@ -124,27 +124,26 @@ bool CAetherFailSound::TeamLastNow() const
 	const int LocalId = GameClient()->m_Snap.m_LocalClientId;
 	if(LocalId < 0 || !GameClient()->m_Snap.m_aCharacters[LocalId].m_Active)
 		return false;
-	const int MyTeam = GameClient()->SwitchStateTeam();
+	const int MyTeam = GameClient()->m_Teams.Team(LocalId);
 	if(!ValidDDRaceTeam(MyTeam) || GameClient()->m_Teams.GetSolo(LocalId))
 		return false;
 
 	int Unfrozen = 0;
-	for(int i = 0; i < MAX_CLIENTS; ++i)
-	{
-		const auto &Char = GameClient()->m_Snap.m_aCharacters[i];
-		if(!Char.m_Active || GameClient()->m_Teams.Team(i) != MyTeam || GameClient()->m_Teams.GetSolo(i))
-			continue;
-		if(!Char.m_HasExtendedData || Char.m_ExtendedData.m_FreezeEnd <= Client()->GameTick(g_Config.m_ClDummy))
-			++Unfrozen;
-	}
-	return Unfrozen == 1 && GameClient()->m_Snap.m_aCharacters[LocalId].m_HasExtendedData &&
-	       GameClient()->m_Snap.m_aCharacters[LocalId].m_ExtendedData.m_FreezeEnd <= Client()->GameTick(g_Config.m_ClDummy);
+	int Frozen = 0;
+	if(!GameClient()->AetherTeamFreezeCounts(LocalId, Unfrozen, Frozen))
+		return false;
+	Unfrozen -= Frozen;
+
+	int LocalFreezeEnd = GameClient()->m_aClients[LocalId].m_FreezeEnd;
+	if(GameClient()->m_Snap.m_aCharacters[LocalId].m_HasExtendedData)
+		LocalFreezeEnd = GameClient()->m_Snap.m_aCharacters[LocalId].m_ExtendedData.m_FreezeEnd;
+	return Unfrozen == 1 && LocalFreezeEnd != -1 && LocalFreezeEnd <= Client()->GameTick(g_Config.m_ClDummy);
 }
 
 void CAetherFailSound::EnsureSamples()
 {
-	if(!g_Config.m_AeFreezeFailSound ||
-		(!g_Config.m_AeFreezeFailSoundLocal && !g_Config.m_AeFreezeFailSoundOthers && !g_Config.m_AeFreezeFailSoundTeamLast))
+	if((!g_Config.m_AeFreezeFailSound || (!g_Config.m_AeFreezeFailSoundLocal && !g_Config.m_AeFreezeFailSoundOthers)) &&
+		!g_Config.m_AeFreezeFailSoundTeamLast)
 	{
 		if(m_LocalSampleId >= 0 || m_OthersSampleId >= 0 || m_TeamLastSampleId >= 0)
 			UnloadSamples();
@@ -156,12 +155,13 @@ void CAetherFailSound::EnsureSamples()
 	if(Fingerprint == m_SamplesFingerprint)
 		return;
 	m_SamplesFingerprint = Fingerprint;
+	m_TeamLastPrev = false;
 	UnloadSamples();
 	if(!Sound()->IsSoundEnabled())
 		return;
-	if(g_Config.m_AeFreezeFailSoundLocal && g_Config.m_AeFreezeFailSoundLocalFile[0])
+	if(g_Config.m_AeFreezeFailSound && g_Config.m_AeFreezeFailSoundLocal && g_Config.m_AeFreezeFailSoundLocalFile[0])
 		m_LocalSampleId = TryLoadFailSample(Storage(), Sound(), g_Config.m_AeFreezeFailSoundLocalFile);
-	if(g_Config.m_AeFreezeFailSoundOthers && g_Config.m_AeFreezeFailSoundOthersFile[0])
+	if(g_Config.m_AeFreezeFailSound && g_Config.m_AeFreezeFailSoundOthers && g_Config.m_AeFreezeFailSoundOthersFile[0])
 		m_OthersSampleId = TryLoadFailSample(Storage(), Sound(), g_Config.m_AeFreezeFailSoundOthersFile);
 	if(g_Config.m_AeFreezeFailSoundTeamLast && g_Config.m_AeFreezeFailSoundTeamLastFile[0])
 		m_TeamLastSampleId = TryLoadFailSample(Storage(), Sound(), g_Config.m_AeFreezeFailSoundTeamLastFile);
@@ -215,9 +215,8 @@ void CAetherFailSound::OnStateChange(int NewState, int OldState)
 
 void CAetherFailSound::OnRender()
 {
-	if(!g_Config.m_AeFreezeFailSound)
-		return;
-	if(!g_Config.m_AeFreezeFailSoundLocal && !g_Config.m_AeFreezeFailSoundOthers && !g_Config.m_AeFreezeFailSoundTeamLast)
+	if((!g_Config.m_AeFreezeFailSound || (!g_Config.m_AeFreezeFailSoundLocal && !g_Config.m_AeFreezeFailSoundOthers)) &&
+		!g_Config.m_AeFreezeFailSoundTeamLast)
 		return;
 	EnsureSamples();
 	if(!GameClient()->m_GameInfo.m_EntitiesDDRace)
@@ -243,10 +242,10 @@ void CAetherFailSound::OnRender()
 
 		if(IsLocalClientId(i))
 		{
-			if(g_Config.m_AeFreezeFailSoundLocal)
+			if(g_Config.m_AeFreezeFailSound && g_Config.m_AeFreezeFailSoundLocal)
 				PlaySample(m_LocalSampleId, g_Config.m_AeFreezeFailSoundLocalVol);
 		}
-		else if(g_Config.m_AeFreezeFailSoundOthers && ShouldPlayOthers(i))
+		else if(g_Config.m_AeFreezeFailSound && g_Config.m_AeFreezeFailSoundOthers && ShouldPlayOthers(i))
 		{
 			PlaySample(m_OthersSampleId, g_Config.m_AeFreezeFailSoundOthersVol);
 		}

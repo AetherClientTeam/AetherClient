@@ -2,6 +2,8 @@
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include "maplayers.h"
 
+#include <base/system.h>
+
 #include <engine/graphics.h>
 #include <engine/shared/config.h>
 
@@ -56,6 +58,10 @@ void CMapLayers::OnMapLoad()
 void CMapLayers::OnRender()
 {
 	if(m_OnlineOnly && Client()->State() != IClient::STATE_ONLINE && Client()->State() != IClient::STATE_DEMOPLAYBACK)
+		return;
+	if(m_Type == ERenderType::RENDERTYPE_BACKGROUND &&
+		g_Config.m_AeMediaBackgroundGame &&
+		str_comp_nocase(g_Config.m_ClBackgroundEntities, "/aether_media_bg.map") == 0)
 		return;
 
 	// dynamic parameters for ingame rendering

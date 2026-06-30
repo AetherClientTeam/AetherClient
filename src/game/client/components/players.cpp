@@ -53,6 +53,11 @@ void AetherPlayerDrawSpark(IGraphics *pGraphics, vec2 Center, vec2 Dir, float Si
 	AetherPlayerDrawBeamQuad(pGraphics, Center - Dir * Size, Center + Dir * Size, Dir, Size * 0.78f, GlowColor);
 	AetherPlayerDrawBeamQuad(pGraphics, Center - Dir * (Size * 0.45f), Center + Dir * (Size * 0.45f), Dir, Size * 0.34f, CoreColor);
 }
+
+bool AetherFreezeEndActive(int FreezeEnd, int CurrentTick, bool DeepFrozen = false)
+{
+	return FreezeEnd == -1 || FreezeEnd > CurrentTick || DeepFrozen;
+}
 }
 
 static float CalculateHandAngle(vec2 Dir, float AngleOffset)
@@ -1190,7 +1195,8 @@ void CPlayers::RenderPlayerGhost(
 
 	RenderTools()->m_LocalTeeRender = Local; // TClient
 
-	bool FrozenSwappingHide = (GameClient()->m_aClients[ClientId].m_FreezeEnd > 0) && g_Config.m_TcHideFrozenGhosts && g_Config.m_TcSwapGhosts;
+	const int CurrentTick = Client()->GameTick(g_Config.m_ClDummy);
+	bool FrozenSwappingHide = AetherFreezeEndActive(GameClient()->m_aClients[ClientId].m_FreezeEnd, CurrentTick, GameClient()->m_aClients[ClientId].m_DeepFrozen) && g_Config.m_TcHideFrozenGhosts && g_Config.m_TcSwapGhosts;
 
 	if(OtherTeam || ClientId < 0)
 		Alpha = g_Config.m_ClShowOthersAlpha / 100.0f;
@@ -1735,6 +1741,7 @@ void CPlayers::OnRender()
 	// update render info for ninja
 	CTeeRenderInfo aRenderInfo[MAX_CLIENTS];
 	const bool IsTeamPlay = GameClient()->IsTeamPlay();
+	const int CurrentTick = Client()->GameTick(g_Config.m_ClDummy);
 	for(int i = 0; i < MAX_CLIENTS; ++i)
 	{
 		aRenderInfo[i] = GameClient()->m_aClients[i].m_RenderInfo;
@@ -1744,28 +1751,42 @@ void CPlayers::OnRender()
 		bool Frozen = false;
 		if(i == GameClient()->m_aLocalIds[0] || i == GameClient()->m_aLocalIds[1])
 		{
-			if(GameClient()->m_aClients[i].m_Predicted.m_FreezeEnd != 0)
+			const CCharacterCore &VisualFreezeCore = (g_Config.m_AeFastInput || g_Config.m_TcFastInput) ? GameClient()->m_aClients[i].m_RegularPredicted : GameClient()->m_aClients[i].m_Predicted;
+			Frozen = AetherFreezeEndActive(VisualFreezeCore.m_FreezeEnd, CurrentTick, VisualFreezeCore.m_DeepFrozen);
+			if(Frozen)
 				aRenderInfo[i].m_TeeRenderFlags |= TEE_EFFECT_FROZEN | TEE_NO_WEAPON;
-			if(GameClient()->m_aClients[i].m_Predicted.m_LiveFrozen)
+			if(VisualFreezeCore.m_LiveFrozen)
 				aRenderInfo[i].m_TeeRenderFlags |= TEE_EFFECT_FROZEN;
-			if(GameClient()->m_aClients[i].m_Predicted.m_Invincible)
+			if(VisualFreezeCore.m_Invincible)
 				aRenderInfo[i].m_TeeRenderFlags |= TEE_EFFECT_SPARKLE;
-
-			Frozen = GameClient()->m_aClients[i].m_Predicted.m_FreezeEnd != 0;
-			// TClient
-			if(g_Config.m_AeFastInput || g_Config.m_TcFastInput)
-				Frozen = GameClient()->m_aClients[i].m_RegularPredicted.m_FreezeEnd != 0;
 		}
 		else
 		{
-			if(GameClient()->m_aClients[i].m_FreezeEnd != 0)
-				aRenderInfo[i].m_TeeRenderFlags |= TEE_EFFECT_FROZEN | TEE_NO_WEAPON;
-			if(GameClient()->m_aClients[i].m_LiveFrozen)
-				aRenderInfo[i].m_TeeRenderFlags |= TEE_EFFECT_FROZEN;
-			if(GameClient()->m_aClients[i].m_Invincible)
-				aRenderInfo[i].m_TeeRenderFlags |= TEE_EFFECT_SPARKLE;
+			const auto &Character = GameClient()->m_Snap.m_aCharacters[i];
+			int FreezeEnd = 0;
+			bool DeepFrozen = false;
+			bool LiveFrozen = false;
+			bool Invincible = GameClient()->m_aClients[i].m_Invincible;
+			if(Character.m_HasExtendedData)
+			{
+				FreezeEnd = Character.m_ExtendedData.m_FreezeEnd;
+				DeepFrozen = FreezeEnd == -1;
+				LiveFrozen = (Character.m_ExtendedData.m_Flags & CHARACTERFLAG_MOVEMENTS_DISABLED) != 0;
+			}
+			else if(Character.m_Active)
+			{
+				FreezeEnd = GameClient()->m_aClients[i].m_FreezeEnd;
+				DeepFrozen = GameClient()->m_aClients[i].m_DeepFrozen;
+				LiveFrozen = GameClient()->m_aClients[i].m_LiveFrozen;
+			}
 
-			Frozen = GameClient()->m_Snap.m_aCharacters[i].m_HasExtendedData && GameClient()->m_Snap.m_aCharacters[i].m_ExtendedData.m_FreezeEnd != 0;
+			Frozen = AetherFreezeEndActive(FreezeEnd, CurrentTick, DeepFrozen);
+			if(Frozen)
+				aRenderInfo[i].m_TeeRenderFlags |= TEE_EFFECT_FROZEN | TEE_NO_WEAPON;
+			if(LiveFrozen)
+				aRenderInfo[i].m_TeeRenderFlags |= TEE_EFFECT_FROZEN;
+			if(Invincible)
+				aRenderInfo[i].m_TeeRenderFlags |= TEE_EFFECT_SPARKLE;
 		}
 
 		// TClient
@@ -1898,7 +1919,7 @@ void CPlayers::OnRender()
 				continue;
 		}
 
-		bool Frozen = (GameClient()->m_aClients[ClientId].m_FreezeEnd > 0) && g_Config.m_TcHideFrozenGhosts;
+		bool Frozen = AetherFreezeEndActive(GameClient()->m_aClients[ClientId].m_FreezeEnd, Client()->GameTick(g_Config.m_ClDummy), GameClient()->m_aClients[ClientId].m_DeepFrozen) && g_Config.m_TcHideFrozenGhosts;
 		bool RenderGhost = true;
 		if(g_Config.m_TcHideFrozenGhosts && Frozen && g_Config.m_TcShowOthersGhosts)
 		{

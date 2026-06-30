@@ -2502,6 +2502,8 @@ void CMenus::OnShutdown()
 {
 	if(m_AetherCustomMenuThemeTexture.IsValid())
 		Graphics()->UnloadTexture(&m_AetherCustomMenuThemeTexture);
+	if(m_AetherMediaBackgroundTexture.IsValid())
+		Graphics()->UnloadTexture(&m_AetherMediaBackgroundTexture);
 	m_CommunityIcons.Shutdown();
 }
 
@@ -2656,6 +2658,13 @@ bool CMenus::RenderBackground(bool DrawChecker, bool AllowCustomTheme, const Col
 	const float ScreenWidth = ScreenHeight * Graphics()->ScreenAspect();
 	Graphics()->MapScreen(0.0f, 0.0f, ScreenWidth, ScreenHeight);
 
+	const bool MediaBackgroundDrawn = RenderAetherMediaBackground(ScreenWidth, ScreenHeight);
+	if(MediaBackgroundDrawn)
+	{
+		Ui()->MapScreen();
+		return true;
+	}
+
 	const bool CustomThemeDrawn = AllowCustomTheme && RenderAetherCustomMenuTheme(ScreenWidth, ScreenHeight);
 	if(CustomThemeDrawn)
 	{
@@ -2717,6 +2726,15 @@ bool CMenus::RenderBackground(bool DrawChecker, bool AllowCustomTheme, const Col
 
 void CMenus::RenderAetherMenuThemeOverride()
 {
+	const float ScreenHeight = 300.0f;
+	const float ScreenWidth = ScreenHeight * Graphics()->ScreenAspect();
+	Graphics()->MapScreen(0.0f, 0.0f, ScreenWidth, ScreenHeight);
+	if(RenderAetherMediaBackground(ScreenWidth, ScreenHeight))
+	{
+		Ui()->MapScreen();
+		return;
+	}
+
 	const ColorRGBA AetherBaseColor(0.0f, 0.0f, 0.0f, 1.0f);
 	RenderBackground(false, false, &AetherBaseColor);
 	RenderAetherAnimatedBackdrop(*Ui()->Screen());
@@ -2851,6 +2869,19 @@ bool CMenus::RenderAetherCustomMenuTheme(float ScreenWidth, float ScreenHeight)
 	}
 
 	return true;
+}
+
+bool CMenus::RenderAetherMediaBackground(float ScreenWidth, float ScreenHeight)
+{
+	(void)ScreenWidth;
+	(void)ScreenHeight;
+	if(m_AetherMediaBackgroundTexture.IsValid())
+		Graphics()->UnloadTexture(&m_AetherMediaBackgroundTexture);
+	m_aAetherMediaBackgroundPath[0] = '\0';
+	m_AetherMediaBackgroundWidth = 0;
+	m_AetherMediaBackgroundHeight = 0;
+	m_AetherMediaBackgroundTried = false;
+	return false;
 }
 
 int CMenus::DoButton_CheckBox_Tristate(const void *pId, const char *pText, TRISTATE Checked, const CUIRect *pRect)

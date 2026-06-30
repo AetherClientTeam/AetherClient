@@ -109,11 +109,190 @@ const char *CGameClient::DDNetVersionStr() const { return m_aDDNetVersionStr; }
 int CGameClient::ClientVersion7() const { return CLIENT_VERSION7; }
 const char *CGameClient::GetItemName(int Type) const { return m_NetObjHandler.GetObjName(Type); }
 
+bool CGameClient::AetherTeamFreezeCounts(int TeamClientId, int &NumInTeam, int &NumFrozen) const
+{
+	NumInTeam = 0;
+	NumFrozen = 0;
+	if(TeamClientId < 0 || TeamClientId >= MAX_CLIENTS || !m_Snap.m_apPlayerInfos[TeamClientId])
+		return false;
+
+	const int LocalTeamId = m_Teams.Team(TeamClientId);
+	const int Tick = Client()->GameTick(g_Config.m_ClDummy);
+	for(int i = 0; i < MAX_CLIENTS; ++i)
+	{
+		if(!m_Snap.m_apPlayerInfos[i] || m_Teams.Team(i) != LocalTeamId)
+			continue;
+
+		++NumInTeam;
+		const auto &Character = m_Snap.m_aCharacters[i];
+		int FreezeEnd = 0;
+		bool DeepFrozen = false;
+		if(Character.m_HasExtendedData)
+		{
+			FreezeEnd = Character.m_ExtendedData.m_FreezeEnd;
+			DeepFrozen = FreezeEnd == -1;
+		}
+		else if(Character.m_Active)
+		{
+			FreezeEnd = m_aClients[i].m_FreezeEnd;
+			DeepFrozen = m_aClients[i].m_DeepFrozen;
+		}
+		if(FreezeEnd == -1 || FreezeEnd > Tick || DeepFrozen)
+			++NumFrozen;
+	}
+	return NumInTeam > 0;
+}
+
+bool CGameClient::AetherMaybeHandleTeamInviteMessage(const char *pLine)
+{
+	if(!g_Config.m_AeTeamInvitePopup)
+		return false;
+	if(!pLine || pLine[0] != '\'')
+		return false;
+
+	const char *pInvite = str_find(pLine + 1, "' invited you to team ");
+	if(!pInvite)
+		return false;
+	const char *pTeamStart = pInvite + str_length("' invited you to team ");
+	if(!*pTeamStart)
+		return false;
+
+	char aTeam[16] = "";
+	int TeamLen = 0;
+	while(pTeamStart[TeamLen] >= '0' && pTeamStart[TeamLen] <= '9' && TeamLen < (int)sizeof(aTeam) - 1)
+	{
+		aTeam[TeamLen] = pTeamStart[TeamLen];
+		++TeamLen;
+	}
+	aTeam[TeamLen] = '\0';
+	int Team = 0;
+	if(TeamLen <= 0 || !str_toint(aTeam, &Team) || Team <= 0)
+		return false;
+
+	const int NameLen = (int)(pInvite - (pLine + 1));
+	if(NameLen <= 0)
+		return false;
+	str_truncate(m_aAetherTeamInvitePlayer, sizeof(m_aAetherTeamInvitePlayer), pLine + 1, NameLen);
+	m_AetherTeamInviteTeam = Team;
+	m_AetherTeamInviteStart = time_get();
+	m_AetherTeamInviteEnd = m_AetherTeamInviteStart + time_freq() * 7;
+	return true;
+}
+
+bool CGameClient::AetherTeamInvitePopupActive() const
+{
+	return m_AetherTeamInviteTeam > 0 && m_AetherTeamInviteEnd > time_get();
+}
+
+bool CGameClient::AetherTeamInvitePopupVisible() const
+{
+	const int64_t Now = time_get();
+	const int64_t FadeTicks = time_freq() / 5;
+	return m_AetherTeamInviteTeam > 0 && (m_AetherTeamInviteEnd > Now || (m_AetherTeamInviteEnd > 0 && Now - m_AetherTeamInviteEnd < FadeTicks));
+}
+
+float CGameClient::AetherTeamInvitePopupProgress() const
+{
+	if(m_AetherTeamInviteStart <= 0 || m_AetherTeamInviteEnd <= m_AetherTeamInviteStart)
+		return 0.0f;
+	return std::clamp((m_AetherTeamInviteEnd - time_get()) / (float)(m_AetherTeamInviteEnd - m_AetherTeamInviteStart), 0.0f, 1.0f);
+}
+
+float CGameClient::AetherTeamInvitePopupAnimation() const
+{
+	if(m_AetherTeamInviteStart <= 0 || m_AetherTeamInviteEnd <= 0)
+		return 0.0f;
+	const int64_t Now = time_get();
+	const float FadeTicks = std::max(1.0f, time_freq() / 5.0f);
+	const float Intro = std::clamp((Now - m_AetherTeamInviteStart) / FadeTicks, 0.0f, 1.0f);
+	const float Outro = Now <= m_AetherTeamInviteEnd ? 1.0f : std::clamp(1.0f - (Now - m_AetherTeamInviteEnd) / FadeTicks, 0.0f, 1.0f);
+	const float T = std::min(Intro, Outro);
+	return T * T * (3.0f - 2.0f * T);
+}
+
+void CGameClient::AetherAcceptTeamInvite()
+{
+	if(!AetherTeamInvitePopupActive())
+		return;
+	char aCommand[32];
+	str_format(aCommand, sizeof(aCommand), "/team %d", m_AetherTeamInviteTeam);
+	m_Chat.SendChat(0, aCommand);
+	m_AetherTeamInviteEnd = time_get();
+}
+
+void CGameClient::AetherIgnoreTeamInvite()
+{
+	m_AetherTeamInviteEnd = time_get();
+}
+
 namespace
 {
+constexpr const char *AETHER_STARTUP_GUARD_FILE = "aether_startup_guard.tmp";
+
 void AetherPerfWrite(IOHANDLE File, const char *pText)
 {
 	io_write(File, pText, str_length(pText));
+}
+
+void AetherMigrateAndClampConfig()
+{
+	g_Config.m_AeFastInputMode = std::clamp(g_Config.m_AeFastInputMode, 0, 5);
+	g_Config.m_AeLewnPlusAmount = std::clamp(g_Config.m_AeLewnPlusAmount, 100, 500);
+	g_Config.m_AeLewnPlusCorrection = std::clamp(g_Config.m_AeLewnPlusCorrection, 0, 100);
+	g_Config.m_AeSaikoPlusAmount = std::clamp(g_Config.m_AeSaikoPlusAmount, 0, 500);
+	g_Config.m_AeBrowserRefreshSeconds = std::clamp(g_Config.m_AeBrowserRefreshSeconds, 15, 120);
+
+	if(!g_Config.m_AeSoundAirJumpSplitMigrated)
+	{
+		const int LegacyAirJump = std::clamp(g_Config.m_AeSoundAirJump, 0, 1);
+		g_Config.m_AeSoundLocalAirJump = LegacyAirJump;
+		g_Config.m_AeSoundOthersAirJump = LegacyAirJump;
+		g_Config.m_AeSoundAirJumpSplitMigrated = 1;
+	}
+	g_Config.m_AeSoundLocalAirJump = std::clamp(g_Config.m_AeSoundLocalAirJump, 0, 1);
+	g_Config.m_AeSoundOthersAirJump = std::clamp(g_Config.m_AeSoundOthersAirJump, 0, 1);
+	g_Config.m_AeTeamInvitePopup = std::clamp(g_Config.m_AeTeamInvitePopup, 0, 1);
+	g_Config.m_AeTeamInviteBindMigrated = std::clamp(g_Config.m_AeTeamInviteBindMigrated, 0, 1);
+}
+
+bool AetherStartupGuardWasLeftBehind(IStorage *pStorage)
+{
+	return pStorage && pStorage->FileExists(AETHER_STARTUP_GUARD_FILE, IStorage::TYPE_SAVE);
+}
+
+void AetherWriteStartupGuard(IStorage *pStorage)
+{
+	if(!pStorage)
+		return;
+	IOHANDLE File = pStorage->OpenFile(AETHER_STARTUP_GUARD_FILE, IOFLAG_WRITE, IStorage::TYPE_SAVE);
+	if(!File)
+		return;
+	const char *pText = "Aether startup did not finish cleanly.\n";
+	io_write(File, pText, str_length(pText));
+	io_close(File);
+}
+
+void AetherClearStartupGuard(IStorage *pStorage)
+{
+	if(pStorage && pStorage->FileExists(AETHER_STARTUP_GUARD_FILE, IStorage::TYPE_SAVE))
+		pStorage->RemoveFile(AETHER_STARTUP_GUARD_FILE, IStorage::TYPE_SAVE);
+}
+
+void AetherApplyStartupRecovery()
+{
+	g_Config.m_AeOptimizer = 0;
+	g_Config.m_AeOptimizerHighPriority = 0;
+	g_Config.m_AeOptimizerDisableParticles = 0;
+	g_Config.m_AeOptimizerDisableMenuAnimations = 0;
+	g_Config.m_AeOptimizerDiscordBelowNormal = 0;
+	g_Config.m_AeOptimizerFpsFog = 0;
+	g_Config.m_AeBadges = 0;
+	g_Config.m_AePings = 0;
+	g_Config.m_AeBrowserUtils = 0;
+	g_Config.m_AeBrowserAutoRefresh = 0;
+	g_Config.m_AeFreezeFailSound = 0;
+	g_Config.m_AeCustomMenuTheme = 0;
+	g_Config.m_AeMusicPlayer = 0;
 }
 
 float AetherPerfPercentile(std::vector<float> vSamples, float Percentile)
@@ -387,6 +566,14 @@ void CGameClient::AetherPerfMaybeFinish()
 		Console()->ExecuteLine("quit", IConsole::CLIENT_ID_UNSPECIFIED);
 }
 
+void CGameClient::ConAetherTeamInviteJoin(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameClient *pClient = static_cast<CGameClient *>(pUserData);
+	if(!g_Config.m_AeTeamInvitePopup)
+		return;
+	pClient->AetherAcceptTeamInvite();
+}
+
 void CGameClient::OnConsoleInit()
 {
 	m_pEngine = Kernel()->RequestInterface<IEngine>();
@@ -536,6 +723,7 @@ void CGameClient::OnConsoleInit()
 	Console()->Register("team", "i[team-id]", CFGFLAG_CLIENT, ConTeam, this, "Switch team");
 	Console()->Register("kill", "", CFGFLAG_CLIENT, ConKill, this, "Kill yourself to restart");
 	Console()->Register("ready_change", "", CFGFLAG_CLIENT, ConReadyChange7, this, "Change ready state (0.7 only)");
+	Console()->Register("ae_team_invite_join", "", CFGFLAG_CLIENT, ConAetherTeamInviteJoin, this, "Accept the latest Aether team invite popup");
 	Console()->Register("ae_perf_spikes", "i[enabled]", CFGFLAG_CLIENT, ConAetherPerfSpikes, this, "Log slow Aether frame spikes");
 	Console()->Register("ae_perf_record", "i[seconds]", CFGFLAG_CLIENT, ConAetherPerfRecord, this, "Record frame-time samples for a fixed duration");
 	Console()->Register("ae_perf_dump", "s[path]", CFGFLAG_CLIENT, ConAetherPerfDump, this, "Dump the current Aether perf recording to JSON");
@@ -662,6 +850,22 @@ void CGameClient::ForceUpdateConsoleRemoteCompletionSuggestions()
 void CGameClient::OnInit()
 {
 	const int64_t OnInitStart = time_get();
+	const bool AetherStartupRecovery = AetherStartupGuardWasLeftBehind(Storage());
+	AetherMigrateAndClampConfig();
+	if(!g_Config.m_AeTeamInviteBindMigrated)
+	{
+		char aInviteBind[64];
+		m_Binds.GetKey("ae_team_invite_join", aInviteBind, sizeof(aInviteBind));
+		if(aInviteBind[0] == '\0')
+			m_Binds.Bind(KEY_F5, "ae_team_invite_join", true);
+		g_Config.m_AeTeamInviteBindMigrated = 1;
+	}
+	if(AetherStartupRecovery)
+	{
+		log_warn("aether/startup", "previous startup did not finish cleanly, applying safe Aether startup recovery");
+		AetherApplyStartupRecovery();
+	}
+	AetherWriteStartupGuard(Storage());
 
 	Client()->SetLoadingCallback([this](IClient::ELoadingCallbackDetail Detail) {
 		const char *pTitle;
@@ -796,6 +1000,9 @@ void CGameClient::OnInit()
 	}
 
 	m_Menus.FinishLoading();
+	AetherClearStartupGuard(Storage());
+	if(AetherStartupRecovery)
+		Client()->AddWarning(SWarning(Localize("Aether recovered from a previous failed startup and disabled heavy Aether startup features.")));
 	log_trace("gameclient", "initialization finished after %.2fms", (time_get() - OnInitStart) * 1000.0f / (float)time_freq());
 }
 
@@ -5447,7 +5654,10 @@ bool CGameClient::AetherShouldPlayGameplayWorldSound(int SoundId, vec2 SoundPos)
 	}
 
 	if(SoundId == SOUND_PLAYER_AIRJUMP)
-		return g_Config.m_AeSoundAirJump != 0;
+	{
+		const int Closest = AetherClosestClientId(SoundPos, 96.0f);
+		return AetherIsLocalClientId(Closest) ? g_Config.m_AeSoundLocalAirJump != 0 : g_Config.m_AeSoundOthersAirJump != 0;
+	}
 
 	if(SoundId == SOUND_PLAYER_SPAWN || SoundId == SOUND_PLAYER_DIE || SoundId == SOUND_PLAYER_PAIN_LONG)
 	{
@@ -5471,7 +5681,7 @@ bool CGameClient::AetherShouldPlayGameplayPredictedSound(int SoundId, int ActorC
 	if(SoundId == SOUND_HOOK_ATTACH_GROUND || SoundId == SOUND_HOOK_NOATTACH || SoundId == SOUND_HOOK_ATTACH_PLAYER)
 		return ActorIsLocal ? g_Config.m_AeSoundLocalHook != 0 : g_Config.m_AeSoundOthersHook != 0;
 	if(SoundId == SOUND_PLAYER_AIRJUMP)
-		return g_Config.m_AeSoundAirJump != 0;
+		return ActorIsLocal ? g_Config.m_AeSoundLocalAirJump != 0 : g_Config.m_AeSoundOthersAirJump != 0;
 	if(SoundId == SOUND_PLAYER_SPAWN || SoundId == SOUND_PLAYER_DIE || SoundId == SOUND_PLAYER_PAIN_LONG)
 		return ActorIsLocal ? g_Config.m_AeSoundLocalKillRespawn != 0 : g_Config.m_AeSoundOthersKillRespawn != 0;
 	return true;

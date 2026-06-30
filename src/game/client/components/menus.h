@@ -652,12 +652,18 @@ protected:
 	int m_AetherCustomMenuThemeWidth = 0;
 	int m_AetherCustomMenuThemeHeight = 0;
 	bool m_AetherCustomMenuThemeTried = false;
+	IGraphics::CTextureHandle m_AetherMediaBackgroundTexture;
+	char m_aAetherMediaBackgroundPath[IO_MAX_PATH_LENGTH] = "";
+	int m_AetherMediaBackgroundWidth = 0;
+	int m_AetherMediaBackgroundHeight = 0;
+	bool m_AetherMediaBackgroundTried = false;
 
 public:
 	bool RenderBackground(bool DrawChecker = true, bool AllowCustomTheme = true, const ColorRGBA *pBackgroundColorOverride = nullptr);
 	void RenderAetherMenuThemeOverride();
 	void RenderAetherAnimatedBackdrop(const CUIRect &View);
 	bool RenderAetherCustomMenuTheme(float ScreenWidth, float ScreenHeight);
+	bool RenderAetherMediaBackground(float ScreenWidth, float ScreenHeight);
 
 	CMenus();
 	int Sizeof() const override { return sizeof(*this); }
@@ -905,6 +911,7 @@ private:
 	void RenderSettingsAetherAssetsEditor(CUIRect Body);
 	void RenderSettingsAetherAssetsCloud(CUIRect Body);
 	void RenderSettingsAetherMapBackgroundBuilder(CUIRect Body);
+	void RenderSettingsAetherMediaBackground(CUIRect Body);
 	bool IsAetherAssetsEditorOpen() const;
 	void RenderSettingsAetherAssetsEditorPopup(CUIRect Screen);
 	bool IsAetherMapBackgroundBuilderOpen() const;

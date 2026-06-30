@@ -26,17 +26,24 @@ float CAetherSessionStats::PanelScale() const
 CUIRect CAetherSessionStats::PanelRect() const
 {
 	const float Scale = PanelScale();
-	const int DeathDigits = m_Deaths <= 0 ? 1 : (int)std::floor(std::log10((double)m_Deaths)) + 1;
 	const int Seconds = m_SessionStart > 0 ? (int)((time_get() - m_SessionStart) / time_freq()) : 0;
 	const float Pad = 3.0f * Scale;
-	const float DeathWidth = (15.0f + DeathDigits * 5.2f) * Scale;
+	const float Font = 6.2f * Scale;
+	char aDeaths[32];
+	str_format(aDeaths, sizeof(aDeaths), "D: %d", m_Deaths);
+	const float DeathWidth = TextRender()->TextWidth(Font, aDeaths);
 	float ContentWidth = DeathWidth;
 	if(g_Config.m_AeSessionStatsShowTime)
 	{
-		const float TimeWidth = (Seconds >= 3600 ? 39.0f : 28.0f) * Scale;
+		char aTime[32];
+		if(Seconds >= 3600)
+			str_format(aTime, sizeof(aTime), "%d:%02d:%02d", Seconds / 3600, (Seconds / 60) % 60, Seconds % 60);
+		else
+			str_format(aTime, sizeof(aTime), "%02d:%02d", (Seconds / 60) % 60, Seconds % 60);
+		const float TimeWidth = TextRender()->TextWidth(Font, aTime);
 		ContentWidth += TimeWidth + 8.0f * Scale;
 	}
-	const float Width = std::max(g_Config.m_AeSessionStatsShowTime ? 70.0f * Scale : 30.0f * Scale, ContentWidth + Pad * 2.0f);
+	const float Width = std::max(g_Config.m_AeSessionStatsShowTime ? 70.0f * Scale : 0.0f, ContentWidth + Pad * 2.0f);
 	const float Height = 16.0f * Scale;
 	return CUIRect(8.0f + g_Config.m_AeSessionStatsOffsetX, g_Config.m_AeSessionStatsOffsetY, Width, Height);
 }
@@ -128,7 +135,11 @@ void CAetherSessionStats::RenderPanel(CUIRect Rect)
 	}
 	TextRender()->TextColor(1.0f, 0.45f, 0.45f, 0.96f);
 	str_format(aDeaths, sizeof(aDeaths), "D: %d", m_Deaths);
-	TextRender()->Text(x + w - TextRender()->TextWidth(Font, aDeaths), y, Font, aDeaths, -1.0f);
+	const float DeathTextWidth = TextRender()->TextWidth(Font, aDeaths);
+	if(aTime[0] != '\0')
+		TextRender()->Text(x + w - DeathTextWidth, y, Font, aDeaths, -1.0f);
+	else
+		TextRender()->Text(Rect.x + Rect.w * 0.5f - DeathTextWidth * 0.5f, y, Font, aDeaths, -1.0f);
 
 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 	TextRender()->TextOutlineColor(OldOutline);

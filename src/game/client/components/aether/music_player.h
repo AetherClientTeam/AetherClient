@@ -20,7 +20,7 @@ class CAetherMusicPlayer : public CComponent
 	};
 
 	static constexpr float PANEL_WIDTH = 96.0f;
-	static constexpr float PANEL_HEIGHT = 30.0f;
+	static constexpr float PANEL_HEIGHT = 36.0f;
 
 	CAetherMediaBackend m_MediaBackend;
 	IGraphics::CTextureHandle m_ArtworkTexture;
@@ -49,6 +49,9 @@ class CAetherMusicPlayer : public CComponent
 	int64_t m_LastVisualizerUpdateMs = 0;
 	int64_t m_MediaTitleChangeMs = 0;
 	bool m_FallbackLogoTried = false;
+	std::string m_LastMediaTitle;
+	std::string m_LastMediaArtist;
+	std::string m_LastMediaSource;
 	std::string m_LastMediaDisplayName;
 
 	float PanelScale() const;
@@ -62,6 +65,7 @@ class CAetherMusicPlayer : public CComponent
 	void RenderFallbackMonogram(const AetherMusic::SRect &ArtworkRect, float Alpha);
 	void RenderVisualizer(const AetherMusic::SRect &PanelRect, const CAetherMediaBackend::SSnapshot &Snapshot, AetherMusic::SColor Accent, float Alpha);
 	void RenderMediaTitle(const AetherMusic::SRect &TitleRect, const std::string &DisplayName, float Scale, float Alpha, float ScreenWidth, float ScreenHeight, AetherMusic::SColor Background);
+	void RenderTimeline(const AetherMusic::SRect &TimelineRect, const CAetherMediaBackend::SSnapshot &Snapshot, AetherMusic::SColor Background, AetherMusic::SColor Accent, float Scale, float Alpha);
 	bool FreezeCounterText(char *pBuf, int Size) const;
 	void ClampOffsets();
 	void ApplyCenterSnap(float ScreenWidth, float ScreenHeight, float PanelWidth, float PanelHeight);
