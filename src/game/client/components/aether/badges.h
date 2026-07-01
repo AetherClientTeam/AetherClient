@@ -73,21 +73,6 @@ public:
 		int m_PlayerCount = 0;
 		bool m_Rated = true;
 	};
-	enum class EPingType
-	{
-		PLACE,
-		HELP,
-		DANGER,
-		COME,
-		WAIT,
-	};
-	enum class EAutoHelpPingState : unsigned char
-	{
-		IDLE,
-		PENDING_GROUND,
-		SENT,
-	};
-
 private:
 	enum class EChessHttpAction
 	{
@@ -129,16 +114,6 @@ private:
 		std::vector<SBadge> m_vBadges;
 		int64_t m_LastSeenTime = 0;
 	};
-	struct SPingEvent
-	{
-		int m_Seq = 0;
-		EPingType m_Type = EPingType::HELP;
-		char m_aPlayer[MAX_NAME_LENGTH] = "";
-		vec2 m_Pos = vec2(0.0f, 0.0f);
-		int64_t m_ExpireTime = 0;
-		bool m_Auto = false;
-	};
-
 public:
 	struct SClanState
 	{
@@ -172,7 +147,6 @@ private:
 	std::array<SChessOnlinePlayer, MAX_CLIENTS> m_aChessOnline{};
 	std::array<SChessOnlinePlayer, MAX_CLIENTS> m_aAetherOnline{};
 	std::vector<SRememberedClientBadges> m_vRememberedClientBadges;
-	std::vector<SPingEvent> m_vPings;
 	std::vector<SPublicClanMembership> m_vPublicClanMemberships;
 	CAetherRealtimeClient m_Realtime;
 	std::vector<std::string> m_vChessMessages;
@@ -183,8 +157,6 @@ private:
 	std::shared_ptr<CHttpRequest> m_pChessActionRequest;
 	std::shared_ptr<CHttpRequest> m_pChessLeaderboardAllRequest;
 	std::shared_ptr<CHttpRequest> m_pChessLeaderboardMonthlyRequest;
-	std::shared_ptr<CHttpRequest> m_pPingSendRequest;
-	std::shared_ptr<CHttpRequest> m_pPingPollRequest;
 	std::shared_ptr<CHttpRequest> m_pOracleEventsRequest;
 	std::shared_ptr<CHttpRequest> m_pClanRequest;
 	EChessHttpAction m_ChessAction = EChessHttpAction::NONE;
@@ -199,13 +171,11 @@ private:
 	int64_t m_LastAetherOnlineRequestTime = 0;
 	int64_t m_LastAetherOnlineResponseTime = 0;
 	int64_t m_LastChessRoomPollTime = 0;
-	int64_t m_LastPingPollTime = 0;
 	int64_t m_LastOraclePollTime = 0;
 	int64_t m_OracleUnavailableUntil = 0;
 	int64_t m_LastClanMineTime = 0;
 	int64_t m_LastClanDirectoryTime = 0;
 	int64_t m_ChessInviteExpireTime = 0;
-	std::array<EAutoHelpPingState, MAX_CLIENTS> m_aHelpPingStates{};
 	int m_LastRefreshSeconds = 0;
 	int m_LastGradientNicknames = -1;
 	int m_LastGradientStartColor = -1;
@@ -215,7 +185,6 @@ private:
 	int m_LastGradientStyle = -1;
 	int m_ChessOnlineCount = 0;
 	int m_AetherOnlineCount = 0;
-	int m_LastPingSeq = 0;
 	int m_OracleCursor = 0;
 	SChessRoomState m_ChessRoom;
 	SClanState m_Clan;
@@ -239,13 +208,8 @@ private:
 	CUIRect m_ChessInviteAcceptButton;
 	CUIRect m_ChessInviteDeclineButton;
 	CUIRect m_ChessInviteOpenButton;
-	vec2 m_PingWheelMouse = vec2(0.0f, 0.0f);
-	EPingType m_PingWheelSelected = EPingType::PLACE;
 	bool m_IconTexturesLoaded = false;
 	bool m_ChessInviteActive = false;
-	bool m_PingWheelActive = false;
-	bool m_PingWheelWasActive = false;
-	bool m_PingWheelHasSelection = false;
 	bool m_ClanManagementAvailable = true;
 	bool m_AssetsUpdatePending = false;
 	bool m_DdraceShowOthersOn = false;
@@ -294,16 +258,6 @@ private:
 	bool StartChessHttpPost(const char *pPath, const std::string &Payload, EChessHttpAction Action, const char *pStatus);
 	bool StartChessHttpGet(const char *pPath, EChessHttpAction Action, const char *pStatus, bool Quiet = false);
 	void RequestChessRoomSnapshot(bool Force);
-	void RequestPingPoll(bool Force);
-	void PumpPingRequests();
-	void ScanAutoHelpPings();
-	void RenderPings();
-	void RenderPingWheel();
-	void ExecutePingWheelSelection();
-	bool AddOrMergePing(const SPingEvent &Event);
-	bool LocalCharacterGrounded() const;
-	void SendPing(EPingType Type, vec2 Pos, bool Auto);
-	vec2 ManualPingPosition() const;
 	bool StartClanHttpPost(const char *pPath, const std::string &Payload, EClanHttpAction Action, const char *pStatus);
 	bool StartClanHttpGet(const char *pPath, EClanHttpAction Action, const char *pStatus, bool Quiet = false);
 	bool StartClanRecovery(const SClanState &Clan, EClanHttpAction Action);
@@ -324,14 +278,7 @@ private:
 	bool ShouldRenderBadge(const SBadge &Badge) const;
 	static int BadgeIconIndex(const char *pKey);
 	static int BadgeRenderRank(const SBadge &Badge);
-	static const char *PingTypeName(EPingType Type);
-	static const char *PingTypeDisplayName(EPingType Type);
-	static const char *PingTypeGlyph(EPingType Type);
-	static EPingType PingTypeFromName(const char *pName);
-	static EPingType PingTypeFromWheelVector(vec2 Mouse);
-	static ColorRGBA PingTypeColor(EPingType Type, float Alpha = 1.0f);
-	static void ConPingWheel(IConsole::IResult *pResult, void *pUserData);
-	static void ConPing(IConsole::IResult *pResult, void *pUserData);
+	static void ConRefresh(IConsole::IResult *pResult, void *pUserData);
 	static void ConDdraceConfig(IConsole::IResult *pResult, void *pUserData);
 	void ExecuteDdraceConfig(const char *pName, const char *pMode = nullptr);
 
@@ -384,7 +331,6 @@ public:
 	const SClanState &KogClan() const { return m_KogClan; }
 	bool ClanRequestActive() const { return m_pClanRequest != nullptr; }
 	bool ClanManagementAvailable() const { return m_ClanManagementAvailable; }
-	bool IsPingWheelActive() const { return m_PingWheelActive; }
 	bool ScoreboardClanForClient(int ClientId, bool KogServer, char *pOut, int OutSize) const;
 	void ChessRealtimeStatus(char *pOut, int OutSize) const { m_Realtime.Status(pOut, OutSize); }
 	int ChessOnlineCount() const { return m_ChessOnlineCount; }

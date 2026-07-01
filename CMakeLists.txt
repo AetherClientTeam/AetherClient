@@ -2574,6 +2574,8 @@ if(CLIENT)
     components/aether/browser_utils_helpers.h
     components/aether/chat_bubbles.cpp
     components/aether/chat_bubbles.h
+    components/aether/command_palette.cpp
+    components/aether/command_palette.h
     components/aether/client_variant.h
     components/aether/crosshair_layer.cpp
     components/aether/crosshair_layer.h
@@ -2593,6 +2595,8 @@ if(CLIENT)
     components/aether/music_player.h
     components/aether/music_player_helpers.cpp
     components/aether/music_player_helpers.h
+    components/aether/notifications.cpp
+    components/aether/notifications.h
     components/aether/optimizer.cpp
     components/aether/optimizer.h
     components/aether/psa.cpp
@@ -2605,6 +2609,8 @@ if(CLIENT)
     components/aether/rollback_demo.h
     components/aether/session_stats.cpp
     components/aether/session_stats.h
+    components/aether/session_markers.cpp
+    components/aether/session_markers.h
     components/aether/stability_trainer.cpp
     components/aether/stability_trainer.h
     components/aether/three_d_particles.cpp

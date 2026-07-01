@@ -201,7 +201,6 @@ bool AetherFeatureAllowed(AetherMusic::EAetherFeatureId Id)
 		case EAetherFeatureId::FINISH_PREDICTION:
 		case EAetherFeatureId::LOADING_THEME_BACKGROUND:
 		case EAetherFeatureId::CLIENT_BADGES:
-		case EAetherFeatureId::PING_WHEEL:
 		case EAetherFeatureId::FOCUS_MODE:
 		case EAetherFeatureId::SNAP_TAP:
 		case EAetherFeatureId::GORES_MODE:
@@ -245,7 +244,6 @@ bool AetherFeatureAllowed(AetherMusic::EAetherFeatureId Id)
 		case EAetherFeatureId::FINISH_PREDICTION:
 		case EAetherFeatureId::LOADING_THEME_BACKGROUND:
 		case EAetherFeatureId::CLIENT_BADGES:
-		case EAetherFeatureId::PING_WHEEL:
 		case EAetherFeatureId::FOCUS_MODE:
 		case EAetherFeatureId::SNAP_TAP:
 		case EAetherFeatureId::FAST_INPUT:
@@ -284,7 +282,6 @@ bool AetherFeatureAllowed(AetherMusic::EAetherFeatureId Id)
 		case EAetherFeatureId::FINISH_PREDICTION:
 		case EAetherFeatureId::LOADING_THEME_BACKGROUND:
 		case EAetherFeatureId::CLIENT_BADGES:
-		case EAetherFeatureId::PING_WHEEL:
 		case EAetherFeatureId::FOCUS_MODE:
 		case EAetherFeatureId::SNAP_TAP:
 		case EAetherFeatureId::FAST_INPUT:
@@ -316,7 +313,9 @@ struct SAetherTranslation
 
 const char *AetherLocalize(const char *pText)
 {
-	if(!pText || pText[0] == '\0')
+	if(!pText)
+		return "";
+	if(pText[0] == '\0')
 		return pText;
 
 	const char *pLocalized = Localize(pText);
@@ -519,13 +518,17 @@ const char *AetherLocalize(const char *pText)
 		{"KoG points in tab", "Tab'da KoG points göster"},
 		{"Show client badges only", "Sadece client rozetlerini göster"},
 		{"Show friend heart", "Arkadaş kalbini göster"},
-		{"Show Aether pings", "Aether pinglerini göster"},
-		{"Ping wheel", "Ping çarkı"},
-		{"Place ping", "Yer pingi"},
-		{"Help ping", "Yardım pingi"},
-		{"Danger ping", "Tehlike pingi"},
-		{"Come ping", "Gel pingi"},
-		{"Wait ping", "Bekle pingi"},
+		{"Notification Center", "Bildirim merkezi"},
+		{"Update notifications", "Update bildirimleri"},
+		{"Command palette notifications", "Komut paleti bildirimleri"},
+		{"Session marker notifications", "Session marker bildirimleri"},
+		{"Rollback demo notifications", "Rollback demo bildirimleri"},
+		{"Command Palette", "Komut paleti"},
+		{"Palette key", "Palet tuşu"},
+		{"Session Markers", "Session markerları"},
+		{"Marker key", "Marker tuşu"},
+		{"Auto freeze marker", "Otomatik freeze marker"},
+		{"Add marker", "Marker ekle"},
 		{"Wheel", "Çark"},
 		{"Keys", "Tuşlar"},
 		{"Visibility", "Görünürlük"},
@@ -554,7 +557,11 @@ const char *AetherLocalize(const char *pText)
 		{"TClient", "TClient"},
 		{"Adaptive", "Adaptive"},
 		{"Control", "Control"},
+		{"Zeni$h+", "Zeni$h+"},
 		{"Saiko+", "Saiko+"},
+		{"Zeni$h+ amount", "Zeni$h+ miktari"},
+		{"Zeni$h+ correction", "Zeni$h+ duzeltme"},
+		{"Zeni$h+ input others", "Diger teelere Zeni$h+"},
 		{"TClient amount", "TClient miktarı"},
 		{"Fast input others", "Diğer teelere fast input"},
 		{"Saiko+ input others", "Diğer teelere Saiko+"},
@@ -758,6 +765,9 @@ const char *AetherLocalize(const char *pText)
 		{"Also predicts other tees in TClient mode. Helps drag/hook feel more responsive.", "TClient modunda diğer teeleri de tahmin eder. Drag/hook hissini daha anlık yapar."},
 		{"Saiko+ prediction amount. Higher feels sharper but can look more aggressive.", "Saiko+ prediction miktarı. Yüksek değer daha sert hisseder ama daha agresif görünebilir."},
 		{"Applies Saiko+ prediction to other tees too.", "Saiko+ prediction'ı diğer teelere de uygular."},
+		{"Zeni$h+ prediction amount. Default 1.40 keeps Lewn-like dummy drag while the render feel stays soft.", "Zeni$h+ prediction miktari. Varsayilan 1.40 Lewn benzeri dummy drag tutar, render hissi yumusak kalir."},
+		{"How softly Zeni$h+ follows prediction corrections. Lower values feel more like sliding on ice.", "Zeni$h+ prediction duzeltmelerini ne kadar yumusak takip eder. Dusuk degerler buz ustunde kayma hissine yakindir."},
+		{"Predicts other tees with the Lewn-style offset while Zeni$h+ is active.", "Zeni$h+ aktifken diger teeleri Lewn tarzi offset ile tahmin eder."},
 		{"How far Control mode predicts your input. Keep this moderate for stable A/D control.", "Control modunun inputunu ne kadar önden tahmin edeceği. Stabil A/D kontrolü için orta değerde tut."},
 		{"Higher values reduce jitter and snapping, lower values follow prediction more directly.", "Yüksek değerler titreme ve snap'i azaltır; düşük değerler prediction'ı daha direkt takip eder."},
 		{"How quickly Control mode catches up to corrected server positions.", "Control modunun server düzeltmelerine ne kadar hızlı yetişeceği."},
@@ -794,9 +804,15 @@ const char *AetherLocalize(const char *pText)
 		{"Keeps the music player HUD visible even while Focus Mode hides other UI.", "Focus Mode diğer UI öğelerini gizlerken müzik çalar HUD'unu görünür tutar."},
 		{"Draws Aether badges beside player names in-world.", "Aether rozetlerini oyun içi isimlerin yanında çizer."},
 		{"Draws Aether badges inside the scoreboard rows.", "Aether rozetlerini scoreboard satırlarında çizer."},
-		{"Only shows Aether/Vera/Via/Vex client identity badges and hides role badges.", "Sadece Aether/Vera/Via/Vex client rozetlerini gösterir, rol rozetlerini gizler."},
+		{"Only shows Aether client identity badges and hides role badges.", "Sadece Aether client rozetlerini gösterir, rol rozetlerini gizler."},
 		{"Shows the normal friend heart as the right-most badge slot.", "Normal arkadaş kalbini en sağdaki rozet slotu olarak gösterir."},
-		{"Enables Aether ping markers from the ping wheel and cloud ping events.", "Ping çarkı ve cloud ping olaylarından gelen Aether ping işaretlerini açar."},
+		{"Shows compact Aether notifications for updates and tool actions.", "Update ve araç işlemleri için kompakt Aether bildirimleri gösterir."},
+		{"Shows a notification when a new Aether release is available.", "Yeni Aether sürümü olduğunda bildirim gösterir."},
+		{"Shows a small notification after running a command palette action.", "Komut paletinden işlem çalışınca küçük bildirim gösterir."},
+		{"Shows notifications when demo/session markers are added.", "Demo/session marker eklenince bildirim gösterir."},
+		{"Shows rollback demo status as notifications instead of chat echoes.", "Rollback demo durumunu chat echo yerine bildirim olarak gösterir."},
+		{"Quick command launcher for common Aether actions.", "Sık kullanılan Aether işlemleri için hızlı komut başlatıcı."},
+		{"Drops timeline markers into active demo recordings.", "Aktif demo kayıtlarına timeline marker ekler."},
 		{"Shows the modern last-alive text when your DDNet team is down to one active tee.", "DDNet takımında tek aktif tee kaldığında modern son kalan yazısını gösterir."},
 		{"Draws a compact background behind the last-alive text.", "Son kalan yazısının arkasına kompakt bir arka plan çizer."},
 		{"Draws a compact background behind the frozen/alive team counter.", "Frozen/canlı takım sayacının arkasına kompakt bir arka plan çizer."},
@@ -986,10 +1002,10 @@ const char *AetherFeatureTooltip(AetherMusic::EAetherFeatureId Id)
 		return "Uses Aether themed backgrounds on loading screens.";
 	case EAetherFeatureId::CLIENT_BADGES:
 		return "Shows Aether family, founder, tester, chess and friend badges.";
+	case EAetherFeatureId::NOTIFICATION_CENTER:
+		return "Shows compact Aether notifications for updates and tool actions.";
 	case EAetherFeatureId::FAST_INPUT:
 		return "Predicts selected inputs ahead locally to reduce input delay feel.";
-	case EAetherFeatureId::PING_WHEEL:
-		return "Radial wheel for place, help, danger, come and wait pings.";
 	case EAetherFeatureId::CHAT_BUBBLES:
 		return "Shows chat messages above tees for easier in-game reading.";
 	case EAetherFeatureId::BLOCK_AWARENESS:
@@ -1036,8 +1052,12 @@ const char *AetherFeatureTooltip(AetherMusic::EAetherFeatureId Id)
 		return "Performance toggles and diagnostics for lower frame-time spikes.";
 	case EAetherFeatureId::BROWSER_UTILS:
 		return "Small server browser helpers such as refresh and shorter names.";
+	case EAetherFeatureId::COMMAND_PALETTE:
+		return "Quick command launcher for common Aether actions.";
 	case EAetherFeatureId::ROLLBACK_DEMO:
 		return "Keeps replay buffer controls for quick demo rollback clips.";
+	case EAetherFeatureId::SESSION_MARKERS:
+		return "Drops timeline markers into active demo recordings.";
 	case EAetherFeatureId::AIM_TRAINING:
 		return "Local aim training targets for mouse accuracy practice.";
 	case EAetherFeatureId::PSA:
@@ -1068,9 +1088,15 @@ const char *AetherControlTooltip(const char *pLabel)
 		{"Keep music player visible", "Keeps the music player HUD visible even while Focus Mode hides other UI."},
 		{"Show in nameplates", "Draws Aether badges beside player names in-world."},
 		{"Show in scoreboard", "Draws Aether badges inside the scoreboard rows."},
-		{"Show client badges only", "Only shows Aether/Vera/Via/Vex client identity badges and hides role badges."},
+		{"Show client badges only", "Only shows Aether client identity badges and hides role badges."},
 		{"Show friend heart", "Shows the normal friend heart as the right-most badge slot."},
-		{"Show Aether pings", "Enables Aether ping markers from the ping wheel and cloud ping events."},
+		{"Update notifications", "Shows a notification when a new Aether release is available."},
+		{"Command palette notifications", "Shows a small notification after running a command palette action."},
+		{"Session marker notifications", "Shows notifications when demo/session markers are added."},
+		{"Rollback demo notifications", "Shows rollback demo status as notifications instead of chat echoes."},
+		{"Palette key", "Key bound to open the command palette."},
+		{"Marker key", "Key bound to add a demo/session marker."},
+		{"Auto freeze marker", "Automatically adds one marker when your tee first freezes."},
 		{"Last alive display", "Shows the modern last-alive text when your DDNet team is down to one active tee."},
 		{"Last background", "Draws a compact background behind the last-alive text."},
 		{"Last warning sound", "Plays the selected warning sound when your DDNet team becomes last alive. This is independent from regular fail sounds."},
@@ -1099,6 +1125,9 @@ const char *AetherControlTooltip(const char *pLabel)
 		{"TClient amount", "Classic TClient input amount used when Fast Input is set to TClient mode."},
 		{"Fast input others", "Predicts other tees in TClient mode to make drag/hook response look more immediate."},
 		{"Saiko+ input others", "Applies Saiko+ style prediction to other tees too."},
+		{"Zeni$h+ amount", "Zeni$h+ prediction amount. Default 1.40 keeps Lewn-like dummy drag while the render feel stays soft."},
+		{"Zeni$h+ correction", "How softly Zeni$h+ follows prediction corrections. Lower values feel more like sliding on ice."},
+		{"Zeni$h+ input others", "Predicts other tees with the Lewn-style offset while Zeni$h+ is active."},
 		{"Control", "Stability-focused experimental Fast Input mode with calmer correction and less jitter."},
 		{"Response amount", "How quickly Control mode responds to your inputs. Keep it moderate for stable movement."},
 		{"Stability", "Higher values smooth small prediction noise; lower values follow prediction more directly."},
@@ -3512,32 +3541,85 @@ void CMenus::RenderSettingsAetherBadges(CUIRect Body)
 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
-void CMenus::RenderSettingsAetherPings(CUIRect Body)
+void CMenus::RenderSettingsAetherNotifications(CUIRect Body)
 {
-	static CButtonContainer s_PingWheelReader;
-	static CButtonContainer s_PingWheelClear;
-	static CButtonContainer s_PingPlaceReader;
-	static CButtonContainer s_PingPlaceClear;
-	static CButtonContainer s_PingHelpReader;
-	static CButtonContainer s_PingHelpClear;
-	static CButtonContainer s_PingDangerReader;
-	static CButtonContainer s_PingDangerClear;
-	static CButtonContainer s_PingComeReader;
-	static CButtonContainer s_PingComeClear;
-	static CButtonContainer s_PingWaitReader;
-	static CButtonContainer s_PingWaitClear;
+	static CButtonContainer s_UpdateToggle;
+	static CButtonContainer s_CommandPaletteToggle;
+	static CButtonContainer s_SessionMarkersToggle;
+	static CButtonContainer s_RollbackDemoToggle;
+	static CButtonContainer s_TestButton;
+	static CButtonContainer s_CheckButton;
 	const float S = AetherSettingsScale();
 	Body.Draw(AetherPanelColor(0.34f), IGraphics::CORNER_ALL, 6.0f);
 	Body.Margin(12.0f * S, &Body);
 
+	CUIRect Row;
+	Body.HSplitTop(22.0f * S, &Row, &Body);
+	if(DoButton_CheckBox(&s_UpdateToggle, "Update notifications", g_Config.m_AeNotificationsUpdateCheck, &Row))
+		g_Config.m_AeNotificationsUpdateCheck ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &s_UpdateToggle, Row, "Update notifications");
+
+	Body.HSplitTop(6.0f * S, nullptr, &Body);
+	Body.HSplitTop(22.0f * S, &Row, &Body);
+	if(DoButton_CheckBox(&s_CommandPaletteToggle, "Command palette notifications", g_Config.m_AeNotificationsCommandPalette, &Row))
+		g_Config.m_AeNotificationsCommandPalette ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &s_CommandPaletteToggle, Row, "Command palette notifications");
+
+	Body.HSplitTop(6.0f * S, nullptr, &Body);
+	Body.HSplitTop(22.0f * S, &Row, &Body);
+	if(DoButton_CheckBox(&s_SessionMarkersToggle, "Session marker notifications", g_Config.m_AeNotificationsSessionMarkers, &Row))
+		g_Config.m_AeNotificationsSessionMarkers ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &s_SessionMarkersToggle, Row, "Session marker notifications");
+
+	Body.HSplitTop(6.0f * S, nullptr, &Body);
+	Body.HSplitTop(22.0f * S, &Row, &Body);
+	if(DoButton_CheckBox(&s_RollbackDemoToggle, "Rollback demo notifications", g_Config.m_AeNotificationsRollbackDemo, &Row))
+		g_Config.m_AeNotificationsRollbackDemo ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &s_RollbackDemoToggle, Row, "Rollback demo notifications");
+
+	Body.HSplitTop(8.0f * S, nullptr, &Body);
+	Body.HSplitTop(24.0f * S, &Row, &Body);
 	CUIRect Left, Right;
-	Body.VSplitMid(&Left, &Right, 14.0f * S);
-	DoLine_KeyReader(Left, s_PingWheelReader, s_PingWheelClear, "Ping wheel", "+ae_ping_wheel");
-	DoLine_KeyReader(Left, s_PingPlaceReader, s_PingPlaceClear, "Place ping", "ae_ping place");
-	DoLine_KeyReader(Left, s_PingHelpReader, s_PingHelpClear, "Help ping", "ae_ping help");
-	DoLine_KeyReader(Right, s_PingDangerReader, s_PingDangerClear, "Danger ping", "ae_ping danger");
-	DoLine_KeyReader(Right, s_PingComeReader, s_PingComeClear, "Come ping", "ae_ping come");
-	DoLine_KeyReader(Right, s_PingWaitReader, s_PingWaitClear, "Wait ping", "ae_ping wait");
+	Row.VSplitMid(&Left, &Right, 8.0f * S);
+	if(DoButton_Menu(&s_TestButton, "Test notification", 0, &Left))
+		GameClient()->m_AetherNotifications.Push("Aether", "Notification test");
+	if(DoButton_Menu(&s_CheckButton, "Check update", 0, &Right))
+		Console()->ExecuteLine("ae_check_update", IConsole::CLIENT_ID_UNSPECIFIED);
+}
+
+void CMenus::RenderSettingsAetherCommandPalette(CUIRect Body)
+{
+	static CButtonContainer s_PaletteReaderButton;
+	static CButtonContainer s_PaletteClearButton;
+	const float S = AetherSettingsScale();
+	Body.Draw(AetherPanelColor(0.34f), IGraphics::CORNER_ALL, 6.0f);
+	Body.Margin(12.0f * S, &Body);
+
+	DoLine_KeyReader(Body, s_PaletteReaderButton, s_PaletteClearButton, "Palette key", "ae_command_palette");
+}
+
+void CMenus::RenderSettingsAetherSessionMarkers(CUIRect Body)
+{
+	static CButtonContainer s_MarkerReaderButton;
+	static CButtonContainer s_MarkerClearButton;
+	static CButtonContainer s_AutoFreezeToggle;
+	static CButtonContainer s_AddMarkerButton;
+	const float S = AetherSettingsScale();
+	Body.Draw(AetherPanelColor(0.34f), IGraphics::CORNER_ALL, 6.0f);
+	Body.Margin(12.0f * S, &Body);
+
+	CUIRect Row;
+	Body.HSplitTop(24.0f * S, &Row, &Body);
+	DoLine_KeyReader(Row, s_MarkerReaderButton, s_MarkerClearButton, "Marker key", "ae_session_marker manual");
+	Body.HSplitTop(8.0f * S, nullptr, &Body);
+	Body.HSplitTop(22.0f * S, &Row, &Body);
+	if(DoButton_CheckBox(&s_AutoFreezeToggle, "Auto freeze marker", g_Config.m_AeSessionMarkerAutoFreeze, &Row))
+		g_Config.m_AeSessionMarkerAutoFreeze ^= 1;
+	AetherDoLabelTooltip(Ui(), GameClient(), &s_AutoFreezeToggle, Row, "Auto freeze marker");
+	Body.HSplitTop(8.0f * S, nullptr, &Body);
+	Body.HSplitTop(24.0f * S, &Row, &Body);
+	if(DoButton_Menu(&s_AddMarkerButton, "Add marker", 0, &Row))
+		Console()->ExecuteLine("ae_session_marker manual", IConsole::CLIENT_ID_UNSPECIFIED);
 }
 
 void CMenus::RenderSettingsAetherClan(CUIRect Body)
@@ -3900,6 +3982,7 @@ void CMenus::RenderSettingsAetherFastInput(CUIRect Body)
 	static CButtonContainer s_ModeAdaptive;
 	static CButtonContainer s_ModeLewnPlus;
 	static CButtonContainer s_ModeControl;
+	static CButtonContainer s_ModeZenishPlus;
 	static CButtonContainer s_ModeSaikoPlus;
 	const float S = AetherSettingsScale();
 	Body.Draw(AetherPanelColor(0.34f), IGraphics::CORNER_ALL, 6.0f);
@@ -3907,12 +3990,12 @@ void CMenus::RenderSettingsAetherFastInput(CUIRect Body)
 
 	CUIRect Control;
 	Body.HSplitTop(24.0f * S, &Control, &Body);
-	if(g_Config.m_AeFastInputMode > 5)
+	if(g_Config.m_AeFastInputMode > 6)
 		g_Config.m_AeFastInputMode = 1;
-	const int ActiveMode = g_Config.m_AeFastInputMode == 3 ? 1 : (g_Config.m_AeFastInputMode == 5 ? 3 : (g_Config.m_AeFastInputMode == 4 ? 4 : (g_Config.m_AeFastInputMode == 2 ? 5 : 2)));
-	CUIRect B1, B2, B3, B4, B5, Rest;
+	const int ActiveMode = g_Config.m_AeFastInputMode == 3 ? 1 : (g_Config.m_AeFastInputMode == 5 ? 3 : (g_Config.m_AeFastInputMode == 4 ? 4 : (g_Config.m_AeFastInputMode == 2 ? 5 : (g_Config.m_AeFastInputMode == 6 ? 6 : 2))));
+	CUIRect B1, B2, B3, B4, B5, B6, Rest;
 	const float Spacing = 2.0f * S;
-	const float SlotW = (Control.w - Spacing * 4.0f) / 5.0f;
+	const float SlotW = (Control.w - Spacing * 5.0f) / 6.0f;
 	Control.VSplitLeft(SlotW, &B1, &Rest);
 	Rest.VSplitLeft(Spacing, nullptr, &Rest);
 	Rest.VSplitLeft(SlotW, &B2, &Rest);
@@ -3922,6 +4005,8 @@ void CMenus::RenderSettingsAetherFastInput(CUIRect Body)
 	Rest.VSplitLeft(SlotW, &B4, &Rest);
 	Rest.VSplitLeft(Spacing, nullptr, &Rest);
 	Rest.VSplitLeft(SlotW, &B5, &Rest);
+	Rest.VSplitLeft(Spacing, nullptr, &Rest);
+	Rest.VSplitLeft(SlotW, &B6, &Rest);
 
 	if(DoButton_Menu(&s_ModeTClient, "TClient", ActiveMode == 1, &B1, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_L))
 	{
@@ -3943,13 +4028,18 @@ void CMenus::RenderSettingsAetherFastInput(CUIRect Body)
 		g_Config.m_AeFastInputMode = 5;
 	}
 	AetherDoTooltip(Ui(), GameClient(), &s_ModeLewnPlus, B4, "Experimental Lewn+ input. Very fast response with sharp but smoothed render correction.");
-	if(DoButton_Menu(&s_ModeSaikoPlus, "Saiko+", ActiveMode == 5, &B5, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_R))
+	if(DoButton_Menu(&s_ModeZenishPlus, "Zeni$h+", ActiveMode == 6, &B5, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_NONE))
+	{
+		g_Config.m_AeFastInputMode = 6;
+	}
+	AetherDoTooltip(Ui(), GameClient(), &s_ModeZenishPlus, B5, "Experimental Zeni$h+ input. Lewn-like dummy drag with very soft, ice-like render correction.");
+	if(DoButton_Menu(&s_ModeSaikoPlus, "Saiko+", ActiveMode == 5, &B6, BUTTONFLAG_LEFT, nullptr, IGraphics::CORNER_R))
 	{
 		g_Config.m_AeFastInputMode = 2;
 		if(g_Config.m_AeSaikoPlusAmount <= 0)
 			g_Config.m_AeSaikoPlusAmount = std::clamp(g_Config.m_AeFastInputMovementAmount * 5, 0, 500);
 	}
-	AetherDoTooltip(Ui(), GameClient(), &s_ModeSaikoPlus, B5, "Sharper Saiko-style prediction. Stronger and more direct than Adaptive.");
+	AetherDoTooltip(Ui(), GameClient(), &s_ModeSaikoPlus, B6, "Sharper Saiko-style prediction. Stronger and more direct than Adaptive.");
 
 	Body.HSplitTop(8.0f * S, nullptr, &Body);
 
@@ -3997,6 +4087,29 @@ void CMenus::RenderSettingsAetherFastInput(CUIRect Body)
 		if(DoButton_CheckBox(&g_Config.m_AeLewnPlusOthers, "Lewn+ input others", g_Config.m_AeLewnPlusOthers, &Control))
 			g_Config.m_AeLewnPlusOthers ^= 1;
 		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeLewnPlusOthers, Control, "Predicts other tees with a slightly softer Lewn+ offset for direct hooks and drags.");
+		Body.HSplitTop(22.0f * S, &Control, &Body);
+		if(DoButton_CheckBox(&g_Config.m_AeFastInputDummy, "Apply to dummy", g_Config.m_AeFastInputDummy, &Control))
+			g_Config.m_AeFastInputDummy ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeFastInputDummy, Control, "Also applies Aether Fast Input to dummy prediction where possible.");
+	}
+	else if(ActiveMode == 6)
+	{
+		Body.HSplitTop(22.0f * S, &Control, &Body);
+		char aBuf[64];
+		str_format(aBuf, sizeof(aBuf), "Zeni$h+ amount: %.2f", std::clamp(g_Config.m_AeZenishPlusAmount, 100, 500) / 100.0f);
+		CUIRect Label, ScrollBar;
+		Control.VSplitMid(&Label, &ScrollBar, minimum(10.0f * S, Control.w * 0.05f));
+		Ui()->DoLabel(&Label, aBuf, Label.h * CUi::ms_FontmodHeight * 0.78f, TEXTALIGN_ML);
+		const float Relative = (std::clamp(g_Config.m_AeZenishPlusAmount, 100, 500) - 100) / 400.0f;
+		g_Config.m_AeZenishPlusAmount = std::clamp(100 + round_to_int(Ui()->DoScrollbarH(&g_Config.m_AeZenishPlusAmount, &ScrollBar, Relative) * 400.0f), 100, 500);
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeZenishPlusAmount, Control, "Zeni$h+ movement amount. Default 1.00 keeps the base feel light; A/D braking and hook/dummy response get their own short boost.");
+		Body.HSplitTop(22.0f * S, &Control, &Body);
+		Ui()->DoScrollbarOption(&g_Config.m_AeZenishPlusCorrection, &g_Config.m_AeZenishPlusCorrection, &Control, "Zeni$h+ correction", 0, 100, &CUi::ms_LinearScrollbarScale, 0, "%");
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeZenishPlusCorrection, Control, "How softly Zeni$h+ follows prediction corrections. Lower values slide more; A/D brake edges still catch quickly.");
+		Body.HSplitTop(22.0f * S, &Control, &Body);
+		if(DoButton_CheckBox(&g_Config.m_AeZenishPlusOthers, "Zeni$h+ input others", g_Config.m_AeZenishPlusOthers, &Control))
+			g_Config.m_AeZenishPlusOthers ^= 1;
+		AetherDoTooltip(Ui(), GameClient(), &g_Config.m_AeZenishPlusOthers, Control, "Predicts other tees with the Lewn-style offset while Zeni$h+ is active.");
 		Body.HSplitTop(22.0f * S, &Control, &Body);
 		if(DoButton_CheckBox(&g_Config.m_AeFastInputDummy, "Apply to dummy", g_Config.m_AeFastInputDummy, &Control))
 			g_Config.m_AeFastInputDummy ^= 1;
@@ -5404,7 +5517,7 @@ void CMenus::RenderSettingsAetherBrowserUtils(CUIRect Body)
 	if(DoButton_CheckBox(&g_Config.m_AeBrowserAutoRefresh, "Auto refresh server list", g_Config.m_AeBrowserAutoRefresh, &Control))
 		g_Config.m_AeBrowserAutoRefresh ^= 1;
 	Body.HSplitTop(22.0f * S, &Control, &Body);
-	Ui()->DoScrollbarOption(&g_Config.m_AeBrowserRefreshSeconds, &g_Config.m_AeBrowserRefreshSeconds, &Control, "Refresh interval", 15, 120, &CUi::ms_LinearScrollbarScale, 0, "s");
+	Ui()->DoScrollbarOption(&g_Config.m_AeBrowserRefreshSeconds, &g_Config.m_AeBrowserRefreshSeconds, &Control, "Refresh interval", 5, 120, &CUi::ms_LinearScrollbarScale, 0, "s");
 	AetherDoLabelTooltip(Ui(), GameClient(), &g_Config.m_AeBrowserRefreshSeconds, Control, "Refresh interval");
 	Body.HSplitTop(22.0f * S, &Control, &Body);
 	if(DoButton_CheckBox(&g_Config.m_AeBrowserShortKoGNames, "Shorten KoG server names", g_Config.m_AeBrowserShortKoGNames, &Control))
@@ -8299,13 +8412,19 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		"Client badges only",
 		"Friend heart",
 		"Refresh now"};
-	static const std::array<const char *, 6> s_apPingChildren = {
-		"Ping wheel",
-		"Place ping",
-		"Help ping",
-		"Danger ping",
-		"Come ping",
-		"Wait ping"};
+	static const std::array<const char *, 6> s_apNotificationsChildren = {
+		"Update notifications",
+		"Command palette notifications",
+		"Session marker notifications",
+		"Rollback demo notifications",
+		"Test notification",
+		"Check update"};
+	static const std::array<const char *, 1> s_apCommandPaletteChildren = {
+		"Palette key"};
+	static const std::array<const char *, 3> s_apSessionMarkersChildren = {
+		"Marker key",
+		"Auto freeze marker",
+		"Add marker"};
 	static const std::array<const char *, 9> s_apChatBubblesChildren = {
 		"Bubble duration",
 		"Bubble opacity",
@@ -8366,15 +8485,19 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		"Edge2Edge Freeze Tiles",
 		"Keybinds",
 		"Open folder"};
-	static const std::array<const char *, 37> s_apFastInputChildren = {
+	static const std::array<const char *, 41> s_apFastInputChildren = {
 		"TClient",
 		"Adaptive",
 		"Lewn+",
 		"Control",
+		"Zeni$h+",
 		"Saiko+",
 		"Lewn+ amount",
 		"Lewn+ correction",
 		"Lewn+ input others",
+		"Zeni$h+ amount",
+		"Zeni$h+ correction",
+		"Zeni$h+ input others",
 		"Response amount",
 		"Stability",
 		"Correction",
@@ -8537,7 +8660,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		"Coded background",
 		"Parallax",
 		"Override"};
-	const std::array<SFeature, 50> aFeatures = {{
+	const std::array<SFeature, 53> aFeatures = {{
 		{AetherMusic::EAetherFeatureId::TEAM_OVERLAYS, EAetherPage::VISUALS, ESection::VISUALS, "Last & Frozen Display", nullptr, s_apTeamOverlaysChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::GRADIENT_TEAM_COLORS, EAetherPage::VISUALS, ESection::VISUALS, "Gradient Effects", nullptr, s_apGradientTeamColorChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::TEAM_INVITE_POPUP, EAetherPage::VISUALS, ESection::VISUALS, "Team Invite Popup", &g_Config.m_AeTeamInvitePopup, s_apTeamInvitePopupChildren, EEditorAction::NONE},
@@ -8558,8 +8681,8 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		{AetherMusic::EAetherFeatureId::THREE_D_PARTICLES, EAetherPage::VISUALS, ESection::VISUALS, "3D Particles", &g_Config.m_Ae3DParticles, s_apThreeDParticlesChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::LOADING_THEME_BACKGROUND, EAetherPage::VISUALS, ESection::VISUALS, "Loading Theme Background", &g_Config.m_AeLoadingThemeBackground, s_apLoadingThemeChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::CLIENT_BADGES, EAetherPage::VISUALS, ESection::VISUALS, "Client Badges", &g_Config.m_AeBadges, s_apBadgesChildren, EEditorAction::NONE},
+		{AetherMusic::EAetherFeatureId::NOTIFICATION_CENTER, EAetherPage::VISUALS, ESection::VISUALS, "Notification Center", &g_Config.m_AeNotifications, s_apNotificationsChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::FAST_INPUT, EAetherPage::GAMEPLAY, ESection::GAMEPLAY, "Aether Fast Input", &g_Config.m_AeFastInput, s_apFastInputChildren, EEditorAction::NONE},
-		{AetherMusic::EAetherFeatureId::PING_WHEEL, EAetherPage::GAMEPLAY, ESection::GAMEPLAY, "Ping Wheel", &g_Config.m_AePings, s_apPingChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::CHAT_BUBBLES, EAetherPage::VISUALS, ESection::VISUALS, "Chat Bubbles", &g_Config.m_AeChatBubbles, s_apChatBubblesChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::BLOCK_AWARENESS, EAetherPage::GAMEPLAY, ESection::GAMEPLAY, "Block Awareness", &g_Config.m_AeBlockAwareness, s_apBlockAwarenessChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::FOCUS_MODE, EAetherPage::GAMEPLAY, ESection::GAMEPLAY, "Focus Mode", &g_Config.m_AeFocusMode, s_apFocusModeChildren, EEditorAction::NONE},
@@ -8582,7 +8705,9 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		{AetherMusic::EAetherFeatureId::CUSTOM_RESOLUTION, EAetherPage::TOOLS, ESection::TOOLS, "Custom Aspect Ratio", &g_Config.m_AeCustomResolution, s_apCustomResolutionChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::OPTIMIZER, EAetherPage::TOOLS, ESection::TOOLS, "Optimizer", &g_Config.m_AeOptimizer, s_apOptimizerChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::BROWSER_UTILS, EAetherPage::TOOLS, ESection::TOOLS, "Browser Utils", &g_Config.m_AeBrowserUtils, s_apBrowserUtilsChildren, EEditorAction::NONE},
+		{AetherMusic::EAetherFeatureId::COMMAND_PALETTE, EAetherPage::TOOLS, ESection::TOOLS, "Command Palette", &g_Config.m_AeCommandPalette, s_apCommandPaletteChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::ROLLBACK_DEMO, EAetherPage::TOOLS, ESection::TOOLS, "Rollback Demo", &g_Config.m_AeRollbackDemo, s_apRollbackDemoChildren, EEditorAction::NONE},
+		{AetherMusic::EAetherFeatureId::SESSION_MARKERS, EAetherPage::TOOLS, ESection::TOOLS, "Session Markers", &g_Config.m_AeSessionMarkers, s_apSessionMarkersChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::AIM_TRAINING, EAetherPage::TOOLS, ESection::TOOLS, "Aim Training", &g_Config.m_AeAimTraining, s_apAimTrainingChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::PSA, EAetherPage::TOOLS, ESection::TOOLS, "PSA", &g_Config.m_AePsa, s_apPsaChildren, EEditorAction::NONE},
 		{AetherMusic::EAetherFeatureId::CUSTOM_MENU_THEME, EAetherPage::TOOLS, ESection::TOOLS, "Custom Menu Theme", &g_Config.m_AeCustomMenuTheme, s_apCustomMenuThemeChildren, EEditorAction::NONE},
@@ -8756,7 +8881,7 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		case AetherMusic::EAetherFeatureId::AETHER_MENU_THEME: return 68.0f * S;
 		case AetherMusic::EAetherFeatureId::LOADING_THEME_BACKGROUND: return 52.0f * S;
 		case AetherMusic::EAetherFeatureId::CLIENT_BADGES: return 148.0f * S;
-		case AetherMusic::EAetherFeatureId::PING_WHEEL: return 126.0f * S;
+		case AetherMusic::EAetherFeatureId::NOTIFICATION_CENTER: return 92.0f * S;
 		case AetherMusic::EAetherFeatureId::CHAT_BUBBLES: return 238.0f * S;
 		case AetherMusic::EAetherFeatureId::BLOCK_AWARENESS:
 			return (s_AetherBlockAwarenessTab == 0 ? 344.0f : s_AetherBlockAwarenessTab == 1 ? 160.0f : s_AetherBlockAwarenessTab == 2 ? 150.0f : s_AetherBlockAwarenessTab == 3 ? 150.0f : 188.0f) * S;
@@ -8784,10 +8909,10 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		case AetherMusic::EAetherFeatureId::DDRACE_CONFIGS: return 172.0f * S;
 		case AetherMusic::EAetherFeatureId::FAST_INPUT:
 		{
-			const int Mode = g_Config.m_AeFastInputMode == 3 ? 1 : g_Config.m_AeFastInputMode == 5 ? 3 : g_Config.m_AeFastInputMode == 4 ? 4 : g_Config.m_AeFastInputMode == 2 ? 5 : 2;
+			const int Mode = g_Config.m_AeFastInputMode == 3 ? 1 : g_Config.m_AeFastInputMode == 5 ? 3 : g_Config.m_AeFastInputMode == 4 ? 4 : g_Config.m_AeFastInputMode == 2 ? 5 : g_Config.m_AeFastInputMode == 6 ? 6 : 2;
 			if(Mode == 1 || Mode == 5)
 				return 210.0f * S;
-			if(Mode == 3)
+			if(Mode == 3 || Mode == 6)
 				return 254.0f * S;
 			if(Mode == 4)
 				return (298.0f + (g_Config.m_AeFastInputControlInteractionAssist ? 22.0f : 0.0f)) * S;
@@ -8804,6 +8929,8 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		case AetherMusic::EAetherFeatureId::SAVE_UNSENT_MESSAGES: return 52.0f * S;
 		case AetherMusic::EAetherFeatureId::GRADIENT_TEAM_COLORS: return 230.0f * S;
 		case AetherMusic::EAetherFeatureId::BROWSER_UTILS: return 108.0f * S;
+		case AetherMusic::EAetherFeatureId::COMMAND_PALETTE: return 54.0f * S;
+		case AetherMusic::EAetherFeatureId::SESSION_MARKERS: return 106.0f * S;
 		case AetherMusic::EAetherFeatureId::CUSTOM_RESOLUTION: return 86.0f * S;
 		case AetherMusic::EAetherFeatureId::OPTIMIZER: return 224.0f * S;
 		default: return 0.0f;
@@ -8873,8 +9000,8 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 		case AetherMusic::EAetherFeatureId::CLIENT_BADGES:
 			RenderSettingsAetherBadges(Body);
 			break;
-		case AetherMusic::EAetherFeatureId::PING_WHEEL:
-			RenderSettingsAetherPings(Body);
+		case AetherMusic::EAetherFeatureId::NOTIFICATION_CENTER:
+			RenderSettingsAetherNotifications(Body);
 			break;
 		case AetherMusic::EAetherFeatureId::CHAT_BUBBLES:
 			RenderSettingsAetherChatBubbles(Body);
@@ -8887,6 +9014,9 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 			break;
 		case AetherMusic::EAetherFeatureId::ROLLBACK_DEMO:
 			RenderSettingsAetherRollbackDemo(Body);
+			break;
+		case AetherMusic::EAetherFeatureId::SESSION_MARKERS:
+			RenderSettingsAetherSessionMarkers(Body);
 			break;
 		case AetherMusic::EAetherFeatureId::AIM_TRAINING:
 			RenderSettingsAetherAimTraining(Body);
@@ -8953,6 +9083,9 @@ void CMenus::RenderSettingsAether(CUIRect MainView)
 			break;
 		case AetherMusic::EAetherFeatureId::BROWSER_UTILS:
 			RenderSettingsAetherBrowserUtils(Body);
+			break;
+		case AetherMusic::EAetherFeatureId::COMMAND_PALETTE:
+			RenderSettingsAetherCommandPalette(Body);
 			break;
 		case AetherMusic::EAetherFeatureId::CUSTOM_RESOLUTION:
 			RenderSettingsAetherCustomResolution(Body);

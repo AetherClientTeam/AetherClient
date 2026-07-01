@@ -1464,6 +1464,8 @@ public:
 
 	void Text(float x, float y, float FontSize, const char *pText, float LineWidth = -1.0f) override
 	{
+		if(!pText)
+			pText = "";
 		CTextCursor Cursor;
 		Cursor.SetPosition(vec2(x, y));
 		Cursor.m_FontSize = FontSize;
@@ -1473,6 +1475,8 @@ public:
 
 	float TextWidth(float FontSize, const char *pText, int StrLength = -1, float LineWidth = -1.0f, int Flags = 0, const STextSizeProperties &TextSizeProps = {}) override
 	{
+		if(!pText)
+			pText = "";
 		CTextCursor Cursor;
 		Cursor.m_FontSize = FontSize;
 		Cursor.m_Flags = Flags;
@@ -1491,6 +1495,8 @@ public:
 
 	STextBoundingBox TextBoundingBox(float FontSize, const char *pText, int StrLength = -1, float LineWidth = -1.0f, float LineSpacing = 0.0f, int Flags = 0) override
 	{
+		if(!pText)
+			pText = "";
 		CTextCursor Cursor;
 		Cursor.m_FontSize = FontSize;
 		Cursor.m_Flags = Flags;
@@ -1556,6 +1562,8 @@ public:
 
 	void TextEx(CTextCursor *pCursor, const char *pText, int Length = -1) override
 	{
+		if(!pText)
+			pText = "";
 		const unsigned OldRenderFlags = m_RenderFlags;
 		m_RenderFlags |= TEXT_RENDER_FLAG_ONE_TIME_USE;
 		STextContainerIndex TextCont;
@@ -1575,6 +1583,8 @@ public:
 
 	bool CreateTextContainer(STextContainerIndex &TextContainerIndex, CTextCursor *pCursor, const char *pText, int Length = -1) override
 	{
+		if(!pText)
+			pText = "";
 		dbg_assert(!TextContainerIndex.Valid(), "Text container index was not cleared.");
 
 		TextContainerIndex.Reset();
@@ -1627,6 +1637,8 @@ public:
 
 	void AppendTextContainer(STextContainerIndex TextContainerIndex, CTextCursor *pCursor, const char *pText, int Length = -1) override
 	{
+		if(!pText)
+			pText = "";
 		STextContainer &TextContainer = GetTextContainer(TextContainerIndex);
 		str_append(TextContainer.m_aDebugText, pText);
 
@@ -2175,6 +2187,8 @@ public:
 
 	bool CreateOrAppendTextContainer(STextContainerIndex &TextContainerIndex, CTextCursor *pCursor, const char *pText, int Length = -1) override
 	{
+		if(!pText)
+			pText = "";
 		if(TextContainerIndex.Valid())
 		{
 			AppendTextContainer(TextContainerIndex, pCursor, pText, Length);
@@ -2189,12 +2203,16 @@ public:
 	// just deletes and creates text container
 	void RecreateTextContainer(STextContainerIndex &TextContainerIndex, CTextCursor *pCursor, const char *pText, int Length = -1) override
 	{
+		if(!pText)
+			pText = "";
 		DeleteTextContainer(TextContainerIndex);
 		CreateTextContainer(TextContainerIndex, pCursor, pText, Length);
 	}
 
 	void RecreateTextContainerSoft(STextContainerIndex &TextContainerIndex, CTextCursor *pCursor, const char *pText, int Length = -1) override
 	{
+		if(!pText)
+			pText = "";
 		STextContainer &TextContainer = GetTextContainer(TextContainerIndex);
 		TextContainer.m_StringInfo.m_vCharacterQuads.clear();
 		// the text buffer gets then recreated by the appended quads
@@ -2355,7 +2373,11 @@ public:
 
 	int AdjustFontSize(const char *pText, int TextLength, int MaxSize, int MaxWidth) const override
 	{
+		if(!pText)
+			pText = "";
 		const int WidthOfText = CalculateTextWidth(pText, TextLength, 0, 100);
+		if(WidthOfText <= 0 || MaxWidth <= 0)
+			return MaxSize > 0 ? MaxSize : 100;
 
 		int FontSize = 100.0f / ((float)WidthOfText / (float)MaxWidth);
 		if(MaxSize > 0 && FontSize > MaxSize)
@@ -2393,6 +2415,10 @@ public:
 
 	int CalculateTextWidth(const char *pText, int TextLength, int FontWidth, int FontHeight) const override
 	{
+		if(!pText)
+			pText = "";
+		if(TextLength < 0)
+			TextLength = str_length(pText);
 		if(m_pGlyphMap->DefaultFace() == nullptr)
 			return 0;
 

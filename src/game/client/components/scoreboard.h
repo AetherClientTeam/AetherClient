@@ -44,7 +44,7 @@ class CScoreboard : public CComponent
 	const char *GetTeamName(int Team) const;
 	void ResetKogPoints();
 	void PumpKogPointsRequest();
-	void RequestKogPoints(bool KogServer);
+	void RequestKogPointsForClient(int ClientId, bool KogServer);
 	bool KogPointsForClient(int ClientId, int &Points) const;
 	void ApplyKogPointsForName(const char *pName, int Points);
 	SKogPointsEntry *KogPointsEntryForName(const char *pName, bool Create);
@@ -81,6 +81,7 @@ class CScoreboard : public CComponent
 		int m_ClientId;
 		bool m_IsLocal;
 		bool m_IsSpectating;
+		bool m_KogPointsRequested = false;
 
 		static CUi::EPopupMenuFunctionResult Render(void *pContext, CUIRect View, bool Active);
 	} m_ScoreboardPopupContext;
@@ -119,7 +120,6 @@ class CScoreboard : public CComponent
 	std::shared_ptr<CHttpRequest> m_pKogPointsRequest;
 	char m_aaKogPointsPendingNames[MAX_CLIENTS][MAX_NAME_LENGTH];
 	int m_KogPointsPendingNameCount = 0;
-	int64_t m_LastKogPointsRequestTime = 0;
 	int64_t m_KogPointsUnavailableUntil = 0;
 	char m_aKogPointsApiUrl[256] = "";
 
@@ -129,6 +129,7 @@ public:
 	void OnConsoleInit() override;
 	void OnInit() override;
 	void OnReset() override;
+	void OnMessage(int MsgType, void *pRawMsg) override;
 	void OnRender() override;
 	void OnRelease() override;
 	bool OnCursorMove(float x, float y, IInput::ECursorType CursorType) override;

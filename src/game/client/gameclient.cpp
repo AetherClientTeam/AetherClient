@@ -123,8 +123,11 @@ bool CGameClient::AetherTeamFreezeCounts(int TeamClientId, int &NumInTeam, int &
 		if(!m_Snap.m_apPlayerInfos[i] || m_Teams.Team(i) != LocalTeamId)
 			continue;
 
-		++NumInTeam;
 		const auto &Character = m_Snap.m_aCharacters[i];
+		if(!Character.m_Active)
+			continue;
+
+		++NumInTeam;
 		int FreezeEnd = 0;
 		bool DeepFrozen = false;
 		if(Character.m_HasExtendedData)
@@ -289,11 +292,13 @@ void AetherPerfWrite(IOHANDLE File, const char *pText)
 
 void AetherMigrateAndClampConfig()
 {
-	g_Config.m_AeFastInputMode = std::clamp(g_Config.m_AeFastInputMode, 0, 5);
+	g_Config.m_AeFastInputMode = std::clamp(g_Config.m_AeFastInputMode, 0, 6);
 	g_Config.m_AeLewnPlusAmount = std::clamp(g_Config.m_AeLewnPlusAmount, 100, 500);
 	g_Config.m_AeLewnPlusCorrection = std::clamp(g_Config.m_AeLewnPlusCorrection, 0, 100);
+	g_Config.m_AeZenishPlusAmount = std::clamp(g_Config.m_AeZenishPlusAmount, 100, 500);
+	g_Config.m_AeZenishPlusCorrection = std::clamp(g_Config.m_AeZenishPlusCorrection, 0, 100);
 	g_Config.m_AeSaikoPlusAmount = std::clamp(g_Config.m_AeSaikoPlusAmount, 0, 500);
-	g_Config.m_AeBrowserRefreshSeconds = std::clamp(g_Config.m_AeBrowserRefreshSeconds, 15, 120);
+	g_Config.m_AeBrowserRefreshSeconds = std::clamp(g_Config.m_AeBrowserRefreshSeconds, 5, 120);
 
 	if(!g_Config.m_AeSoundAirJumpSplitMigrated)
 	{
@@ -311,6 +316,9 @@ void AetherMigrateAndClampConfig()
 	g_Config.m_AeVotePanel = std::clamp(g_Config.m_AeVotePanel, 0, 1);
 	g_Config.m_AeVotePanelScale = std::clamp(g_Config.m_AeVotePanelScale, 50, 200);
 	g_Config.m_AeMusicVisualizerAutoGain = std::clamp(g_Config.m_AeMusicVisualizerAutoGain, 0, 1);
+	if(g_Config.m_AeSessionMarkerAutoDeath && !g_Config.m_AeSessionMarkerAutoFreeze)
+		g_Config.m_AeSessionMarkerAutoFreeze = 1;
+	g_Config.m_AeSessionMarkerAutoDeath = 0;
 }
 
 bool AetherStartupGuardWasLeftBehind(IStorage *pStorage)
@@ -345,7 +353,6 @@ void AetherApplyStartupRecovery()
 	g_Config.m_AeOptimizerDiscordBelowNormal = 0;
 	g_Config.m_AeOptimizerFpsFog = 0;
 	g_Config.m_AeBadges = 0;
-	g_Config.m_AePings = 0;
 	g_Config.m_AeBrowserUtils = 0;
 	g_Config.m_AeBrowserAutoRefresh = 0;
 	g_Config.m_AeFreezeFailSound = 0;
@@ -401,6 +408,7 @@ const char *CGameClient::AetherPerfComponentBaseName(const CComponent *pComponen
 	AETHER_COMPONENT_NAME(m_Players, "Players");
 	AETHER_COMPONENT_NAME(m_AetherRealHitbox, "AetherRealHitbox");
 	AETHER_COMPONENT_NAME(m_AetherChatBubbles, "AetherChatBubbles");
+	AETHER_COMPONENT_NAME(m_AetherCommandPalette, "AetherCommandPalette");
 	AETHER_COMPONENT_NAME(m_MovingTilesBackground, "MovingTilesBackground");
 	AETHER_COMPONENT_NAME(m_MapLayersForeground, "MapLayersForeground");
 	AETHER_COMPONENT_NAME(m_MovingTilesForeground, "MovingTilesForeground");
@@ -421,12 +429,14 @@ const char *CGameClient::AetherPerfComponentBaseName(const CComponent *pComponen
 	AETHER_COMPONENT_NAME(m_AetherInputVisualizer, "AetherInputVisualizer");
 	AETHER_COMPONENT_NAME(m_AetherKeystrokes, "AetherKeystrokes");
 	AETHER_COMPONENT_NAME(m_AetherSessionStats, "AetherSessionStats");
+	AETHER_COMPONENT_NAME(m_AetherSessionMarkers, "AetherSessionMarkers");
 	AETHER_COMPONENT_NAME(m_AetherFinishPrediction, "AetherFinishPrediction");
 	AETHER_COMPONENT_NAME(m_AetherStabilityTrainer, "AetherStabilityTrainer");
 	AETHER_COMPONENT_NAME(m_AetherVaultCfg, "AetherVaultCfg");
 	AETHER_COMPONENT_NAME(m_Hud, "Hud");
 	AETHER_COMPONENT_NAME(m_AetherAutoTeamLock, "AetherAutoTeamLock");
 	AETHER_COMPONENT_NAME(m_AetherBadges, "AetherBadges");
+	AETHER_COMPONENT_NAME(m_AetherNotifications, "AetherNotifications");
 	AETHER_COMPONENT_NAME(m_AetherBrowserUtils, "AetherBrowserUtils");
 	AETHER_COMPONENT_NAME(m_Spectator, "Spectator");
 	AETHER_COMPONENT_NAME(m_Emoticon, "Emoticon");
@@ -712,12 +722,14 @@ void CGameClient::OnConsoleInit()
 					      &m_AetherInputVisualizer,
 					      &m_AetherKeystrokes,
 					      &m_AetherSessionStats,
+					      &m_AetherSessionMarkers,
 					      &m_AetherFinishPrediction,
 					      &m_AetherStabilityTrainer,
 					      &m_AetherVaultCfg,
 					      &m_Hud,
 					      &m_AetherAutoTeamLock,
 					      &m_AetherBadges,
+					      &m_AetherNotifications,
 					      &m_AetherBrowserUtils,
 					      &m_Spectator,
 					      &m_Emoticon,
@@ -731,6 +743,7 @@ void CGameClient::OnConsoleInit()
 					      &m_ImportantAlert,
 					      &m_DebugHud,
 					      &m_AetherCrosshairLayer,
+					      &m_AetherCommandPalette,
 					      &m_TouchControls,
 					      &m_Scoreboard,
 					      &m_Statboard,
@@ -763,6 +776,7 @@ void CGameClient::OnConsoleInit()
 						  &m_AetherKeystrokes,
 						  &m_AetherInputVisualizer,
 						  &m_AetherMusicPlayer,
+						  &m_AetherCommandPalette,
 						  &m_Menus,
 						  &m_AetherBadges,
 						  &m_Controls,
@@ -3233,6 +3247,7 @@ enum
 	AETHER_FAST_MODE_TCLIENT = 3,
 	AETHER_FAST_MODE_CONTROL = 4,
 	AETHER_FAST_MODE_LEWN_PLUS = 5,
+	AETHER_FAST_MODE_ZENISH_PLUS = 6,
 };
 
 enum
@@ -3267,6 +3282,11 @@ static bool AetherFastInputLewnPlusMode()
 	return g_Config.m_AeFastInput && g_Config.m_AeFastInputMode == AETHER_FAST_MODE_LEWN_PLUS;
 }
 
+static bool AetherFastInputZenishPlusMode()
+{
+	return g_Config.m_AeFastInput && g_Config.m_AeFastInputMode == AETHER_FAST_MODE_ZENISH_PLUS;
+}
+
 static bool AetherFastInputAdaptiveMode()
 {
 	return g_Config.m_AeFastInput &&
@@ -3287,6 +3307,16 @@ static float AetherFastInputSaikoPlusOffsetTicks()
 static float AetherFastInputLewnPlusOffsetTicks()
 {
 	return std::clamp(g_Config.m_AeLewnPlusAmount, 100, 500) / 100.0f;
+}
+
+static float AetherFastInputZenishPlusOffsetTicks()
+{
+	return std::clamp(g_Config.m_AeZenishPlusAmount, 100, 500) / 100.0f;
+}
+
+static float AetherFastInputZenishPlusActionOffsetTicks()
+{
+	return std::max(1.35f, AetherFastInputZenishPlusOffsetTicks());
 }
 
 static float AetherFastInputControlOffsetTicks()
@@ -3314,6 +3344,12 @@ static float AetherFastInputAdaptiveOthersOffsetTicks()
 static float AetherFastInputLewnPlusOthersOffsetTicks()
 {
 	const float SelfOffset = AetherFastInputLewnPlusOffsetTicks();
+	return std::min(SelfOffset, std::max(1.35f, SelfOffset * 0.85f));
+}
+
+static float AetherFastInputZenishPlusOthersOffsetTicks()
+{
+	const float SelfOffset = AetherFastInputZenishPlusOffsetTicks();
 	return std::min(SelfOffset, std::max(1.35f, SelfOffset * 0.85f));
 }
 
@@ -3365,6 +3401,8 @@ static float AetherEffectiveFastInputOffsetTicks()
 			return AetherFastInputSaikoPlusOffsetTicks();
 		if(AetherFastInputLewnPlusMode())
 			return AetherFastInputLewnPlusOffsetTicks();
+		if(AetherFastInputZenishPlusMode())
+			return AetherFastInputZenishPlusOffsetTicks();
 		return AetherFastInputOffsetTicksFromMs(g_Config.m_AeFastInputMovementAmount);
 	}
 	if(g_Config.m_TcFastInput)
@@ -3378,6 +3416,8 @@ static float AetherEffectiveFastInputOffsetTicksForClient(const CGameClient *pGa
 		return AetherFastInputControlOthersOffsetTicks();
 	if(g_Config.m_AeFastInput && AetherFastInputLewnPlusMode() && g_Config.m_AeLewnPlusOthers && !AetherFastInputIsLocal(pGameClient, ClientId))
 		return AetherFastInputLewnPlusOthersOffsetTicks();
+	if(g_Config.m_AeFastInput && AetherFastInputZenishPlusMode() && g_Config.m_AeZenishPlusOthers && !AetherFastInputIsLocal(pGameClient, ClientId))
+		return AetherFastInputZenishPlusOthersOffsetTicks();
 	if(g_Config.m_AeFastInput && AetherFastInputAdaptiveMode() && g_Config.m_AeFastInputAdaptiveOthers && !AetherFastInputIsLocal(pGameClient, ClientId))
 		return AetherFastInputAdaptiveOthersOffsetTicks();
 	return AetherEffectiveFastInputOffsetTicks();
@@ -3390,6 +3430,7 @@ static bool AetherFastInputOthersEnabled()
 	       (AetherFastInputControlMode() && g_Config.m_AeFastInputControlOthers) ||
 	       (AetherFastInputSaikoPlusMode() && g_Config.m_AeSaikoPlusOthers) ||
 	       (AetherFastInputLewnPlusMode() && g_Config.m_AeLewnPlusOthers) ||
+	       (AetherFastInputZenishPlusMode() && g_Config.m_AeZenishPlusOthers) ||
 	       (AetherFastInputAdaptiveMode() && g_Config.m_AeFastInputAdaptiveOthers);
 }
 
@@ -3399,6 +3440,8 @@ static bool AetherFastInputImmediateOthersEnabled()
 		return g_Config.m_AeSaikoPlusOthers != 0;
 	if(AetherFastInputLewnPlusMode())
 		return g_Config.m_AeLewnPlusOthers != 0;
+	if(AetherFastInputZenishPlusMode())
+		return g_Config.m_AeZenishPlusOthers != 0;
 	if(AetherFastInputAdaptiveMode() && g_Config.m_AeFastInputAdaptiveOthers)
 		return std::clamp(g_Config.m_AeFastInputAdaptiveOthersStyle, 0, 2) >= AETHER_FAST_ADAPTIVE_OTHERS_PRECISION;
 	return false;
@@ -3587,6 +3630,7 @@ void CGameClient::OnPredict()
 	const bool UseAetherSaikoPlus = AetherFastInputSaikoPlusMode();
 	const bool UseAetherControl = AetherFastInputControlMode();
 	const bool UseAetherLewnPlus = AetherFastInputLewnPlusMode();
+	const bool UseAetherZenishPlus = AetherFastInputZenishPlusMode();
 	const bool UseAetherAdaptive = AetherFastInputAdaptiveMode();
 	const bool UseTcFastInput = UseAetherTClient || (!UseAetherFastInput && g_Config.m_TcFastInput != 0);
 	int LocalTee = g_Config.m_ClDummy ^ m_IsDummySwapping;
@@ -3600,26 +3644,40 @@ void CGameClient::OnPredict()
 			FastInputMovementTicks = AetherFastInputPredictionTicks(AetherFastInputSaikoPlusOffsetTicks());
 		else if(UseAetherLewnPlus)
 			FastInputMovementTicks = AetherFastInputPredictionTicks(AetherFastInputLewnPlusOffsetTicks());
+		else if(UseAetherZenishPlus)
+			FastInputMovementTicks = AetherFastInputPredictionTicks(AetherFastInputZenishPlusOffsetTicks());
 		else
 			FastInputMovementTicks = AetherFastInputTicksFromMs(g_Config.m_AeFastInputMovementAmount);
 	}
-	const int FastInputActionTicks = UseAetherFastInput ?
-		((UseAetherControl || UseAetherSaikoPlus || UseAetherLewnPlus) ? FastInputMovementTicks : AetherFastInputTicksFromMs(g_Config.m_AeFastInputActionAmount)) :
-		0;
-	if(UseAetherAdaptive && (g_Config.m_AeFastInputBrakePriority || g_Config.m_AeFastInputBrakeReleasePriority))
+	int FastInputActionTicks = 0;
+	if(UseAetherFastInput)
+	{
+		if(UseAetherZenishPlus)
+			FastInputActionTicks = AetherFastInputPredictionTicks(AetherFastInputZenishPlusActionOffsetTicks());
+		else if(UseAetherControl || UseAetherSaikoPlus || UseAetherLewnPlus)
+			FastInputActionTicks = FastInputMovementTicks;
+		else
+			FastInputActionTicks = AetherFastInputTicksFromMs(g_Config.m_AeFastInputActionAmount);
+	}
+	const bool UseBrakePriority = (UseAetherAdaptive && (g_Config.m_AeFastInputBrakePriority || g_Config.m_AeFastInputBrakeReleasePriority)) || UseAetherZenishPlus;
+	if(UseBrakePriority)
 	{
 		const int Direction = std::clamp(m_Controls.m_aFastInput[LocalTee].m_Direction, -1, 1);
 		const int PreviousDirection = s_aAetherFastInputLastDirection[LocalTee];
 		const bool ReverseEdge = PreviousDirection != 0 && Direction == -PreviousDirection;
 		const bool ReleaseEdge = PreviousDirection != 0 && Direction == 0;
-		const bool BrakeEdge =
-			(ReverseEdge && g_Config.m_AeFastInputBrakePriority) ||
-			(ReleaseEdge && g_Config.m_AeFastInputBrakeReleasePriority);
+		const bool BrakeEdge = UseAetherZenishPlus ?
+			(ReverseEdge || ReleaseEdge) :
+			((ReverseEdge && g_Config.m_AeFastInputBrakePriority) ||
+				(ReleaseEdge && g_Config.m_AeFastInputBrakeReleasePriority));
 		if(BrakeEdge)
 			s_aAetherFastInputBrakeUntilTick[LocalTee] = Client()->GameTick(g_Config.m_ClDummy) + 1;
 		s_aAetherFastInputLastDirection[LocalTee] = Direction;
 		if(Client()->GameTick(g_Config.m_ClDummy) <= s_aAetherFastInputBrakeUntilTick[LocalTee])
-			FastInputMovementTicks = maximum(FastInputMovementTicks, AetherFastInputTicksFromMs(g_Config.m_AeFastInputBrakeAmount));
+		{
+			const int BrakeAmountMs = UseAetherZenishPlus ? 30 : g_Config.m_AeFastInputBrakeAmount;
+			FastInputMovementTicks = maximum(FastInputMovementTicks, AetherFastInputTicksFromMs(BrakeAmountMs));
+		}
 	}
 	else
 	{
@@ -3640,6 +3698,8 @@ void CGameClient::OnPredict()
 			FastInputOtherTicks = g_Config.m_AeSaikoPlusOthers ? FastInputTicks : 0;
 		else if(UseAetherLewnPlus)
 			FastInputOtherTicks = g_Config.m_AeLewnPlusOthers ? AetherFastInputPredictionTicks(AetherFastInputLewnPlusOthersOffsetTicks()) : 0;
+		else if(UseAetherZenishPlus)
+			FastInputOtherTicks = g_Config.m_AeZenishPlusOthers ? AetherFastInputPredictionTicks(AetherFastInputZenishPlusOthersOffsetTicks()) : 0;
 		else
 			FastInputOtherTicks = g_Config.m_AeFastInputAdaptiveOthers ? AetherFastInputPredictionTicks(AetherFastInputAdaptiveOthersOffsetTicks()) : 0;
 	}
@@ -5462,17 +5522,28 @@ vec2 CGameClient::GetFastInputPos(int ClientId)
 		CClientData &ClientData = m_aClients[ClientId];
 		const bool ControlMode = AetherFastInputControlMode();
 		const bool LewnPlusMode = AetherFastInputLewnPlusMode();
+		const bool ZenishPlusMode = AetherFastInputZenishPlusMode();
 		const bool AdaptiveMode = AetherFastInputAdaptiveMode();
-		const bool UseInteractionAssist = LewnPlusMode ||
+		const bool UseLewnDragProfile = LewnPlusMode || ZenishPlusMode;
+		int FastInputSlot = g_Config.m_ClDummy ^ m_IsDummySwapping;
+		if(ClientId == m_aLocalIds[0])
+			FastInputSlot = 0;
+		else if(ClientId == m_aLocalIds[1])
+			FastInputSlot = 1;
+		const bool ZenishBrakeWindow = ZenishPlusMode && FastInputSlot >= 0 && FastInputSlot < 2 && Client()->GameTick(g_Config.m_ClDummy) <= s_aAetherFastInputBrakeUntilTick[FastInputSlot];
+		const bool UseInteractionAssist = UseLewnDragProfile ||
 						  (AdaptiveMode && g_Config.m_AeFastInputInteractionAssist) ||
 						  (ControlMode && g_Config.m_AeFastInputControlInteractionAssist);
 		const float Dt = std::clamp(Client()->RenderFrameTime(), 0.0f, 0.1f);
-		const int SharpnessConfig = ControlMode ? g_Config.m_AeFastInputControlCorrection : (LewnPlusMode ? g_Config.m_AeLewnPlusCorrection : g_Config.m_AeFastInputSmoothCorrections);
+		const int SharpnessConfig = ControlMode ? g_Config.m_AeFastInputControlCorrection : (LewnPlusMode ? g_Config.m_AeLewnPlusCorrection : (ZenishPlusMode ? g_Config.m_AeZenishPlusCorrection : g_Config.m_AeFastInputSmoothCorrections));
 		const float Sharpness = std::clamp(SharpnessConfig / 100.0f, 0.0f, 1.0f);
+		const float InteractionSharpness = ZenishPlusMode ? std::max(Sharpness, 0.58f) : Sharpness;
 		const float Stability = ControlMode ? std::clamp(g_Config.m_AeFastInputControlStability / 100.0f, 0.0f, 1.0f) : 0.0f;
 		float InteractionStrength = 0.0f;
 		if(LewnPlusMode)
 			InteractionStrength = 0.5f;
+		else if(ZenishPlusMode)
+			InteractionStrength = 0.55f;
 		else if(ControlMode)
 			InteractionStrength = std::clamp(g_Config.m_AeFastInputControlInteractionStrength / 100.0f, 0.0f, 1.0f);
 		else if(AdaptiveMode)
@@ -5514,13 +5585,13 @@ vec2 CGameClient::GetFastInputPos(int ClientId)
 			ClientData.m_AetherFastSaveWindow = 0.0f;
 
 		const bool FreezeSaveWindow = ClientData.m_AetherFastSaveWindow > 0.0f;
-		float SnapThreshold = ControlMode ? mix(72.0f, 160.0f, Stability) : (LewnPlusMode ? 132.0f : 96.0f);
+		float SnapThreshold = ControlMode ? mix(72.0f, 160.0f, Stability) : (LewnPlusMode ? 132.0f : (ZenishPlusMode ? 210.0f : 96.0f));
 		if(UseInteractionAssist)
 		{
 			if(FreezeSaveWindow)
-				SnapThreshold = LewnPlusMode ? mix(220.0f, 380.0f, InteractionStrength) : mix(260.0f, 520.0f, InteractionStrength);
+				SnapThreshold = UseLewnDragProfile ? mix(220.0f, ZenishPlusMode ? 430.0f : 380.0f, InteractionStrength) : mix(260.0f, 520.0f, InteractionStrength);
 			else if(HookingPlayer || DraggedByPlayer)
-				SnapThreshold = LewnPlusMode ? mix(140.0f, 240.0f, InteractionStrength) : mix(130.0f, 260.0f, InteractionStrength);
+				SnapThreshold = UseLewnDragProfile ? mix(140.0f, ZenishPlusMode ? 285.0f : 240.0f, InteractionStrength) : mix(130.0f, 260.0f, InteractionStrength);
 		}
 		const bool Snap = !ClientData.m_AetherFastRenderPosValid || Error > SnapThreshold;
 		if(Snap)
@@ -5535,6 +5606,12 @@ vec2 CGameClient::GetFastInputPos(int ClientId)
 				Follow = mix(0.30f, 0.10f, Stability) + Sharpness * mix(0.52f, 0.34f, Stability) + std::clamp(Error / mix(120.0f, 240.0f, Stability), 0.0f, mix(0.28f, 0.16f, Stability));
 			else if(LewnPlusMode)
 				Follow = 0.30f + Sharpness * 0.48f + std::clamp(Error / 150.0f, 0.0f, 0.22f);
+			else if(ZenishPlusMode)
+			{
+				Follow = 0.10f + Sharpness * 0.34f + std::clamp(Error / 215.0f, 0.0f, 0.18f);
+				if(ZenishBrakeWindow)
+					Follow = std::max(Follow, 0.48f + Sharpness * 0.30f + std::clamp(Error / 120.0f, 0.0f, 0.18f));
+			}
 			else
 				Follow = 0.16f + Sharpness * 0.74f + std::clamp(Error / 140.0f, 0.0f, 0.32f);
 			const bool UsePingAssist = (AdaptiveMode && g_Config.m_AeFastInputPingAssist) || (ControlMode && g_Config.m_AeFastInputControlPingAssist);
@@ -5557,24 +5634,24 @@ vec2 CGameClient::GetFastInputPos(int ClientId)
 			{
 				if(FreezeSaveWindow)
 				{
-					if(LewnPlusMode)
-						Follow = mix(0.22f, 0.16f, InteractionStrength) + Sharpness * mix(0.36f, 0.26f, InteractionStrength) + std::clamp(Error / 280.0f, 0.0f, mix(0.28f, 0.20f, InteractionStrength));
+					if(UseLewnDragProfile)
+						Follow = mix(0.22f, 0.16f, InteractionStrength) + InteractionSharpness * mix(0.36f, 0.26f, InteractionStrength) + std::clamp(Error / 280.0f, 0.0f, mix(0.28f, 0.20f, InteractionStrength));
 					else
 						Follow = mix(0.14f, 0.045f, InteractionStrength) + Sharpness * mix(0.26f, 0.14f, InteractionStrength) + std::clamp(Error / 280.0f, 0.0f, mix(0.38f, 0.24f, InteractionStrength));
 					ClientData.m_AetherFastInteractionState = AETHER_FAST_INTERACTION_FREEZE_SAVE;
 				}
 				else if(DraggedByPlayer)
 				{
-					if(LewnPlusMode)
-						Follow = mix(0.36f, 0.28f, InteractionStrength) + Sharpness * mix(0.42f, 0.32f, InteractionStrength) + std::clamp(Error / 185.0f, 0.0f, mix(0.18f, 0.12f, InteractionStrength));
+					if(UseLewnDragProfile)
+						Follow = mix(0.36f, 0.28f, InteractionStrength) + InteractionSharpness * mix(0.42f, 0.32f, InteractionStrength) + std::clamp(Error / 185.0f, 0.0f, mix(0.18f, 0.12f, InteractionStrength));
 					else
 						Follow = mix(0.28f, 0.16f, InteractionStrength) + Sharpness * mix(0.42f, 0.28f, InteractionStrength) + std::clamp(Error / 180.0f, 0.0f, mix(0.26f, 0.18f, InteractionStrength));
 					ClientData.m_AetherFastInteractionState = AETHER_FAST_INTERACTION_DRAGGED;
 				}
 				else if(HookingPlayer)
 				{
-					if(LewnPlusMode)
-						Follow = mix(0.38f, 0.30f, InteractionStrength) + Sharpness * mix(0.44f, 0.34f, InteractionStrength) + std::clamp(Error / 185.0f, 0.0f, mix(0.18f, 0.12f, InteractionStrength));
+					if(UseLewnDragProfile)
+						Follow = mix(0.38f, 0.30f, InteractionStrength) + InteractionSharpness * mix(0.44f, 0.34f, InteractionStrength) + std::clamp(Error / 185.0f, 0.0f, mix(0.18f, 0.12f, InteractionStrength));
 					else
 						Follow = mix(0.30f, 0.18f, InteractionStrength) + Sharpness * mix(0.46f, 0.30f, InteractionStrength) + std::clamp(Error / 180.0f, 0.0f, mix(0.28f, 0.18f, InteractionStrength));
 					ClientData.m_AetherFastInteractionState = AETHER_FAST_INTERACTION_HOOK;
@@ -5584,7 +5661,7 @@ vec2 CGameClient::GetFastInputPos(int ClientId)
 			}
 			else
 				ClientData.m_AetherFastInteractionState = AETHER_FAST_INTERACTION_NONE;
-			Follow = std::clamp(Follow, LewnPlusMode ? 0.28f : 0.08f, 1.0f);
+			Follow = std::clamp(Follow, ZenishPlusMode ? (ZenishBrakeWindow ? 0.42f : 0.075f) : (LewnPlusMode ? 0.28f : 0.08f), 1.0f);
 			ClientData.m_AetherFastRenderPos = mix(ClientData.m_AetherFastRenderPos, Pos, Follow);
 		}
 		ClientData.m_AetherFastLastFreezeTime = FreezeTime;
@@ -5661,6 +5738,8 @@ vec2 CGameClient::GetFreezePos(int ClientId)
 
 void CGameClient::Echo(const char *pString)
 {
+	if(m_AetherRollbackDemo.ConsumeReplayEcho(pString))
+		return;
 	m_Chat.Echo(pString);
 }
 

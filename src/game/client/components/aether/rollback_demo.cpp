@@ -1,5 +1,8 @@
 #include "rollback_demo.h"
 
+#include <base/str.h>
+#include <base/system.h>
+
 #include <engine/client.h>
 #include <engine/console.h>
 #include <engine/shared/config.h>
@@ -9,6 +12,24 @@
 
 #include <algorithm>
 
+bool CAetherRollbackDemo::NotificationsEnabled() const
+{
+	return g_Config.m_AeNotifications && g_Config.m_AeNotificationsRollbackDemo;
+}
+
+void CAetherRollbackDemo::EmitStatus(const char *pMessage)
+{
+	if(NotificationsEnabled())
+		GameClient()->m_AetherNotifications.Push("Rollback Demo", pMessage);
+	else
+		GameClient()->m_Chat.Echo(Localize(pMessage));
+}
+
+void CAetherRollbackDemo::ExpectReplayEcho()
+{
+	m_ReplayEchoSuppressUntil = NotificationsEnabled() ? time_get() + 5 * time_freq() : 0;
+}
+
 void CAetherRollbackDemo::ConSaveRollbackDemo(IConsole::IResult *pResult, void *pUserData)
 {
 	CAetherRollbackDemo *pSelf = static_cast<CAetherRollbackDemo *>(pUserData);
@@ -16,7 +37,7 @@ void CAetherRollbackDemo::ConSaveRollbackDemo(IConsole::IResult *pResult, void *
 
 	if(pSelf->Client()->State() != IClient::STATE_ONLINE || !pSelf->GameClient()->Map()->IsLoaded())
 	{
-		pSelf->GameClient()->m_Chat.Echo(Localize("Rollback demo is only available while playing on a loaded map."));
+		pSelf->EmitStatus("Join a loaded map first.");
 		return;
 	}
 
@@ -25,13 +46,15 @@ void CAetherRollbackDemo::ConSaveRollbackDemo(IConsole::IResult *pResult, void *
 		g_Config.m_ClReplays = 1;
 		g_Config.m_ClReplayLength = std::max(g_Config.m_ClReplayLength, Length);
 		pSelf->Client()->DemoRecorder_UpdateReplayRecorder();
-		pSelf->GameClient()->m_Chat.Echo(Localize("Rollback demo recording enabled. Try again after a few seconds."));
+		pSelf->EmitStatus("Replay recording enabled. Try again in a few seconds.");
 		return;
 	}
 
+	pSelf->ExpectReplayEcho();
 	char aCommand[64];
 	str_format(aCommand, sizeof(aCommand), "save_replay %d", Length);
 	pSelf->Console()->ExecuteLine(aCommand, IConsole::CLIENT_ID_UNSPECIFIED);
+	pSelf->EmitStatus("Saving rollback clip...");
 }
 
 void CAetherRollbackDemo::OnConsoleInit()
@@ -56,4 +79,23 @@ void CAetherRollbackDemo::OnUpdate()
 		Client()->DemoRecorder_UpdateReplayRecorder();
 	m_LastEnabled = Enabled;
 	m_LastSeconds = Seconds;
+}
+
+bool CAetherRollbackDemo::ConsumeReplayEcho(const char *pString)
+{
+	if(!NotificationsEnabled() || !pString || m_ReplayEchoSuppressUntil <= 0 || time_get() > m_ReplayEchoSuppressUntil)
+		return false;
+	if(!str_find_nocase(pString, "replay"))
+		return false;
+
+	if(str_find_nocase(pString, "success") || str_find_nocase(pString, "saved"))
+		GameClient()->m_AetherNotifications.Push("Rollback Demo", "Rollback clip saved.");
+	else if(str_find_nocase(pString, "fail"))
+		GameClient()->m_AetherNotifications.Push("Rollback Demo", "Rollback clip failed.");
+	else if(str_find_nocase(pString, "disabled"))
+		GameClient()->m_AetherNotifications.Push("Rollback Demo", "Replay feature is disabled.");
+	else
+		GameClient()->m_AetherNotifications.Push("Rollback Demo", pString);
+	m_ReplayEchoSuppressUntil = 0;
+	return true;
 }

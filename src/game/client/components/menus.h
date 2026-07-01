@@ -893,7 +893,9 @@ private:
 	void RenderSettingsAetherBrowserUtils(CUIRect Body);
 	void RenderSettingsAetherDescription(CUIRect Body, const char *pText);
 	void RenderSettingsAetherBadges(CUIRect Body);
-	void RenderSettingsAetherPings(CUIRect Body);
+	void RenderSettingsAetherNotifications(CUIRect Body);
+	void RenderSettingsAetherCommandPalette(CUIRect Body);
+	void RenderSettingsAetherSessionMarkers(CUIRect Body);
 	void RenderSettingsAetherClan(CUIRect Body);
 	void RenderSettingsAetherChatBubbles(CUIRect Body);
 	void RenderSettingsAetherBlockAwareness(CUIRect Body);

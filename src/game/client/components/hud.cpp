@@ -1965,8 +1965,6 @@ void CHud::RenderTeambalanceWarning()
 
 void CHud::RenderCursor()
 {
-	if(GameClient()->m_AetherBadges.IsPingWheelActive())
-		return;
 	const float Scale = (float)g_Config.m_TcCursorScale / 100.0f;
 	if(Scale <= 0.0f)
 		return;
@@ -3321,12 +3319,13 @@ void CHud::OnRender()
 			const bool SaikoMode = g_Config.m_AeFastInputMode == 2;
 			const bool ControlMode = g_Config.m_AeFastInputMode == 4;
 			const bool LewnMode = g_Config.m_AeFastInputMode == 5;
-			const char *pMode = TClientMode ? "TClient" : (SaikoMode ? "Saiko+" : (ControlMode ? "Control" : (LewnMode ? "Lewn+" : "Adaptive")));
-			const int SharpnessValue = ControlMode ? g_Config.m_AeFastInputControlCorrection : (LewnMode ? g_Config.m_AeLewnPlusCorrection : g_Config.m_AeFastInputSmoothCorrections);
+			const bool ZenishMode = g_Config.m_AeFastInputMode == 6;
+			const char *pMode = TClientMode ? "TClient" : (SaikoMode ? "Saiko+" : (ControlMode ? "Control" : (LewnMode ? "Lewn+" : (ZenishMode ? "Zeni$h+" : "Adaptive"))));
+			const int SharpnessValue = ControlMode ? g_Config.m_AeFastInputControlCorrection : (LewnMode ? g_Config.m_AeLewnPlusCorrection : (ZenishMode ? g_Config.m_AeZenishPlusCorrection : g_Config.m_AeFastInputSmoothCorrections));
 			const char *pSharpnessLabel = SharpnessValue < 30 ? "soft" : (SharpnessValue < 70 ? "balanced" : "sharp");
-			const int MoveMs = TClientMode ? g_Config.m_TcFastInputAmount : (SaikoMode ? (g_Config.m_AeSaikoPlusAmount + 2) / 5 : (ControlMode ? g_Config.m_AeFastInputControlResponse : (LewnMode ? (g_Config.m_AeLewnPlusAmount + 2) / 5 : g_Config.m_AeFastInputMovementAmount)));
-			const int ActionMs = TClientMode ? g_Config.m_TcFastInputAmount : (SaikoMode ? (g_Config.m_AeSaikoPlusAmount + 2) / 5 : (ControlMode ? g_Config.m_AeFastInputControlResponse : (LewnMode ? (g_Config.m_AeLewnPlusAmount + 2) / 5 : g_Config.m_AeFastInputActionAmount)));
-			const float TickAmount = LewnMode ? g_Config.m_AeLewnPlusAmount / 100.0f : (SaikoMode ? g_Config.m_AeSaikoPlusAmount / 100.0f : MoveMs / 20.0f);
+			const int MoveMs = TClientMode ? g_Config.m_TcFastInputAmount : (SaikoMode ? (g_Config.m_AeSaikoPlusAmount + 2) / 5 : (ControlMode ? g_Config.m_AeFastInputControlResponse : (LewnMode ? (g_Config.m_AeLewnPlusAmount + 2) / 5 : (ZenishMode ? (g_Config.m_AeZenishPlusAmount + 2) / 5 : g_Config.m_AeFastInputMovementAmount))));
+			const int ActionMs = TClientMode ? g_Config.m_TcFastInputAmount : (SaikoMode ? (g_Config.m_AeSaikoPlusAmount + 2) / 5 : (ControlMode ? g_Config.m_AeFastInputControlResponse : (LewnMode ? (g_Config.m_AeLewnPlusAmount + 2) / 5 : (ZenishMode ? maximum((g_Config.m_AeZenishPlusAmount + 2) / 5, 27) : g_Config.m_AeFastInputActionAmount))));
+			const float TickAmount = LewnMode ? g_Config.m_AeLewnPlusAmount / 100.0f : (ZenishMode ? g_Config.m_AeZenishPlusAmount / 100.0f : (SaikoMode ? g_Config.m_AeSaikoPlusAmount / 100.0f : MoveMs / 20.0f));
 			const int LocalId = GameClient()->m_Snap.m_LocalClientId;
 			const int InteractionState = LocalId >= 0 ? GameClient()->m_aClients[LocalId].m_AetherFastInteractionState : 0;
 			const char *pInteraction = "none";
@@ -3338,7 +3337,7 @@ void CHud::OnRender()
 				pInteraction = "freeze-save";
 			else if(InteractionState == 4)
 				pInteraction = "snap";
-			const bool ShowInteraction = LewnMode || (!TClientMode && !SaikoMode && !ControlMode && g_Config.m_AeFastInputInteractionAssist);
+			const bool ShowInteraction = LewnMode || ZenishMode || (!TClientMode && !SaikoMode && !ControlMode && g_Config.m_AeFastInputInteractionAssist);
 			str_format(aBuf, sizeof(aBuf), "Aether FI: %s | move %dms | action %dms | tick %.2ft | sharp %d%% %s | margin %s | interaction %s",
 				pMode,
 				MoveMs,

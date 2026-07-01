@@ -29,11 +29,9 @@ namespace
 {
 constexpr int CLIENT_HEARTBEAT_SECONDS = 10;
 constexpr int CLIENT_REALTIME_HELLO_SECONDS = 10;
-constexpr int PING_POLL_MILLISECONDS = 650;
 constexpr int ORACLE_POLL_FAST_MILLISECONDS = 1500;
 constexpr int ORACLE_POLL_SLOW_MILLISECONDS = 10000;
-constexpr int PING_LOCAL_TTL_SECONDS = 8;
-constexpr int REMEMBERED_CLIENT_BADGE_SECONDS = 15 * 60;
+constexpr int REMEMBERED_BADGE_SECONDS = 15 * 60;
 
 struct SBadgeIconDef
 {
@@ -56,11 +54,11 @@ const char *BadgeShortLabel(const char *pKey, const char *pName)
 	if(str_comp(pKey, "client_aether") == 0)
 		return "Aether";
 	if(str_comp(pKey, "client_vera") == 0)
-		return "Vera";
+		return "Aether";
 	if(str_comp(pKey, "client_via") == 0)
-		return "Via";
+		return "Aether";
 	if(str_comp(pKey, "client_vex") == 0)
-		return "Vex";
+		return "Aether";
 	if(str_comp(pKey, "founder") == 0)
 		return "F";
 	if(str_comp(pKey, "tester") == 0)
@@ -77,22 +75,35 @@ bool IsClientBadgeKey(const char *pKey)
 	return pKey && str_startswith(pKey, "client_");
 }
 
-bool HasClientBadge(const std::vector<CAetherBadges::SBadge> &vBadges)
+bool HasBadgeKey(const std::vector<CAetherBadges::SBadge> &vBadges, const char *pKey)
 {
-	return std::any_of(vBadges.begin(), vBadges.end(), [](const CAetherBadges::SBadge &Badge) {
-		return IsClientBadgeKey(Badge.m_aKey);
+	if(!pKey || pKey[0] == '\0')
+		return false;
+	return std::any_of(vBadges.begin(), vBadges.end(), [pKey](const CAetherBadges::SBadge &Badge) {
+		return str_comp(Badge.m_aKey, pKey) == 0;
 	});
 }
 
-std::vector<CAetherBadges::SBadge> ClientBadgesOnly(const std::vector<CAetherBadges::SBadge> &vBadges)
+bool MergeMissingBadges(const std::vector<CAetherBadges::SBadge> &vSource, std::vector<CAetherBadges::SBadge> &vTarget)
 {
-	std::vector<CAetherBadges::SBadge> vClientBadges;
-	for(const CAetherBadges::SBadge &Badge : vBadges)
+	bool Changed = false;
+	for(const CAetherBadges::SBadge &Badge : vSource)
 	{
-		if(IsClientBadgeKey(Badge.m_aKey))
-			vClientBadges.push_back(Badge);
+		if(HasBadgeKey(vTarget, Badge.m_aKey))
+			continue;
+		vTarget.push_back(Badge);
+		Changed = true;
 	}
-	return vClientBadges;
+	return Changed;
+}
+
+bool IsStrictBadgeSubset(const std::vector<CAetherBadges::SBadge> &vCandidate, const std::vector<CAetherBadges::SBadge> &vReference)
+{
+	if(vCandidate.empty() || vCandidate.size() >= vReference.size())
+		return false;
+	return std::all_of(vCandidate.begin(), vCandidate.end(), [&vReference](const CAetherBadges::SBadge &Badge) {
+		return HasBadgeKey(vReference, Badge.m_aKey);
+	});
 }
 
 bool BadgeApiEnabled()
@@ -202,83 +213,6 @@ int CAetherBadges::BadgeIconIndex(const char *pKey)
 	return -1;
 }
 
-const char *CAetherBadges::PingTypeName(EPingType Type)
-{
-	switch(Type)
-	{
-	case EPingType::PLACE: return "place";
-	case EPingType::HELP: return "help";
-	case EPingType::DANGER: return "danger";
-	case EPingType::COME: return "come";
-	case EPingType::WAIT: return "wait";
-	}
-	return "place";
-}
-
-const char *CAetherBadges::PingTypeDisplayName(EPingType Type)
-{
-	switch(Type)
-	{
-	case EPingType::PLACE: return "Place";
-	case EPingType::HELP: return "Help";
-	case EPingType::DANGER: return "Danger";
-	case EPingType::COME: return "Come";
-	case EPingType::WAIT: return "Wait";
-	}
-	return "Place";
-}
-
-const char *CAetherBadges::PingTypeGlyph(EPingType Type)
-{
-	switch(Type)
-	{
-	case EPingType::PLACE: return "x";
-	case EPingType::HELP: return "+";
-	case EPingType::DANGER: return "!";
-	case EPingType::COME: return ">";
-	case EPingType::WAIT: return "...";
-	}
-	return "x";
-}
-
-CAetherBadges::EPingType CAetherBadges::PingTypeFromName(const char *pName)
-{
-	if(pName && str_comp_nocase(pName, "place") == 0)
-		return EPingType::PLACE;
-	if(pName && str_comp_nocase(pName, "danger") == 0)
-		return EPingType::DANGER;
-	if(pName && str_comp_nocase(pName, "come") == 0)
-		return EPingType::COME;
-	if(pName && str_comp_nocase(pName, "wait") == 0)
-		return EPingType::WAIT;
-	return EPingType::HELP;
-}
-
-CAetherBadges::EPingType CAetherBadges::PingTypeFromWheelVector(vec2 Mouse)
-{
-	if(length(Mouse) <= 40.0f)
-		return EPingType::PLACE;
-	float Angle = std::atan2(Mouse.y, Mouse.x);
-	if(Angle < 0.0f)
-		Angle += 2.0f * pi;
-	const int Segment = (int)std::floor((Angle + pi / 5.0f) / (2.0f * pi / 5.0f)) % 5;
-	const std::array<EPingType, 5> aTypes = {EPingType::COME, EPingType::HELP, EPingType::PLACE, EPingType::WAIT, EPingType::DANGER};
-	return aTypes[Segment];
-}
-
-ColorRGBA CAetherBadges::PingTypeColor(EPingType Type, float Alpha)
-{
-	switch(Type)
-	{
-	case EPingType::PLACE: return ColorRGBA(0.78f, 0.84f, 1.0f, Alpha);
-	case EPingType::HELP: return ColorRGBA(0.20f, 0.85f, 1.0f, Alpha);
-	case EPingType::DANGER: return ColorRGBA(1.0f, 0.25f, 0.22f, Alpha);
-	case EPingType::COME: return ColorRGBA(0.35f, 0.95f, 0.45f, Alpha);
-	case EPingType::WAIT: return ColorRGBA(1.0f, 0.80f, 0.25f, Alpha);
-	}
-	return ColorRGBA(1.0f, 1.0f, 1.0f, Alpha);
-}
-
 void CAetherBadges::LoadIconTextures()
 {
 	if(m_IconTexturesLoaded)
@@ -324,8 +258,6 @@ void CAetherBadges::Clear()
 	m_pChessOnlineRequest = nullptr;
 	m_pAetherOnlineRequest = nullptr;
 	m_pChessActionRequest = nullptr;
-	m_pPingSendRequest = nullptr;
-	m_pPingPollRequest = nullptr;
 	m_pOracleEventsRequest = nullptr;
 	m_pClanRequest = nullptr;
 	m_ChessAction = EChessHttpAction::NONE;
@@ -340,7 +272,6 @@ void CAetherBadges::Clear()
 	m_LastAetherOnlineRequestTime = 0;
 	m_LastAetherOnlineResponseTime = 0;
 	m_LastChessRoomPollTime = 0;
-	m_LastPingPollTime = 0;
 	m_LastOraclePollTime = 0;
 	m_OracleUnavailableUntil = 0;
 	m_LastClanMineTime = 0;
@@ -354,7 +285,6 @@ void CAetherBadges::Clear()
 	m_LastGradientStyle = -1;
 	m_ChessOnlineCount = 0;
 	m_AetherOnlineCount = 0;
-	m_LastPingSeq = 0;
 	m_OracleCursor = 0;
 	m_ChessRoom = SChessRoomState();
 	m_Clan = SClanState();
@@ -365,9 +295,7 @@ void CAetherBadges::Clear()
 	m_aClanRecoveryType[0] = '\0';
 	m_LastRealtimePayload.clear();
 	m_vChessMessages.clear();
-	m_vPings.clear();
 	m_vPublicClanMemberships.clear();
-	m_aHelpPingStates.fill(EAutoHelpPingState::IDLE);
 	m_aLastHeartbeatName[0] = '\0';
 	m_aChessInviteId[0] = '\0';
 	m_aChessInviteFrom[0] = '\0';
@@ -379,12 +307,7 @@ void CAetherBadges::Clear()
 	str_copy(m_aChessStatus, "Online chess ready.", sizeof(m_aChessStatus));
 	str_copy(m_aClanStatus, "Clan ready.", sizeof(m_aClanStatus));
 	m_ChessInviteActive = false;
-	m_PingWheelActive = false;
-	m_PingWheelWasActive = false;
-	m_PingWheelHasSelection = false;
 	m_ClanManagementAvailable = true;
-	m_PingWheelMouse = vec2(0.0f, 0.0f);
-	m_PingWheelSelected = EPingType::HELP;
 }
 
 void CAetherBadges::OnInit()
@@ -399,8 +322,7 @@ void CAetherBadges::OnInit()
 
 void CAetherBadges::OnConsoleInit()
 {
-	Console()->Register("+ae_ping_wheel", "", CFGFLAG_CLIENT, ConPingWheel, this, "Open Aether ping wheel");
-	Console()->Register("ae_ping", "?s[type]", CFGFLAG_CLIENT, ConPing, this, "Send Aether ping: place/help/danger/come/wait");
+	Console()->Register("ae_badges_refresh", "", CFGFLAG_CLIENT, ConRefresh, this, "Refresh Aether badges now");
 	Console()->Register("ae_ddrace_config", "s[name] ?s[on|off|toggle]", CFGFLAG_CLIENT, ConDdraceConfig, this, "Toggle Aether DDRace config pack");
 }
 
@@ -868,124 +790,6 @@ void CAetherBadges::RequestChessRoomSnapshot(bool Force)
 	str_format(aPath, sizeof(aPath), "/v1/chess/rooms/%s?player=%s", m_ChessRoom.m_aCode, aEscapedName);
 	if(StartChessHttpGet(aPath, EChessHttpAction::ROOM_SNAPSHOT, "", true))
 		m_LastChessRoomPollTime = Now;
-}
-
-void CAetherBadges::SendPing(EPingType Type, vec2 Pos, bool Auto)
-{
-	if(!g_Config.m_AePings || g_Config.m_AeBadgesApiUrl[0] == '\0' || m_pPingSendRequest)
-		return;
-	char aName[MAX_NAME_LENGTH];
-	char aServerKey[NETADDR_MAXSTRSIZE];
-	if(!LocalPlayerName(aName, sizeof(aName)) || !CurrentServerKey(aServerKey, sizeof(aServerKey)))
-		return;
-
-	CServerInfo ServerInfo;
-	mem_zero(&ServerInfo, sizeof(ServerInfo));
-	Client()->GetServerInfo(&ServerInfo);
-
-	CJsonStringWriter Json;
-	Json.BeginObject();
-	Json.WriteAttribute("player_name");
-	Json.WriteStrValue(aName);
-	Json.WriteAttribute("server_key");
-	Json.WriteStrValue(aServerKey);
-	Json.WriteAttribute("server_address");
-	Json.WriteStrValue(aServerKey);
-	Json.WriteAttribute("map");
-	Json.WriteStrValue(ServerInfo.m_aMap);
-	Json.WriteAttribute("type");
-	Json.WriteStrValue(PingTypeName(Type));
-	Json.WriteAttribute("x");
-	Json.WriteIntValue((int)Pos.x);
-	Json.WriteAttribute("y");
-	Json.WriteIntValue((int)Pos.y);
-	Json.WriteAttribute("auto");
-	Json.WriteBoolValue(Auto);
-	Json.EndObject();
-	std::string Payload = Json.GetOutputString();
-
-	char aUrl[256];
-	BuildUrl(aUrl, sizeof(aUrl), "/v1/pings/send");
-	m_pPingSendRequest = std::make_shared<CHttpRequest>(aUrl);
-	m_pPingSendRequest->PostJson(Payload.c_str());
-	m_pPingSendRequest->MaxResponseSize(32 * 1024);
-	m_pPingSendRequest->LogProgress(HTTPLOG::FAILURE);
-	Http()->Run(m_pPingSendRequest);
-
-	SPingEvent Event;
-	Event.m_Seq = -1;
-	Event.m_Type = Type;
-	str_copy(Event.m_aPlayer, aName, sizeof(Event.m_aPlayer));
-	Event.m_Pos = Pos;
-	Event.m_ExpireTime = time_get() + (int64_t)PING_LOCAL_TTL_SECONDS * time_freq();
-	Event.m_Auto = Auto;
-	AddOrMergePing(Event);
-}
-
-void CAetherBadges::RequestPingPoll(bool Force)
-{
-	if(!g_Config.m_AePings || g_Config.m_AeBadgesApiUrl[0] == '\0' || m_pPingPollRequest)
-		return;
-	char aServerKey[NETADDR_MAXSTRSIZE];
-	if(!CurrentServerKey(aServerKey, sizeof(aServerKey)))
-		return;
-	const int64_t Now = time_get();
-	if(!Force && m_LastPingPollTime != 0 && Now - m_LastPingPollTime < (int64_t)PING_POLL_MILLISECONDS * time_freq() / 1000)
-		return;
-	char aEscapedServer[NETADDR_MAXSTRSIZE * 3];
-	EscapeUrl(aEscapedServer, sizeof(aEscapedServer), aServerKey);
-	char aPath[256];
-	str_format(aPath, sizeof(aPath), "/v1/pings/poll?server_key=%s&since=%d", aEscapedServer, m_LastPingSeq);
-	char aUrl[320];
-	BuildUrl(aUrl, sizeof(aUrl), aPath);
-	m_pPingPollRequest = std::make_shared<CHttpRequest>(aUrl);
-	m_pPingPollRequest->MaxResponseSize(64 * 1024);
-	m_pPingPollRequest->LogProgress(HTTPLOG::FAILURE);
-	Http()->Run(m_pPingPollRequest);
-	m_LastPingPollTime = Now;
-}
-
-void CAetherBadges::PumpPingRequests()
-{
-	if(m_pPingSendRequest)
-	{
-		const EHttpState State = m_pPingSendRequest->State();
-		if(State == EHttpState::DONE || State == EHttpState::ERROR || State == EHttpState::ABORTED)
-			m_pPingSendRequest = nullptr;
-	}
-
-	if(!m_pPingPollRequest)
-		return;
-	const EHttpState State = m_pPingPollRequest->State();
-	if(State != EHttpState::DONE && State != EHttpState::ERROR && State != EHttpState::ABORTED)
-		return;
-	if(State == EHttpState::DONE && m_pPingPollRequest->StatusCode() >= 200 && m_pPingPollRequest->StatusCode() < 400)
-	{
-		json_value *pJson = m_pPingPollRequest->ResultJson();
-		const json_value *pPings = pJson && pJson->type == json_object ? json_object_get(pJson, "pings") : nullptr;
-		if(pPings && pPings->type == json_array)
-		{
-			for(int i = 0; i < json_array_length(pPings); ++i)
-			{
-				const json_value *pPing = json_array_get(pPings, i);
-				if(!pPing || pPing->type != json_object)
-					continue;
-				SPingEvent Event;
-				Event.m_Seq = JsonIntValue(json_object_get(pPing, "seq"));
-				Event.m_Type = PingTypeFromName(JsonStringValue(json_object_get(pPing, "type"), "help"));
-				str_copy(Event.m_aPlayer, JsonStringValue(json_object_get(pPing, "player_name"), "-"), sizeof(Event.m_aPlayer));
-				Event.m_Pos = vec2(JsonFloatValue(json_object_get(pPing, "x")), JsonFloatValue(json_object_get(pPing, "y")));
-				Event.m_ExpireTime = time_get() + (int64_t)PING_LOCAL_TTL_SECONDS * time_freq();
-				Event.m_Auto = JsonBoolValue(json_object_get(pPing, "auto"));
-				m_LastPingSeq = std::max(m_LastPingSeq, Event.m_Seq);
-				AddOrMergePing(Event);
-			}
-		}
-		m_LastPingSeq = std::max(m_LastPingSeq, JsonIntValue(json_object_get(pJson, "next_since"), m_LastPingSeq));
-		if(pJson)
-			json_value_free(pJson);
-	}
-	m_pPingPollRequest = nullptr;
 }
 
 bool CAetherBadges::StartClanHttpPost(const char *pPath, const std::string &Payload, EClanHttpAction Action, const char *pStatus)
@@ -1523,258 +1327,17 @@ bool CAetherBadges::BuildClanAuthPayload(const SClanState &Clan, std::string &Pa
 	return true;
 }
 
-bool CAetherBadges::AddOrMergePing(const SPingEvent &Event)
-{
-	const int RoundedX = round_to_int(Event.m_Pos.x / 8.0f);
-	const int RoundedY = round_to_int(Event.m_Pos.y / 8.0f);
-	for(SPingEvent &Existing : m_vPings)
-	{
-		const bool SameSource = str_comp_nocase(Existing.m_aPlayer, Event.m_aPlayer) == 0 &&
-					Existing.m_Type == Event.m_Type &&
-					Existing.m_Auto == Event.m_Auto &&
-					round_to_int(Existing.m_Pos.x / 8.0f) == RoundedX &&
-					round_to_int(Existing.m_Pos.y / 8.0f) == RoundedY;
-		if(!SameSource)
-			continue;
-		if(Event.m_Seq > Existing.m_Seq)
-			Existing.m_Seq = Event.m_Seq;
-		Existing.m_Pos = Event.m_Pos;
-		Existing.m_ExpireTime = std::max(Existing.m_ExpireTime, Event.m_ExpireTime);
-		return false;
-	}
-	m_vPings.push_back(Event);
-	return true;
-}
-
-bool CAetherBadges::LocalCharacterGrounded() const
-{
-	const int LocalId = GameClient()->m_Snap.m_LocalClientId;
-	if(LocalId < 0)
-		return false;
-	if(CCharacter *pChar = GameClient()->m_PredictedWorld.GetCharacterById(LocalId))
-		return pChar->IsGrounded();
-	const auto &Char = GameClient()->m_Snap.m_aCharacters[LocalId];
-	if(!Char.m_Active)
-		return false;
-	const vec2 Pos(Char.m_Cur.m_X, Char.m_Cur.m_Y);
-	const float HalfSize = CCharacterCore::PhysicalSize() / 2.0f;
-	return Collision()->CheckPoint(Pos.x + HalfSize, Pos.y + HalfSize + 5.0f) ||
-	       Collision()->CheckPoint(Pos.x - HalfSize, Pos.y + HalfSize + 5.0f) ||
-	       (Collision()->GetMoveRestrictions(Pos + vec2(0.0f, HalfSize + 4.0f), 0.0f) & CANTMOVE_DOWN) != 0;
-}
-
-void CAetherBadges::ScanAutoHelpPings()
-{
-	if(!g_Config.m_AePings || !g_Config.m_AePingAutoHelp || Client()->State() != IClient::STATE_ONLINE)
-		return;
-	const int LocalId = GameClient()->m_aLocalIds[g_Config.m_ClDummy];
-	if(LocalId < 0 || LocalId >= MAX_CLIENTS)
-		return;
-	const int LocalTeam = GameClient()->m_Teams.Team(LocalId);
-	const bool LocalGrounded = LocalCharacterGrounded();
-	for(int ClientId = 0; ClientId < MAX_CLIENTS; ++ClientId)
-	{
-		if(ClientId == LocalId || ClientId == GameClient()->m_aLocalIds[!g_Config.m_ClDummy])
-			continue;
-		if(!GameClient()->m_aClients[ClientId].m_Active)
-		{
-			m_aHelpPingStates[ClientId] = EAutoHelpPingState::IDLE;
-			continue;
-		}
-		const bool Frozen = GameClient()->m_AetherBlockAwareness.IsFrozen(ClientId);
-		if(!Frozen)
-		{
-			m_aHelpPingStates[ClientId] = EAutoHelpPingState::IDLE;
-			continue;
-		}
-		if(m_aHelpPingStates[ClientId] == EAutoHelpPingState::SENT)
-			continue;
-
-		bool Allowed = g_Config.m_AePingHelpVisibility >= 2;
-		const int OtherTeam = GameClient()->m_Teams.Team(ClientId);
-		if(LocalTeam >= 0 && OtherTeam == LocalTeam)
-			Allowed = true;
-		if(g_Config.m_AePingHelpVisibility >= 1)
-		{
-			const auto Group = GameClient()->m_AetherBlockAwareness.GroupForClient(ClientId);
-			if(Group == CAetherBlockAwareness::EGroup::ALLY || Group == CAetherBlockAwareness::EGroup::HELPER)
-				Allowed = true;
-		}
-		if(!Allowed)
-			continue;
-		if(!LocalGrounded)
-		{
-			m_aHelpPingStates[ClientId] = EAutoHelpPingState::PENDING_GROUND;
-			continue;
-		}
-		if(m_pPingSendRequest)
-		{
-			m_aHelpPingStates[ClientId] = EAutoHelpPingState::PENDING_GROUND;
-			continue;
-		}
-		SendPing(EPingType::HELP, GameClient()->m_AetherBlockAwareness.CharacterPos(ClientId), true);
-		m_aHelpPingStates[ClientId] = EAutoHelpPingState::SENT;
-	}
-}
-
-vec2 CAetherBadges::ManualPingPosition() const
-{
-	if(GameClient()->m_Snap.m_SpecInfo.m_Active)
-		return GameClient()->m_Camera.m_Center;
-	const int Dummy = std::clamp(g_Config.m_ClDummy, 0, NUM_DUMMIES - 1);
-	const int LocalId = GameClient()->m_aLocalIds[Dummy];
-	if(LocalId >= 0 && LocalId < MAX_CLIENTS)
-		return GameClient()->m_LocalCharacterPos + GameClient()->m_Controls.m_aMousePos[Dummy];
-	return GameClient()->m_Camera.m_Center;
-}
-
-void CAetherBadges::RenderPings()
-{
-	if(!g_Config.m_AePings || m_vPings.empty())
-		return;
-	const int64_t Now = time_get();
-	m_vPings.erase(std::remove_if(m_vPings.begin(), m_vPings.end(), [&](const SPingEvent &Ping) {
-		return Ping.m_ExpireTime <= Now;
-	}), m_vPings.end());
-	if(m_vPings.empty())
-		return;
-
-	float OldX0, OldY0, OldX1, OldY1;
-	Graphics()->GetScreen(&OldX0, &OldY0, &OldX1, &OldY1);
-	float aPoints[4];
-	const vec2 Center = GameClient()->m_Camera.m_Center;
-	Graphics()->MapScreenToWorld(Center.x, Center.y, 100.0f, 100.0f, 100.0f, 0, 0, Graphics()->ScreenAspect(), GameClient()->m_Camera.m_Zoom, aPoints);
-	const float WorldX0 = aPoints[0];
-	const float WorldY0 = aPoints[1];
-	const float WorldX1 = aPoints[2];
-	const float WorldY1 = aPoints[3];
-	const float ScreenW = Graphics()->ScreenWidth();
-	const float ScreenH = Graphics()->ScreenHeight();
-
-	for(const SPingEvent &Ping : m_vPings)
-	{
-		const float Life = std::clamp((float)(Ping.m_ExpireTime - Now) / ((float)PING_LOCAL_TTL_SECONDS * time_freq()), 0.0f, 1.0f);
-		const ColorRGBA Color = PingTypeColor(Ping.m_Type, 0.35f + 0.55f * Life);
-		const bool OnScreen = Ping.m_Pos.x >= WorldX0 && Ping.m_Pos.x <= WorldX1 && Ping.m_Pos.y >= WorldY0 && Ping.m_Pos.y <= WorldY1;
-		if(OnScreen)
-		{
-			Graphics()->MapScreen(WorldX0, WorldY0, WorldX1, WorldY1);
-			const float Size = 32.0f + (1.0f - Life) * 16.0f;
-			CUIRect Marker(Ping.m_Pos.x - Size * 0.5f, Ping.m_Pos.y - Size * 0.5f, Size, Size);
-			Marker.Draw(Color, IGraphics::CORNER_ALL, Size * 0.5f);
-			CUIRect Label(Ping.m_Pos.x - 70.0f, Ping.m_Pos.y - Size * 0.5f - 18.0f, 140.0f, 18.0f);
-			if(!Ping.m_Auto)
-			{
-				TextRender()->TextColor(1.0f, 1.0f, 1.0f, Color.a);
-				Ui()->DoLabel(&Label, PingTypeDisplayName(Ping.m_Type), 11.0f, TEXTALIGN_MC);
-				TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
-			}
-		}
-		else
-		{
-			Graphics()->MapScreen(0.0f, 0.0f, ScreenW, ScreenH);
-			const float X = (Ping.m_Pos.x - WorldX0) / maximum(1.0f, WorldX1 - WorldX0) * ScreenW;
-			const float Y = (Ping.m_Pos.y - WorldY0) / maximum(1.0f, WorldY1 - WorldY0) * ScreenH;
-			const float Margin = 22.0f;
-			const float ClampedX = std::clamp(X, Margin, ScreenW - Margin);
-			const float ClampedY = std::clamp(Y, Margin, ScreenH - Margin);
-			CUIRect Edge(ClampedX - 14.0f, ClampedY - 14.0f, 28.0f, 28.0f);
-			Edge.Draw(Color, IGraphics::CORNER_ALL, 14.0f);
-			Ui()->DoLabel(&Edge, PingTypeGlyph(Ping.m_Type), 13.0f, TEXTALIGN_MC);
-		}
-	}
-	Graphics()->MapScreen(OldX0, OldY0, OldX1, OldY1);
-}
-
-void CAetherBadges::RenderPingWheel()
-{
-	if(!m_PingWheelActive)
-		return;
-	const float ScreenW = Graphics()->ScreenWidth();
-	const float ScreenH = Graphics()->ScreenHeight();
-	float OldX0, OldY0, OldX1, OldY1;
-	Graphics()->GetScreen(&OldX0, &OldY0, &OldX1, &OldY1);
-	Graphics()->MapScreen(0.0f, 0.0f, ScreenW, ScreenH);
-	const vec2 Center(ScreenW * 0.5f, ScreenH * 0.5f);
-	const std::array<EPingType, 5> aTypes = {EPingType::COME, EPingType::HELP, EPingType::PLACE, EPingType::WAIT, EPingType::DANGER};
-	const float OuterRadius = 150.0f;
-	const float InnerRadius = 40.0f;
-	const EPingType Selected = m_PingWheelSelected;
-
-	Graphics()->TextureClear();
-	Graphics()->QuadsBegin();
-	Graphics()->SetColor(0.0f, 0.0f, 0.0f, 0.34f);
-	Graphics()->DrawCircle(Center.x, Center.y, 190.0f, 64);
-	Graphics()->SetColor(0.08f, 0.10f, 0.14f, 0.84f);
-	Graphics()->DrawCircle(Center.x, Center.y, InnerRadius, 32);
-	Graphics()->QuadsEnd();
-
-	for(size_t i = 0; i < aTypes.size(); ++i)
-	{
-		const EPingType Type = aTypes[i];
-		const float Angle = 2.0f * pi * (float)i / (float)aTypes.size();
-		const vec2 Pos = Center + direction(Angle) * OuterRadius;
-		const bool Active = m_PingWheelHasSelection && Type == Selected;
-		const float Size = Active ? 74.0f : 58.0f;
-		CUIRect Item(Pos.x - Size * 0.5f, Pos.y - Size * 0.5f, Size, Size);
-		Item.Draw(ColorRGBA(0.04f, 0.055f, 0.085f, Active ? 0.96f : 0.78f), IGraphics::CORNER_ALL, Size * 0.5f);
-		CUIRect ColorDot(Pos.x - Size * 0.22f, Pos.y - Size * 0.34f, Size * 0.44f, Size * 0.44f);
-		ColorDot.Draw(PingTypeColor(Type, Active ? 0.95f : 0.65f), IGraphics::CORNER_ALL, Size * 0.22f);
-		Ui()->DoLabel(&ColorDot, PingTypeGlyph(Type), Active ? 14.0f : 12.0f, TEXTALIGN_MC);
-		CUIRect Text(Pos.x - 46.0f, Pos.y + Size * 0.12f, 92.0f, 18.0f);
-		TextRender()->TextColor(1.0f, 1.0f, 1.0f, Active ? 1.0f : 0.72f);
-		Ui()->DoLabel(&Text, PingTypeDisplayName(Type), Active ? 12.0f : 10.5f, TEXTALIGN_MC);
-		TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
-	}
-
-	if(m_PingWheelHasSelection)
-	{
-		Graphics()->TextureClear();
-		Graphics()->LinesBegin();
-		IGraphics::CLineItem Line(Center.x, Center.y, Center.x + m_PingWheelMouse.x, Center.y + m_PingWheelMouse.y);
-		Graphics()->SetColor(PingTypeColor(Selected, 0.55f));
-		Graphics()->LinesDraw(&Line, 1);
-		Graphics()->LinesEnd();
-	}
-
-	CUIRect CoreLabel(Center.x - 42.0f, Center.y - 11.0f, 84.0f, 22.0f);
-	TextRender()->TextColor(0.78f, 0.84f, 0.92f, 1.0f);
-	Ui()->DoLabel(&CoreLabel, m_PingWheelHasSelection ? PingTypeDisplayName(Selected) : "Cancel", 11.0f, TEXTALIGN_MC);
-	TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
-	RenderTools()->RenderCursor(Center + m_PingWheelMouse, 24.0f, 1.0f);
-	Graphics()->MapScreen(OldX0, OldY0, OldX1, OldY1);
-}
-
-void CAetherBadges::ConPingWheel(IConsole::IResult *pResult, void *pUserData)
-{
-	CAetherBadges *pSelf = static_cast<CAetherBadges *>(pUserData);
-	const bool Active = pResult->NumArguments() == 0 || pResult->GetInteger(0) != 0;
-	if(Active)
-	{
-		pSelf->m_PingWheelActive = true;
-		pSelf->m_PingWheelWasActive = true;
-		pSelf->m_PingWheelHasSelection = false;
-		pSelf->m_PingWheelMouse = vec2(0.0f, 0.0f);
-		pSelf->m_PingWheelSelected = EPingType::PLACE;
-	}
-	else
-	{
-		pSelf->m_PingWheelActive = false;
-		pSelf->ExecutePingWheelSelection();
-	}
-}
-
-void CAetherBadges::ConPing(IConsole::IResult *pResult, void *pUserData)
-{
-	CAetherBadges *pSelf = static_cast<CAetherBadges *>(pUserData);
-	const EPingType Type = PingTypeFromName(pResult->NumArguments() > 0 ? pResult->GetString(0) : "help");
-	pSelf->SendPing(Type, pSelf->ManualPingPosition(), false);
-}
-
 void CAetherBadges::ConDdraceConfig(IConsole::IResult *pResult, void *pUserData)
 {
 	CAetherBadges *pSelf = static_cast<CAetherBadges *>(pUserData);
 	pSelf->ExecuteDdraceConfig(pResult->GetString(0), pResult->NumArguments() > 1 ? pResult->GetString(1) : nullptr);
+}
+
+void CAetherBadges::ConRefresh(IConsole::IResult *pResult, void *pUserData)
+{
+	CAetherBadges *pSelf = static_cast<CAetherBadges *>(pUserData);
+	pSelf->RefreshNow();
+	pSelf->GameClient()->m_AetherNotifications.Push("Client Badges", "Refreshing badges...");
 }
 
 void CAetherBadges::ExecuteDdraceConfig(const char *pName, const char *pMode)
@@ -1826,16 +1389,6 @@ void CAetherBadges::ExecuteDdraceConfig(const char *pName, const char *pMode)
 	str_format(aExec, sizeof(aExec), "exec \"%s\"", Enable ? pOnFile : pOffFile);
 	Console()->ExecuteLine(aExec, IConsole::CLIENT_ID_UNSPECIFIED);
 	*pState = Enable;
-}
-
-void CAetherBadges::ExecutePingWheelSelection()
-{
-	if(!m_PingWheelWasActive)
-		return;
-	m_PingWheelWasActive = false;
-	if(!m_PingWheelHasSelection)
-		return;
-	SendPing(m_PingWheelSelected, ManualPingPosition(), false);
 }
 
 void CAetherBadges::SendChessInvite(const char *pTarget)
@@ -2149,7 +1702,7 @@ bool CAetherBadges::ScoreboardClanForClient(int ClientId, bool KogServer, char *
 
 bool CAetherBadges::ApplyRememberedClientBadges(const char *pName, std::vector<SBadge> &vBadges) const
 {
-	if(!pName || pName[0] == '\0' || HasClientBadge(vBadges))
+	if(!pName || pName[0] == '\0')
 		return false;
 
 	const int64_t Now = time_get();
@@ -2157,11 +1710,9 @@ bool CAetherBadges::ApplyRememberedClientBadges(const char *pName, std::vector<S
 	{
 		if(str_comp_nocase(Remembered.m_aName, pName) != 0)
 			continue;
-		if(Remembered.m_LastSeenTime == 0 || Now - Remembered.m_LastSeenTime > (int64_t)REMEMBERED_CLIENT_BADGE_SECONDS * time_freq())
+		if(Remembered.m_LastSeenTime == 0 || Now - Remembered.m_LastSeenTime > (int64_t)REMEMBERED_BADGE_SECONDS * time_freq())
 			continue;
-		for(const SBadge &Badge : Remembered.m_vBadges)
-			vBadges.push_back(Badge);
-		return !Remembered.m_vBadges.empty();
+		return MergeMissingBadges(Remembered.m_vBadges, vBadges);
 	}
 	return false;
 }
@@ -2170,17 +1721,19 @@ void CAetherBadges::RememberClientBadges(const char *pName, const std::vector<SB
 {
 	if(!pName || pName[0] == '\0')
 		return;
-	std::vector<SBadge> vClientBadges = ClientBadgesOnly(vBadges);
-	if(vClientBadges.empty())
+	if(vBadges.empty())
 		return;
 
+	std::vector<SBadge> vRememberedBadges = vBadges;
 	const int64_t Now = time_get();
 	for(SRememberedClientBadges &Remembered : m_vRememberedClientBadges)
 	{
 		if(str_comp_nocase(Remembered.m_aName, pName) != 0)
 			continue;
+		if(IsStrictBadgeSubset(vRememberedBadges, Remembered.m_vBadges))
+			return;
 		str_copy(Remembered.m_aName, pName, sizeof(Remembered.m_aName));
-		Remembered.m_vBadges = std::move(vClientBadges);
+		Remembered.m_vBadges = std::move(vRememberedBadges);
 		Remembered.m_LastSeenTime = Now;
 		return;
 	}
@@ -2196,7 +1749,7 @@ void CAetherBadges::RememberClientBadges(const char *pName, const std::vector<SB
 
 	SRememberedClientBadges Remembered;
 	str_copy(Remembered.m_aName, pName, sizeof(Remembered.m_aName));
-	Remembered.m_vBadges = std::move(vClientBadges);
+	Remembered.m_vBadges = std::move(vRememberedBadges);
 	Remembered.m_LastSeenTime = Now;
 	m_vRememberedClientBadges.push_back(std::move(Remembered));
 }
@@ -2205,7 +1758,7 @@ void CAetherBadges::PruneRememberedClientBadges()
 {
 	const int64_t Now = time_get();
 	m_vRememberedClientBadges.erase(std::remove_if(m_vRememberedClientBadges.begin(), m_vRememberedClientBadges.end(), [&](const SRememberedClientBadges &Remembered) {
-		return Remembered.m_LastSeenTime == 0 || Now - Remembered.m_LastSeenTime > (int64_t)REMEMBERED_CLIENT_BADGE_SECONDS * time_freq();
+		return Remembered.m_LastSeenTime == 0 || Now - Remembered.m_LastSeenTime > (int64_t)REMEMBERED_BADGE_SECONDS * time_freq();
 	}), m_vRememberedClientBadges.end());
 }
 
@@ -2239,15 +1792,8 @@ bool CAetherBadges::ApplyBadgeArrayForClient(int ClientId, const json_value *pBa
 	}
 
 	SClientBadges &ClientBadges = m_aClientBadges[ClientId];
-	const bool SameCachedName = ClientBadges.m_Valid && str_comp(ClientBadges.m_aName, pName) == 0;
-	if(SameCachedName && HasClientBadge(ClientBadges.m_vBadges) && !HasClientBadge(vNewBadges))
-	{
-		for(const SBadge &Badge : ClientBadges.m_vBadges)
-		{
-			if(IsClientBadgeKey(Badge.m_aKey))
-				vNewBadges.push_back(Badge);
-		}
-	}
+	if(BadgeArrayValid && !vNewBadges.empty())
+		RememberClientBadges(pName, vNewBadges);
 	ApplyRememberedClientBadges(pName, vNewBadges);
 
 	if(!BadgeArrayValid && vNewBadges.empty())
@@ -2262,9 +1808,6 @@ bool CAetherBadges::ApplyBadgeArrayForClient(int ClientId, const json_value *pBa
 			return A.m_Priority > B.m_Priority;
 		return str_comp(A.m_aName, B.m_aName) < 0;
 	});
-
-	if(vNewBadges.empty() && SameCachedName && HasClientBadge(ClientBadges.m_vBadges))
-		return false;
 
 	bool Changed = !ClientBadges.m_Valid || str_comp(ClientBadges.m_aName, pName) != 0 || ClientBadges.m_vBadges.size() != vNewBadges.size();
 	if(!Changed)
@@ -2286,7 +1829,6 @@ bool CAetherBadges::ApplyBadgeArrayForClient(int ClientId, const json_value *pBa
 	str_copy(ClientBadges.m_aName, pName, sizeof(ClientBadges.m_aName));
 	ClientBadges.m_Valid = true;
 	ClientBadges.m_vBadges = std::move(vNewBadges);
-	RememberClientBadges(pName, ClientBadges.m_vBadges);
 	return true;
 }
 
@@ -2649,23 +2191,6 @@ void CAetherBadges::DispatchRealtimeEvent(const json_value *pJson, const char *p
 		m_AssetsUpdatePending = true;
 		return;
 	}
-	if(pType && str_comp(pType, "ping:update") == 0)
-	{
-		const json_value *pPing = json_object_get(pJson, "ping");
-		if(pPing && pPing->type == json_object)
-		{
-			SPingEvent Event;
-			Event.m_Seq = JsonIntValue(json_object_get(pPing, "seq"));
-			Event.m_Type = PingTypeFromName(JsonStringValue(json_object_get(pPing, "type"), "help"));
-			str_copy(Event.m_aPlayer, JsonStringValue(json_object_get(pPing, "player_name"), "-"), sizeof(Event.m_aPlayer));
-			Event.m_Pos = vec2(JsonFloatValue(json_object_get(pPing, "x")), JsonFloatValue(json_object_get(pPing, "y")));
-			Event.m_ExpireTime = time_get() + (int64_t)PING_LOCAL_TTL_SECONDS * time_freq();
-			Event.m_Auto = JsonBoolValue(json_object_get(pPing, "auto"));
-			m_LastPingSeq = std::max(m_LastPingSeq, Event.m_Seq);
-			AddOrMergePing(Event);
-		}
-		return;
-	}
 	if(pType && str_comp(pType, "clan:update") == 0)
 	{
 		m_LastClanDirectoryTime = 0;
@@ -2923,7 +2448,6 @@ void CAetherBadges::OnUpdate()
 	PumpAetherOnlineRequest();
 	PumpChessLeaderboardRequests();
 	PumpChessActionRequest();
-	PumpPingRequests();
 	PumpClanRequest();
 
 	if(m_LastRefreshSeconds != g_Config.m_AeBadgesRefreshSeconds || str_comp(m_aLastApiUrl, g_Config.m_AeBadgesApiUrl) != 0)
@@ -3005,8 +2529,6 @@ void CAetherBadges::OnUpdate()
 		m_Realtime.Stop();
 	}
 	RequestChessRoomSnapshot(false);
-	RequestPingPoll(false);
-	ScanAutoHelpPings();
 }
 
 void CAetherBadges::RenderChessInviteButton(const CUIRect &Rect, const char *pText, ColorRGBA Color) const
@@ -3074,23 +2596,11 @@ void CAetherBadges::OnRender()
 {
 	if(g_Config.m_AeFocusMode && g_Config.m_AeFocusModeHideAllUi)
 		return;
-	RenderPings();
-	RenderPingWheel();
 	RenderChessInvitePopup();
 }
 
 bool CAetherBadges::OnInput(const IInput::CEvent &Event)
 {
-	if(m_PingWheelActive && Event.m_Flags & IInput::FLAG_PRESS)
-	{
-		if(Event.m_Key == KEY_ESCAPE)
-		{
-			m_PingWheelActive = false;
-			m_PingWheelWasActive = false;
-			m_PingWheelHasSelection = false;
-		}
-		return true;
-	}
 	if(!m_ChessInviteActive || !(Event.m_Flags & IInput::FLAG_PRESS))
 		return false;
 	if(Event.m_Key == KEY_F1)
@@ -3130,16 +2640,7 @@ bool CAetherBadges::OnInput(const IInput::CEvent &Event)
 
 bool CAetherBadges::OnCursorMove(float x, float y, IInput::ECursorType CursorType)
 {
-	if(!m_PingWheelActive)
-		return false;
-	Ui()->ConvertMouseMove(&x, &y, CursorType);
-	m_PingWheelMouse += vec2(x, y);
-	const float MaxLen = 130.0f;
-	if(length(m_PingWheelMouse) > MaxLen)
-		m_PingWheelMouse = normalize(m_PingWheelMouse) * MaxLen;
-	m_PingWheelHasSelection = length(m_PingWheelMouse) > 40.0f;
-	m_PingWheelSelected = PingTypeFromWheelVector(m_PingWheelMouse);
-	return true;
+	return false;
 }
 
 void CAetherBadges::OpenChessOnlineMenu()
@@ -3293,7 +2794,8 @@ bool CAetherBadges::FormatBadgeText(int ClientId, char *pOut, int OutSize, int M
 			continue;
 		if(Count > 0)
 			str_append(pOut, " ", OutSize);
-		str_append(pOut, BadgeShortLabel(Badge.m_aKey, Badge.m_aName), OutSize);
+		const char *pLabel = BadgeShortLabel(Badge.m_aKey, Badge.m_aName);
+		str_append(pOut, pLabel && pLabel[0] ? pLabel : "?", OutSize);
 		++Count;
 		if(Count >= std::max(1, MaxBadges))
 			break;

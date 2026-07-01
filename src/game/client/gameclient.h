@@ -34,6 +34,7 @@
 #include "components/aether/block_awareness.h"
 #include "components/aether/browser_utils.h"
 #include "components/aether/chat_bubbles.h"
+#include "components/aether/command_palette.h"
 #include "components/aether/crosshair_layer.h"
 #include "components/aether/fail_sound.h"
 #include "components/aether/finish_prediction.h"
@@ -41,10 +42,12 @@
 #include "components/aether/input_visualizer.h"
 #include "components/aether/keystrokes.h"
 #include "components/aether/music_player.h"
+#include "components/aether/notifications.h"
 #include "components/aether/optimizer.h"
 #include "components/aether/psa.h"
 #include "components/aether/real_hitbox.h"
 #include "components/aether/rollback_demo.h"
+#include "components/aether/session_markers.h"
 #include "components/aether/session_stats.h"
 #include "components/aether/stability_trainer.h"
 #include "components/aether/three_d_particles.h"
@@ -206,6 +209,7 @@ public:
 	CAetherBlockAwareness m_AetherBlockAwareness;
 	CAetherBrowserUtils m_AetherBrowserUtils;
 	CAetherChatBubbles m_AetherChatBubbles;
+	CAetherCommandPalette m_AetherCommandPalette;
 	CAetherCrosshairLayer m_AetherCrosshairLayer;
 	CAetherFailSound m_AetherFailSound;
 	CAetherFinishPrediction m_AetherFinishPrediction;
@@ -213,10 +217,12 @@ public:
 	CAetherInputVisualizer m_AetherInputVisualizer;
 	CAetherKeystrokes m_AetherKeystrokes;
 	CAetherMusicPlayer m_AetherMusicPlayer;
+	CAetherNotifications m_AetherNotifications;
 	CAetherOptimizer m_AetherOptimizer;
 	CAetherPsa m_AetherPsa;
 	CAetherRealHitbox m_AetherRealHitbox;
 	CAetherRollbackDemo m_AetherRollbackDemo;
+	CAetherSessionMarkers m_AetherSessionMarkers;
 	CAetherSessionStats m_AetherSessionStats;
 	CAetherStabilityTrainer m_AetherStabilityTrainer;
 	CAetherThreeDParticles m_AetherThreeDParticles;

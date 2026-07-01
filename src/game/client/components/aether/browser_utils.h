@@ -8,11 +8,13 @@
 class CAetherBrowserUtils : public CComponent
 {
 	int64_t m_LastRefresh = 0;
+	int64_t m_SkipRefreshUntil = 0;
 
 public:
 	int Sizeof() const override { return sizeof(*this); }
 	void OnUpdate() override;
 	void OnReset() override;
+	void OnStateChange(int NewState, int OldState) override;
 };
 
 #endif
